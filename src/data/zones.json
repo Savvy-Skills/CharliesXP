@@ -1,0 +1,50 @@
+[
+  {
+    "id": "SE1",
+    "name": "SE1 — Southwark & Bankside",
+    "description": "The cultural heart of South London. Home to Borough Market, Tate Modern, Shakespeare's Globe, and the South Bank.",
+    "color": "#3b82f6"
+  },
+  {
+    "id": "EC1",
+    "name": "EC1 — Clerkenwell & Shoreditch",
+    "description": "Where historic London meets creative energy. Craft cocktail bars, design studios, and Exmouth Market.",
+    "color": "#a855f7"
+  },
+  {
+    "id": "WC2",
+    "name": "WC2 — Covent Garden & Strand",
+    "description": "Theatre district meets specialty coffee. Bustling piazzas, independent shops, and great people-watching.",
+    "color": "#f97316"
+  },
+  {
+    "id": "NW3",
+    "name": "NW3 — Hampstead",
+    "description": "Village life in the city. Rolling heathland, swimming ponds, literary pubs, and panoramic skyline views.",
+    "color": "#22c55e"
+  },
+  {
+    "id": "W1",
+    "name": "W1 — Mayfair & Soho",
+    "description": "London's playground. World-class restaurants, legendary music venues, and the best cocktail bars in the West End.",
+    "color": "#ec4899"
+  },
+  {
+    "id": "SW1",
+    "name": "SW1 — Westminster & Pimlico",
+    "description": "The seat of power. Westminster Abbey, Buckingham Palace, and hidden gems along the river.",
+    "color": "#eab308"
+  },
+  {
+    "id": "E1",
+    "name": "E1 — Whitechapel & Spitalfields",
+    "description": "East London's melting pot. Brick Lane, Spitalfields Market, street art, and the best curry in the city.",
+    "color": "#ef4444"
+  },
+  {
+    "id": "EC2",
+    "name": "EC2 — Barbican & Moorgate",
+    "description": "Brutalist architecture meets the City. The Barbican Centre, hidden gardens, and rooftop bars.",
+    "color": "#06b6d4"
+  }
+]
