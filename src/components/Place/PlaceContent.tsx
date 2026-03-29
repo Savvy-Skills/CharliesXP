@@ -16,7 +16,7 @@ export function PlaceContent({ place }: PlaceContentProps) {
   return (
     <>
       {place.images.length > 0 && (
-        <div className="w-full h-56 rounded-xl overflow-hidden mb-6 bg-[#f5f0eb]">
+        <div className="w-full h-56 rounded-xl overflow-hidden mb-6 bg-[var(--sg-offwhite)]">
           <img
             src={place.images[0]}
             alt={place.name}
@@ -33,7 +33,7 @@ export function PlaceContent({ place }: PlaceContentProps) {
           {emoji}
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="font-serif text-2xl font-bold text-[#2d1f1a] leading-tight">{place.name}</h1>
+          <h1 className="font-display text-2xl font-bold text-[var(--sg-navy)] leading-tight">{place.name}</h1>
           <div className="flex items-center gap-2 mt-1">
             <span
               className="inline-block text-xs font-medium px-2.5 py-0.5 rounded-full"
@@ -47,7 +47,7 @@ export function PlaceContent({ place }: PlaceContentProps) {
             {place.zone && (
               <Link
                 to={`/zone/${place.zone}`}
-                className="text-xs font-medium text-[#7c2d36] hover:text-[#9b4550] transition-colors"
+                className="text-xs font-medium text-[var(--sg-crimson)] hover:text-[#8a3033] transition-colors"
               >
                 {place.zone}
               </Link>
@@ -61,23 +61,23 @@ export function PlaceContent({ place }: PlaceContentProps) {
           <Star
             key={i}
             size={18}
-            className={i < place.rating ? 'text-amber-400 fill-amber-400' : 'text-[#e8dfd5]'}
+            className={i < place.rating ? 'text-amber-400 fill-amber-400' : 'text-[var(--sg-border)]'}
           />
         ))}
       </div>
 
-      <p className="text-[#5c3a2e] leading-relaxed mb-6">{place.description}</p>
+      <p className="text-[var(--sg-navy)] leading-relaxed mb-6">{place.description}</p>
 
       <div className="space-y-3 mb-6">
         {place.address && (
-          <div className="flex items-center gap-2.5 text-sm text-[#8b7355]">
-            <MapPin size={15} className="shrink-0 text-[#b8a08a]" />
+          <div className="flex items-center gap-2.5 text-sm text-[var(--sg-navy)]/60">
+            <MapPin size={15} className="shrink-0 text-[var(--sg-navy)]/40" />
             <span>{place.address}</span>
           </div>
         )}
         {place.visitDate && (
-          <div className="flex items-center gap-2.5 text-sm text-[#8b7355]">
-            <Calendar size={15} className="shrink-0 text-[#b8a08a]" />
+          <div className="flex items-center gap-2.5 text-sm text-[var(--sg-navy)]/60">
+            <Calendar size={15} className="shrink-0 text-[var(--sg-navy)]/40" />
             <span>
               Visited{' '}
               {new Date(place.visitDate).toLocaleDateString('en-US', {
@@ -95,7 +95,7 @@ export function PlaceContent({ place }: PlaceContentProps) {
           {place.tags.map((tag) => (
             <span
               key={tag}
-              className="px-2.5 py-1 text-xs bg-[#f5f0eb] text-[#8b7355] rounded-full"
+              className="px-2.5 py-1 text-xs bg-[var(--sg-offwhite)] text-[var(--sg-navy)]/60 rounded-full"
             >
               #{tag}
             </span>
@@ -108,7 +108,7 @@ export function PlaceContent({ place }: PlaceContentProps) {
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center justify-center gap-2 w-full py-3 rounded-xl
-          bg-[#7c2d36] hover:bg-[#9b4550] text-white text-sm font-medium transition-colors"
+          bg-[var(--sg-crimson)] hover:bg-[#8a3033] text-white text-sm font-semibold transition-all"
       >
         <ExternalLink size={15} />
         Open in Google Maps

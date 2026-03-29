@@ -8,7 +8,7 @@ interface PageShellProps {
 
 export function PageShell({ children }: PageShellProps) {
   return (
-    <div className="min-h-screen flex flex-col bg-[#faf8f5]">
+    <div className="min-h-screen flex flex-col bg-[var(--sg-offwhite)]">
       <Header />
       <main className="flex-1">{children}</main>
       <Footer />

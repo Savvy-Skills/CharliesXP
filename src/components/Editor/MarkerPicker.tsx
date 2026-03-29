@@ -16,7 +16,7 @@ export function MarkerPicker({ value, onChange }: MarkerPickerProps) {
           onClick={() => onChange(cat.value)}
           className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all cursor-pointer
             ${value === cat.value
-              ? 'bg-white/15 ring-2 ring-indigo-400'
+              ? 'bg-white/15 ring-2 ring-[var(--sg-crimson)]'
               : 'bg-white/5 hover:bg-white/10'
             }`}
         >

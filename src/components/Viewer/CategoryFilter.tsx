@@ -19,8 +19,8 @@ export function CategoryFilter({ activeCategories, onToggle }: CategoryFilterPro
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
               transition-all duration-200 backdrop-blur-sm shadow-sm cursor-pointer
               ${isActive
-                ? 'bg-white/90 text-[#2d1f1a] border border-[#e8dfd5]'
-                : 'bg-white/50 text-[#8b7355] border border-transparent hover:bg-white/70'
+                ? 'bg-white/90 text-[var(--sg-navy)] border border-[var(--sg-border)]'
+                : 'bg-white/50 text-[var(--sg-navy)]/50 border border-transparent hover:bg-white/70'
               }`}
           >
             <span>{CATEGORY_EMOJI[cat.value]}</span>

@@ -18,10 +18,10 @@ export function CategoryBrowse({ places }: CategoryBrowseProps) {
     <section className="max-w-6xl mx-auto px-5 md:px-8 py-20">
       {/* Section header */}
       <div className="text-center mb-14">
-        <h2 className="font-display text-3xl md:text-4xl font-bold text-[#2d1f1a] mb-3">
+        <h2 className="font-display text-3xl md:text-4xl font-bold text-[var(--sg-crimson)] mb-3">
           Browse by Category
         </h2>
-        <p className="text-[#8b7355] text-lg">Find your next favourite spot</p>
+        <p className="text-[var(--sg-navy)]/60 text-lg">Find your next favourite spot</p>
         <div className="section-divider mt-6">
           <div className="dot" />
         </div>
@@ -50,8 +50,8 @@ export function CategoryBrowse({ places }: CategoryBrowseProps) {
                 {CATEGORY_EMOJI[cat.value]}
               </div>
               <div className="text-center">
-                <span className="block text-sm font-bold text-[#2d1f1a]">{cat.label}</span>
-                <span className="block text-xs text-[#b8a08a] mt-0.5">
+                <span className="block text-sm font-bold text-[var(--sg-navy)]">{cat.label}</span>
+                <span className="block text-xs text-[var(--sg-navy)]/40 mt-0.5">
                   {cat.count} place{cat.count !== 1 ? 's' : ''}
                 </span>
               </div>

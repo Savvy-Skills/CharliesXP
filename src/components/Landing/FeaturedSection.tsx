@@ -17,10 +17,10 @@ export function FeaturedSection({ places }: FeaturedSectionProps) {
     <section className="max-w-6xl mx-auto px-5 md:px-8 py-20">
       {/* Section header */}
       <div className="text-center mb-14">
-        <h2 className="font-display text-3xl md:text-4xl font-bold text-[#2d1f1a] mb-3">
+        <h2 className="font-display text-3xl md:text-4xl font-bold text-[var(--sg-crimson)] mb-3">
           Featured Places
         </h2>
-        <p className="text-[#8b7355] text-lg">Our top picks across London</p>
+        <p className="text-[var(--sg-navy)]/60 text-lg">Our top picks across London</p>
         <div className="section-divider mt-6">
           <div className="dot" />
         </div>
@@ -48,7 +48,7 @@ export function FeaturedSection({ places }: FeaturedSectionProps) {
                     {CATEGORY_EMOJI[place.category]}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-bold text-[#2d1f1a] group-hover:text-[#7c2d36]
+                    <h3 className="text-lg font-bold text-[var(--sg-navy)] group-hover:text-[var(--sg-crimson)]
                       transition-colors leading-snug">
                       {place.name}
                     </h3>
@@ -59,27 +59,27 @@ export function FeaturedSection({ places }: FeaturedSectionProps) {
                       {cat?.label}
                     </span>
                   </div>
-                  <ArrowUpRight size={18} className="text-[#e8dfd5] group-hover:text-[#c9a96e]
+                  <ArrowUpRight size={18} className="text-[var(--sg-border)] group-hover:text-[var(--sg-thames)]
                     transition-colors shrink-0 mt-1" />
                 </div>
 
                 {/* Description */}
-                <p className="text-sm text-[#8b7355] line-clamp-3 leading-relaxed mb-5">
+                <p className="text-sm text-[var(--sg-navy)]/60 line-clamp-3 leading-relaxed mb-5">
                   {place.description}
                 </p>
 
                 {/* Rating */}
-                <div className="flex items-center gap-1 pt-4 border-t border-[#f0ebe4]">
+                <div className="flex items-center gap-1 pt-4 border-t border-[var(--sg-border)]">
                   {Array.from({ length: 5 }).map((_, j) => (
                     <Star
                       key={j}
                       size={14}
                       className={j < place.rating
-                        ? 'text-[#c9a96e] fill-[#c9a96e]'
-                        : 'text-[#e8dfd5]'}
+                        ? 'text-amber-400 fill-amber-400'
+                        : 'text-[var(--sg-border)]'}
                     />
                   ))}
-                  <span className="text-xs text-[#b8a08a] ml-2">
+                  <span className="text-xs text-[var(--sg-navy)]/40 ml-2">
                     {place.rating}.0
                   </span>
                 </div>

@@ -107,7 +107,7 @@ export function HeroMapSection({
   // ── Fullscreen mode ──
   if (isFullscreen) {
     return (
-      <div className="fixed inset-0 z-[100] bg-[#faf8f5] flex flex-col">
+      <div className="fixed inset-0 z-[100] bg-[var(--sg-offwhite)] flex flex-col">
         {/* Top bar: tabs (only in zoneDetail) or close button (in expanded) */}
         {mapState === 'zoneDetail' && activeZone ? (
           <ZoneFilterTabs
@@ -118,14 +118,14 @@ export function HeroMapSection({
             onBack={handleBack}
           />
         ) : (
-          <div className="bg-white border-b border-[#e8dfd5] px-4 py-2.5 flex items-center justify-between">
-            <span className="text-sm font-semibold text-[#2d1f1a]">
+          <div className="bg-white border-b border-[var(--sg-border)] px-4 py-2.5 flex items-center justify-between">
+            <span className="text-sm font-semibold text-[var(--sg-navy)]">
               Explore London
             </span>
             <button
               onClick={onCollapse}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg
-                text-[#5c3a2e] hover:bg-[#f5f0eb] transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl
+                text-[var(--sg-navy)] hover:bg-[var(--sg-offwhite)] transition-colors cursor-pointer"
             >
               <X size={15} />
               <span className="text-xs font-semibold">Close</span>
@@ -201,10 +201,10 @@ export function HeroMapSection({
 
             {/* Bottom bar */}
             <div className="absolute bottom-0 left-0 right-0 z-30">
-              <div className="bg-gradient-to-t from-[#2d1f1a]/80 to-transparent
+              <div className="bg-gradient-to-t from-[var(--sg-navy)]/80 to-transparent
                 px-6 py-3 flex items-center justify-center">
-                <span className="text-xs text-[#f5f0eb]/80">
-                  <span className="text-[#c9a96e] font-semibold">{unlockedZones.length}</span> zone{unlockedZones.length !== 1 ? 's' : ''} unlocked
+                <span className="text-xs text-[var(--sg-offwhite)]/80">
+                  <span className="text-[var(--sg-thames)] font-semibold">{unlockedZones.length}</span> zone{unlockedZones.length !== 1 ? 's' : ''} unlocked
                   {mapState === 'expanded' && ' — tap a zone to explore'}
                 </span>
               </div>
@@ -241,10 +241,10 @@ export function HeroMapSection({
         />
 
         <div className="absolute bottom-0 left-0 right-0 z-30">
-          <div className="bg-gradient-to-t from-[#2d1f1a]/90 to-[#2d1f1a]/60 backdrop-blur-sm
+          <div className="bg-gradient-to-t from-[var(--sg-navy)]/90 to-[var(--sg-navy)]/60 backdrop-blur-sm
             px-6 py-3.5 flex items-center justify-center gap-3">
-            <Sparkles size={14} className="text-[#c9a96e]" />
-            <span className="text-sm font-medium text-[#f5f0eb]">
+            <Sparkles size={14} className="text-[var(--sg-thames)]" />
+            <span className="text-sm font-medium text-[var(--sg-offwhite)]">
               Tap a zone to unlock curated local guides
             </span>
           </div>

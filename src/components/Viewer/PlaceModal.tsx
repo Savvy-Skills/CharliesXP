@@ -15,7 +15,7 @@ export function PlaceModalContent({ place }: PlaceModalContentProps) {
   return (
     <div className="p-5">
       {place.images.length > 0 && (
-        <div className="w-full h-48 rounded-xl overflow-hidden mb-4 bg-white/5">
+        <div className="w-full h-48 rounded-xl overflow-hidden mb-4 bg-[var(--sg-offwhite)]">
           <img
             src={place.images[0]}
             alt={place.name}
@@ -32,11 +32,11 @@ export function PlaceModalContent({ place }: PlaceModalContentProps) {
           {emoji}
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="text-xl font-bold text-white leading-tight">{place.name}</h2>
+          <h2 className="text-xl font-bold text-[var(--sg-navy)] leading-tight">{place.name}</h2>
           <span
             className="inline-block text-xs font-medium px-2 py-0.5 rounded-full mt-1"
             style={{
-              backgroundColor: `${category?.color}30`,
+              backgroundColor: `${category?.color}20`,
               color: category?.color,
             }}
           >
@@ -50,24 +50,24 @@ export function PlaceModalContent({ place }: PlaceModalContentProps) {
           <Star
             key={i}
             size={16}
-            className={i < place.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-600'}
+            className={i < place.rating ? 'text-amber-400 fill-amber-400' : 'text-[var(--sg-border)]'}
           />
         ))}
       </div>
 
-      <p className="text-slate-300 text-sm leading-relaxed mb-4">
+      <p className="text-[var(--sg-navy)]/70 text-sm leading-relaxed mb-4">
         {place.description}
       </p>
 
       <div className="space-y-2 mb-4">
         {place.address && (
-          <div className="flex items-center gap-2 text-sm text-slate-400">
+          <div className="flex items-center gap-2 text-sm text-[var(--sg-navy)]/50">
             <MapPin size={14} className="shrink-0" />
             <span>{place.address}</span>
           </div>
         )}
         {place.visitDate && (
-          <div className="flex items-center gap-2 text-sm text-slate-400">
+          <div className="flex items-center gap-2 text-sm text-[var(--sg-navy)]/50">
             <Calendar size={14} className="shrink-0" />
             <span>Visited {new Date(place.visitDate).toLocaleDateString('en-US', {
               year: 'numeric', month: 'long', day: 'numeric',
@@ -81,7 +81,7 @@ export function PlaceModalContent({ place }: PlaceModalContentProps) {
           {place.tags.map((tag) => (
             <span
               key={tag}
-              className="px-2 py-0.5 text-xs bg-white/10 text-slate-300 rounded-full"
+              className="px-2 py-0.5 text-xs bg-[var(--sg-offwhite)] text-[var(--sg-navy)]/60 rounded-full"
             >
               #{tag}
             </span>
@@ -93,8 +93,8 @@ export function PlaceModalContent({ place }: PlaceModalContentProps) {
         href={googleMapsUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg
-          bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 transition-colors text-sm font-medium"
+        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl
+          bg-[var(--sg-crimson)] hover:bg-[#8a3033] text-white transition-all text-sm font-semibold"
       >
         <ExternalLink size={14} />
         Open in Google Maps
