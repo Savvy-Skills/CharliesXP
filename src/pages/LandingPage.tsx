@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { getZoneForPostcode } from '../utils/zoneMapping';
 import { motion } from 'framer-motion';
 import { PageShell } from '../components/Layout/PageShell';
 import { HeroMapSection } from '../components/Landing/HeroMapSection';
@@ -35,7 +36,8 @@ export function LandingPage() {
       const point = map.project([e.lngLat.lng, e.lngLat.lat]);
       const features = map.queryRenderedFeatures(point, { layers: ['postcodes-fill'] });
       if (features.length > 0) {
-        const zoneName = features[0].properties?.Name as string;
+        const postcodeName = features[0].properties?.Name as string;
+        const zoneName = getZoneForPostcode(postcodeName);
         if (!zoneName) return;
         if (isZoneUnlocked(zoneName)) {
           if (mapState === 'overview') {

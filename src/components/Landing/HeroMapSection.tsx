@@ -8,17 +8,7 @@ import { ZoneFilterTabs } from '../Map/ZoneFilterTabs';
 import { ZoneSidePanel } from '../Map/ZoneSidePanel';
 import { ZoneLockIcon } from '../Map/ZoneLockIcon';
 import type { Place, PlaceCategory, MapZoomState } from '../../types';
-
-const ZONE_CENTROIDS: Record<string, { lng: number; lat: number }> = {
-  SE1: { lng: -0.0934, lat: 51.5020 },
-  EC1: { lng: -0.1050, lat: 51.5235 },
-  WC2: { lng: -0.1220, lat: 51.5115 },
-  NW3: { lng: -0.1700, lat: 51.5560 },
-  W1: { lng: -0.1440, lat: 51.5140 },
-  SW1: { lng: -0.1340, lat: 51.4990 },
-  E1: { lng: -0.0600, lat: 51.5170 },
-  EC2: { lng: -0.0850, lat: 51.5190 },
-};
+import { ZONE_CENTROIDS } from '../../utils/zoneMapping';
 
 interface HeroMapSectionProps {
   places: Place[];

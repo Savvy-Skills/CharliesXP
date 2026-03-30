@@ -2,17 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import type { MapRef } from 'react-map-gl/mapbox';
 import type { MapZoomState, ViewState } from '../types';
 import { DEFAULT_VIEW_STATE } from '../utils/mapStyles';
-
-const ZONE_CENTROIDS: Record<string, { lng: number; lat: number }> = {
-  SE1: { lng: -0.0934, lat: 51.5020 },
-  EC1: { lng: -0.1050, lat: 51.5235 },
-  WC2: { lng: -0.1220, lat: 51.5115 },
-  NW3: { lng: -0.1700, lat: 51.5560 },
-  W1: { lng: -0.1440, lat: 51.5140 },
-  SW1: { lng: -0.1340, lat: 51.4990 },
-  E1: { lng: -0.0600, lat: 51.5170 },
-  EC2: { lng: -0.0850, lat: 51.5190 },
-};
+import { getZoneForPostcode, ZONE_CENTROIDS } from '../utils/zoneMapping';
 
 export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
   const [mapState, setMapState] = useState<MapZoomState>('overview');
@@ -48,7 +38,8 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
         const point = map.project([center.lng, center.lat]);
         const features = map.queryRenderedFeatures(point, { layers: ['postcodes-fill'] });
         if (features.length > 0) {
-          const zoneName = features[0].properties?.Name as string;
+          const postcodeName = features[0].properties?.Name as string;
+          const zoneName = getZoneForPostcode(postcodeName);
           if (zoneName) {
             setMapState('zoneDetail');
             setActiveZone(zoneName);
