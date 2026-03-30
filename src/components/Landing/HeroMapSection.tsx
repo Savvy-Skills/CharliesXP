@@ -3,6 +3,7 @@ import type { MapRef } from 'react-map-gl/mapbox';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Sparkles, X } from 'lucide-react';
 import { InteractiveMap } from '../Map/InteractiveMap';
+import ZoneTeaser from '../Map/ZoneTeaser';
 import { PlacePreviewCard } from '../Map/PlacePreviewCard';
 import { ZoneFilterTabs } from '../Map/ZoneFilterTabs';
 import { ZoneSidePanel } from '../Map/ZoneSidePanel';
@@ -26,6 +27,8 @@ interface HeroMapSectionProps {
   onMapClick?: (e: { lngLat: { lng: number; lat: number } }) => void;
   onZoomChange?: (zoom: number) => void;
   onMoveEnd?: () => void;
+  allUnlockedPlaces?: Place[];
+  activeCategory?: PlaceCategory | null;
 }
 
 export function HeroMapSection({
@@ -44,6 +47,8 @@ export function HeroMapSection({
   onMapClick,
   onZoomChange,
   onMoveEnd,
+  allUnlockedPlaces,
+  activeCategory: activeCategoryProp,
 }: HeroMapSectionProps) {
   const [previewPlace, setPreviewPlace] = useState<Place | null>(null);
   const [activeCategory, setActiveCategory] = useState<PlaceCategory | null>(null);
@@ -190,6 +195,14 @@ export function HeroMapSection({
             {/* Place preview card (for map marker clicks) */}
             {mapState === 'zoneDetail' && (
               <PlacePreviewCard place={previewPlace} onClose={handleClosePreview} />
+            )}
+
+            {/* Zone teaser summary panel */}
+            {(mapState === 'expanded' || mapState === 'zoneDetail') && allUnlockedPlaces && (
+              <ZoneTeaser
+                places={allUnlockedPlaces}
+                activeCategory={activeCategoryProp ?? null}
+              />
             )}
 
             {/* Bottom bar */}

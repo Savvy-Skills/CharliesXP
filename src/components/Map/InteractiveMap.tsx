@@ -341,7 +341,7 @@ export function InteractiveMap({
       </MapGL>
 
       {/* Debug overlay */}
-      <div className="absolute bottom-12 right-3 z-50 bg-black/70 text-white text-[10px]
+      <div className="absolute top-4 right-3 z-50 bg-black/70 text-white text-[10px]
         font-mono px-3 py-2 rounded-lg pointer-events-none space-y-0.5">
         <div>zoom: <span className="text-green-400">{viewState.zoom.toFixed(2)}</span></div>
         <div>pitch: <span className="text-yellow-400">{viewState.pitch.toFixed(1)}</span></div>

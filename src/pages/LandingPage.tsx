@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { getZoneForPostcode } from '../utils/zoneMapping';
 import { motion } from 'framer-motion';
 import { PageShell } from '../components/Layout/PageShell';
@@ -14,13 +14,19 @@ import { useUser } from '../hooks/useUser';
 import type { Place } from '../types';
 
 export function LandingPage() {
-  const { places, zones, getPlacesByZone } = usePlaces();
+  const { places, zones, getPlacesByZone, activeCategories } = usePlaces();
   const { mapRef, flyToPlace, flyToDefault } = useMapFlyTo();
   const { mapState, activeZone, expandMap, zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, handleZoomChange, handleMoveEnd } = useMapZoom(mapRef);
   const { unlockedZones, isZoneUnlocked, unlockZone } = useUser();
   const [paywallZone, setPaywallZone] = useState<string | null>(null);
 
   const zonePlaces = activeZone ? getPlacesByZone(activeZone) : [];
+
+  const allUnlockedPlaces = useMemo(() => {
+    return places.filter(p => p.zone && isZoneUnlocked(p.zone));
+  }, [places, isZoneUnlocked]);
+
+  const activeCategory = activeCategories.length === 1 ? activeCategories[0] : null;
 
   const handlePlaceClick = useCallback(
     (place: Place) => { flyToPlace(place); },
@@ -97,6 +103,8 @@ export function LandingPage() {
         onMapClick={handleMapClick}
         onZoomChange={handleZoomChange}
         onMoveEnd={handleMoveEnd}
+        allUnlockedPlaces={allUnlockedPlaces}
+        activeCategory={activeCategory}
       />
 
       <div className="bg-[var(--sg-offwhite)]">
