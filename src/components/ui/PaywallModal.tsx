@@ -46,7 +46,7 @@ export function PaywallModal({ isOpen, onClose, zoneName, onUnlock }: PaywallMod
 
         <button
           onClick={onUnlock}
-          className="w-full py-3 rounded-xl bg-[var(--sg-crimson)] hover:bg-[#8a3033] text-white
+          className="w-full py-3 rounded-xl bg-[var(--sg-crimson)] hover:bg-[var(--sg-crimson-hover)] text-white
             font-semibold transition-all cursor-pointer text-sm shadow-md"
         >
           Unlock {zoneName} — £3.99

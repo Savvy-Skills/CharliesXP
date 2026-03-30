@@ -1,6 +1,7 @@
 import { useParams, Link } from 'react-router';
 import { ArrowLeft, MapIcon } from 'lucide-react';
 import { PageShell } from '../components/Layout/PageShell';
+import { SEOHead } from '../components/SEOHead';
 import { PlaceContent } from '../components/Place/PlaceContent';
 import { usePlaces } from '../hooks/usePlaces';
 import { CATEGORY_EMOJI } from '../utils/mapStyles';
@@ -15,8 +16,8 @@ export function PlaceDetailPage() {
       <PageShell>
         <div className="max-w-2xl mx-auto px-4 py-20 text-center">
           <p className="text-[var(--sg-navy)]/60 text-lg mb-4">Place not found</p>
-          <Link to="/map" className="text-[var(--sg-crimson)] hover:text-[#8a3033] font-medium">
-            Back to map
+          <Link to="/" className="text-[var(--sg-crimson)] hover:text-[var(--sg-crimson-hover)] font-medium">
+            Back to home
           </Link>
         </div>
       </PageShell>
@@ -29,6 +30,12 @@ export function PlaceDetailPage() {
 
   return (
     <PageShell>
+      <SEOHead
+        title={place.name}
+        description={`${place.name} — ${place.category} in ${place.zone ?? 'London'}. ${place.description.slice(0, 120)}…`}
+        path={`/place/${place.id}`}
+        type="article"
+      />
       <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="flex items-center gap-3 mb-6">
           <Link

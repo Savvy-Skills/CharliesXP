@@ -69,7 +69,7 @@ export function PlaceList({ places, onPlaceClick }: PlaceListProps) {
                               <Star
                                 key={i}
                                 size={10}
-                                className="text-amber-400 fill-amber-400"
+                                className="text-[var(--sg-thames)] fill-[var(--sg-thames)]"
                               />
                             ))}
                           </div>
