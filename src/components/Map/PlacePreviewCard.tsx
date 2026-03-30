@@ -59,7 +59,7 @@ export function PlacePreviewCard({ place, onClose }: PlacePreviewCardProps) {
                   </span>
                   <div className="flex items-center gap-0.5">
                     {Array.from({ length: place.rating }).map((_, i) => (
-                      <Star key={i} size={10} className="text-amber-400 fill-amber-400" />
+                      <Star key={i} size={10} className="text-[var(--sg-thames)] fill-[var(--sg-thames)]" />
                     ))}
                   </div>
                 </div>
@@ -71,7 +71,7 @@ export function PlacePreviewCard({ place, onClose }: PlacePreviewCardProps) {
             <button
               onClick={() => navigate(`/place/${place.id}`)}
               className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl
-                bg-[var(--sg-crimson)] hover:bg-[#8a3033] text-white text-sm font-semibold
+                bg-[var(--sg-crimson)] hover:bg-[var(--sg-crimson-hover)] text-white text-sm font-semibold
                 transition-all cursor-pointer"
             >
               View Details

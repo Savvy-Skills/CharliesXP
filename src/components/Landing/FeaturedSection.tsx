@@ -75,7 +75,7 @@ export function FeaturedSection({ places }: FeaturedSectionProps) {
                       key={j}
                       size={14}
                       className={j < place.rating
-                        ? 'text-amber-400 fill-amber-400'
+                        ? 'text-[var(--sg-thames)] fill-[var(--sg-thames)]'
                         : 'text-[var(--sg-border)]'}
                     />
                   ))}

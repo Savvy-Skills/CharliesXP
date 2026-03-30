@@ -47,7 +47,7 @@ export function PlaceContent({ place }: PlaceContentProps) {
             {place.zone && (
               <Link
                 to={`/zone/${place.zone}`}
-                className="text-xs font-medium text-[var(--sg-crimson)] hover:text-[#8a3033] transition-colors"
+                className="text-xs font-medium text-[var(--sg-crimson)] hover:text-[var(--sg-crimson-hover)] transition-colors"
               >
                 {place.zone}
               </Link>
@@ -61,7 +61,7 @@ export function PlaceContent({ place }: PlaceContentProps) {
           <Star
             key={i}
             size={18}
-            className={i < place.rating ? 'text-amber-400 fill-amber-400' : 'text-[var(--sg-border)]'}
+            className={i < place.rating ? 'text-[var(--sg-thames)] fill-[var(--sg-thames)]' : 'text-[var(--sg-border)]'}
           />
         ))}
       </div>
@@ -108,7 +108,7 @@ export function PlaceContent({ place }: PlaceContentProps) {
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center justify-center gap-2 w-full py-3 rounded-xl
-          bg-[var(--sg-crimson)] hover:bg-[#8a3033] text-white text-sm font-semibold transition-all"
+          bg-[var(--sg-crimson)] hover:bg-[var(--sg-crimson-hover)] text-white text-sm font-semibold transition-all"
       >
         <ExternalLink size={15} />
         Open in Google Maps

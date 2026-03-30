@@ -22,12 +22,12 @@ export function ZoneLockIcon({ longitude, latitude, zoneId, unlocked = false, on
         <div className={`w-11 h-11 rounded-full shadow-md flex items-center justify-center
           border-2 transition-all duration-200
           ${unlocked
-            ? 'bg-white/95 border-[var(--sg-thames)] group-hover:border-[#5565a0] group-hover:shadow-lg'
+            ? 'bg-white/95 border-[var(--sg-thames)] group-hover:border-[var(--sg-thames-hover)] group-hover:shadow-lg'
             : 'bg-white/90 border-[var(--sg-border)] group-hover:border-[var(--sg-thames)] group-hover:shadow-lg'
           }`}
         >
           {unlocked ? (
-            <MapPin size={16} className="text-[var(--sg-thames)] group-hover:text-[#5565a0] transition-colors" />
+            <MapPin size={16} className="text-[var(--sg-thames)] group-hover:text-[var(--sg-thames-hover)] transition-colors" />
           ) : (
             <Lock size={16} className="text-[var(--sg-navy)]/60 group-hover:text-[var(--sg-thames)] transition-colors" />
           )}
