@@ -5,7 +5,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { PlaceMarker } from './PlaceMarker';
 import { MapControls } from './MapControls';
 import { MAP_STYLES, DEFAULT_VIEW_STATE, LONDON_BOUNDS, ALLOWED_LABEL_LAYERS, type MapStyleKey } from '../../utils/mapStyles';
-import { ALL_ZONE_POSTCODES, getZoneExcludeFilter } from '../../utils/zoneMapping';
+import { ALL_ZONE_POSTCODES, getZoneExcludeFilter, getZoneForPostcode, ZONE_POSTCODES, ZONE_ENTER_THRESHOLD } from '../../utils/zoneMapping';
 import { createModelLayer } from './ModelLayer';
 import type { Place, ViewState } from '../../types';
 
@@ -123,6 +123,31 @@ export function InteractiveMap({
       },
     });
 
+    // Hover highlight fill — only visible when a zone is hovered
+    map.addLayer({
+      id: 'postcodes-hover-fill',
+      type: 'fill',
+      source: 'postcodes',
+      filter: ['==', ['get', 'Name'], ''],
+      paint: {
+        'fill-color': '#7c2d36',
+        'fill-opacity': 0.15,
+      },
+    });
+
+    // Hover highlight border — brighter border on hovered zone
+    map.addLayer({
+      id: 'postcodes-hover-border',
+      type: 'line',
+      source: 'postcodes',
+      filter: ['==', ['get', 'Name'], ''],
+      paint: {
+        'line-color': '#7c2d36',
+        'line-width': 3.5,
+        'line-opacity': 0.8,
+      },
+    });
+
     // Dim overlay — covers everything outside the active zone (hidden by default)
     map.addLayer({
       id: 'postcodes-dim',
@@ -183,6 +208,62 @@ export function InteractiveMap({
       map.setLayoutProperty('postcodes-dim', 'visibility', 'none');
     }
   }, [activeZone, mapRef]);
+
+  // Zone hover effect — only at city level
+  useEffect(() => {
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    let hoveredZone: string | null = null;
+
+    const clearHover = () => {
+      if (hoveredZone) {
+        map.setFilter('postcodes-hover-fill', ['==', ['get', 'Name'], '']);
+        map.setFilter('postcodes-hover-border', ['==', ['get', 'Name'], '']);
+        hoveredZone = null;
+        map.getCanvas().style.cursor = '';
+      }
+    };
+
+    const onMouseMove = (e: mapboxgl.MapMouseEvent) => {
+      // Only check if hover layers exist
+      if (!map.getLayer('postcodes-hover-fill')) return;
+
+      const zoom = map.getZoom();
+      if (zoom >= ZONE_ENTER_THRESHOLD) {
+        clearHover();
+        return;
+      }
+
+      const features = map.queryRenderedFeatures(e.point, { layers: ['postcodes-fill'] });
+      if (features.length > 0) {
+        const postcode = features[0].properties?.Name as string;
+        const zone = getZoneForPostcode(postcode);
+        if (zone && zone !== hoveredZone) {
+          hoveredZone = zone;
+          const postcodes = ZONE_POSTCODES[zone] ?? [];
+          const filter: mapboxgl.FilterSpecification = ['in', ['get', 'Name'], ['literal', postcodes]];
+          map.setFilter('postcodes-hover-fill', filter);
+          map.setFilter('postcodes-hover-border', filter);
+          map.getCanvas().style.cursor = 'pointer';
+        }
+      } else {
+        clearHover();
+      }
+    };
+
+    const onMouseLeave = () => {
+      clearHover();
+    };
+
+    map.on('mousemove', onMouseMove);
+    map.on('mouseleave', 'postcodes-fill', onMouseLeave);
+
+    return () => {
+      map.off('mousemove', onMouseMove);
+      map.off('mouseleave', 'postcodes-fill', onMouseLeave);
+    };
+  }, [mapRef]);
 
   const handleToggleTerrain = useCallback(() => {
     setTerrainEnabled((prev) => {
