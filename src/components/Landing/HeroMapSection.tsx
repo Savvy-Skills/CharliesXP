@@ -32,7 +32,7 @@ interface HeroMapSectionProps {
 }
 
 export function HeroMapSection({
-  places,
+  places: _places,
   mapRef,
   mapState,
   activeZone,

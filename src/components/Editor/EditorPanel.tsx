@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Download, Trash2, Edit3, X, ChevronLeft } from 'lucide-react';
+import { Download, Trash2, Edit3, X, ChevronLeft } from 'lucide-react';
 import type { Place, Coordinates } from '../../types';
 import { CATEGORIES } from '../../types';
 import { CATEGORY_EMOJI } from '../../utils/mapStyles';

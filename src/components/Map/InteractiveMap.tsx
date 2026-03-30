@@ -1,9 +1,8 @@
-import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
-import type mapboxgl from 'mapbox-gl';
+import { useState, useCallback, useEffect, type ReactNode } from 'react';
+import type { Map as MapboxMap, FilterSpecification, MapMouseEvent } from 'mapbox-gl';
 import MapGL, { type MapRef, type ViewStateChangeEvent } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { PlaceMarker } from './PlaceMarker';
-import { MapControls } from './MapControls';
 import { MAP_STYLES, DEFAULT_VIEW_STATE, LONDON_BOUNDS, ALLOWED_LABEL_LAYERS, type MapStyleKey } from '../../utils/mapStyles';
 import { ALL_ZONE_POSTCODES, getZoneExcludeFilter, getZoneForPostcode, ZONE_POSTCODES, ZONE_ENTER_THRESHOLD } from '../../utils/zoneMapping';
 import { createModelLayer } from './ModelLayer';
@@ -41,7 +40,7 @@ export function InteractiveMap({
   mapRef,
   onPlaceClick,
   onMapClick,
-  onResetView,
+  onResetView: _onResetView,
   mode = 'full',
   interactive = true,
   mapChildren,
@@ -54,8 +53,7 @@ export function InteractiveMap({
   const isContained = mode === 'contained';
   const canInteract = !isContained && interactive;
   const [viewState, setViewState] = useState<ViewState>(DEFAULT_VIEW_STATE);
-  const [mapStyle, setMapStyle] = useState<MapStyleKey>('streets');
-  const [terrainEnabled, setTerrainEnabled] = useState(false);
+  const [mapStyle] = useState<MapStyleKey>('streets');
 
   const handleMove = useCallback((evt: ViewStateChangeEvent) => {
     const vs = evt.viewState as ViewState;
@@ -63,11 +61,7 @@ export function InteractiveMap({
     onZoomChange?.(vs.zoom);
   }, [onZoomChange]);
 
-  const handleStyleChange = useCallback((style: MapStyleKey) => {
-    setMapStyle(style);
-  }, []);
-
-  const hideClutterLabels = useCallback((map: mapboxgl.Map) => {
+  const hideClutterLabels = useCallback((map: MapboxMap) => {
     for (const layer of map.getStyle().layers ?? []) {
       const isTextLayer =
         layer.type === 'symbol' &&
@@ -79,9 +73,9 @@ export function InteractiveMap({
   }, []);
 
   // Only show these managed zones on the map
-  const zoneFilter: mapboxgl.FilterSpecification = ['in', ['get', 'Name'], ['literal', ALL_ZONE_POSTCODES]];
+  const zoneFilter: FilterSpecification = ['in', ['get', 'Name'], ['literal', ALL_ZONE_POSTCODES]];
 
-  const addPostcodeLayers = useCallback((map: mapboxgl.Map) => {
+  const addPostcodeLayers = useCallback((map: MapboxMap) => {
     if (map.getSource('postcodes')) return;
 
     map.addSource('postcodes', {
@@ -164,7 +158,7 @@ export function InteractiveMap({
     });
   }, []);
 
-  const add3DModels = useCallback((map: mapboxgl.Map, modelPlaces: Place[]) => {
+  const add3DModels = useCallback((map: MapboxMap, modelPlaces: Place[]) => {
     for (const place of modelPlaces) {
       if (!place.model) continue;
       const layerId = `3d-model-${place.id}`;
@@ -228,7 +222,7 @@ export function InteractiveMap({
       }
     };
 
-    const onMouseMove = (e: mapboxgl.MapMouseEvent) => {
+    const onMouseMove = (e: MapMouseEvent) => {
       // Only check if hover layers exist
       if (!map.getLayer('postcodes-hover-fill')) return;
 
@@ -245,7 +239,7 @@ export function InteractiveMap({
         if (zone && zone !== hoveredZone) {
           hoveredZone = zone;
           const postcodes = ZONE_POSTCODES[zone] ?? [];
-          const filter: mapboxgl.FilterSpecification = ['in', ['get', 'Name'], ['literal', postcodes]];
+          const filter: FilterSpecification = ['in', ['get', 'Name'], ['literal', postcodes]];
           map.setFilter('postcodes-hover-fill', filter);
           map.setFilter('postcodes-hover-border', filter);
           map.getCanvas().style.cursor = 'pointer';
@@ -266,28 +260,6 @@ export function InteractiveMap({
       map.off('mousemove', onMouseMove);
       map.off('mouseleave', 'postcodes-fill', onMouseLeave);
     };
-  }, [mapRef]);
-
-  const handleToggleTerrain = useCallback(() => {
-    setTerrainEnabled((prev) => {
-      const map = mapRef.current?.getMap();
-      if (map) {
-        if (!prev) {
-          if (!map.getSource('mapbox-dem')) {
-            map.addSource('mapbox-dem', {
-              type: 'raster-dem',
-              url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
-              tileSize: 512,
-              maxzoom: 14,
-            });
-          }
-          map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.5 });
-        } else {
-          map.setTerrain(null);
-        }
-      }
-      return !prev;
-    });
   }, [mapRef]);
 
   if (!MAPBOX_TOKEN) {

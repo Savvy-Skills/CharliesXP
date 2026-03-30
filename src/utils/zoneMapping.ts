@@ -1,4 +1,4 @@
-import type mapboxgl from 'mapbox-gl';
+import type { FilterSpecification } from 'mapbox-gl';
 
 /**
  * Maps each managed zone to its constituent GeoJSON postcode entries.
@@ -36,18 +36,18 @@ export function getZoneForPostcode(postcode: string): string | null {
 }
 
 /** Returns the Mapbox filter expression matching all postcodes for a given zone */
-export function getZoneFilter(zoneId: string): mapboxgl.FilterSpecification {
+export function getZoneFilter(zoneId: string): FilterSpecification {
   const postcodes = ZONE_POSTCODES[zoneId];
   if (!postcodes) return ['==', ['get', 'Name'], ''];
   return ['in', ['get', 'Name'], ['literal', postcodes]];
 }
 
 /** Returns a Mapbox filter matching all postcodes EXCEPT those in the given zone */
-export function getZoneExcludeFilter(zoneId: string): mapboxgl.FilterSpecification {
+export function getZoneExcludeFilter(zoneId: string): FilterSpecification {
   const postcodes = ZONE_POSTCODES[zoneId] ?? [];
   return ['all',
     ['in', ['get', 'Name'], ['literal', ALL_ZONE_POSTCODES]],
-    ...postcodes.map(pc => ['!=', ['get', 'Name'], pc] as mapboxgl.FilterSpecification)
+    ...postcodes.map(pc => ['!=', ['get', 'Name'], pc] as FilterSpecification)
   ];
 }
 

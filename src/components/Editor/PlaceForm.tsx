@@ -1,9 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import type { Place, PlaceCategory, Coordinates } from '../../types';
-import { CATEGORIES } from '../../types';
 import { MarkerPicker } from './MarkerPicker';
 import { Button } from '../ui/Button';
-import { CATEGORY_EMOJI } from '../../utils/mapStyles';
 
 interface PlaceFormProps {
   initial?: Place;
