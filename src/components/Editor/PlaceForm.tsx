@@ -1,9 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import type { Place, PlaceCategory, Coordinates } from '../../types';
-import { CATEGORIES } from '../../types';
 import { MarkerPicker } from './MarkerPicker';
 import { Button } from '../ui/Button';
-import { CATEGORY_EMOJI } from '../../utils/mapStyles';
 
 interface PlaceFormProps {
   initial?: Place;
@@ -12,6 +10,11 @@ interface PlaceFormProps {
   onSubmit: (place: Omit<Place, 'id'> | Place) => void;
   onCancel: () => void;
 }
+
+const inputClass = `w-full bg-white border border-[var(--sg-border)] rounded-xl px-3 py-2.5
+  text-sm text-[var(--sg-navy)] placeholder-[var(--sg-navy)]/30
+  focus:outline-none focus:border-[var(--sg-thames)] focus:ring-2 focus:ring-[var(--sg-thames)]/15
+  transition-all duration-200`;
 
 export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCancel }: PlaceFormProps) {
   const [name, setName] = useState(initial?.name ?? '');
@@ -44,26 +47,22 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
     onSubmit(place);
   };
 
-  const inputClass = `w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2
-    text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[var(--sg-thames)]
-    focus:ring-1 focus:ring-[var(--sg-thames)]/30`;
-
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-xs font-medium text-slate-400 mb-1">Name</label>
+        <label className="block text-sm font-semibold text-[var(--sg-navy)] mb-1.5">Name</label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           className={inputClass}
-          placeholder="Place name"
+          placeholder="e.g. Borough Market"
           required
         />
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-slate-400 mb-1">Description</label>
+        <label className="block text-sm font-semibold text-[var(--sg-navy)] mb-1.5">Description</label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -73,12 +72,12 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-slate-400 mb-2">Category & Marker</label>
+        <label className="block text-sm font-semibold text-[var(--sg-navy)] mb-2">Category & Marker</label>
         <MarkerPicker value={category} onChange={setCategory} />
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-slate-400 mb-1">Address</label>
+        <label className="block text-sm font-semibold text-[var(--sg-navy)] mb-1.5">Address</label>
         <input
           type="text"
           value={address}
@@ -90,7 +89,7 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1">Rating</label>
+          <label className="block text-sm font-semibold text-[var(--sg-navy)] mb-1.5">Rating</label>
           <select
             value={rating}
             onChange={(e) => setRating(Number(e.target.value))}
@@ -102,7 +101,7 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
           </select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1">Visit Date</label>
+          <label className="block text-sm font-semibold text-[var(--sg-navy)] mb-1.5">Visit Date</label>
           <input
             type="date"
             value={visitDate}
@@ -113,7 +112,7 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-slate-400 mb-1">Tags</label>
+        <label className="block text-sm font-semibold text-[var(--sg-navy)] mb-1.5">Tags</label>
         <input
           type="text"
           value={tags}

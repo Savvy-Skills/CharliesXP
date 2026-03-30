@@ -30,6 +30,7 @@ export const ALLOWED_LABEL_LAYERS = [
   'settlement-label',
   'water-line-label',
   'water-point-label',
+  'transit-label',
 ];
 
 export const CATEGORY_EMOJI: Record<string, string> = {

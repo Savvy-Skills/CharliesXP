@@ -38,7 +38,7 @@ export function CategoryBrowse({ places }: CategoryBrowseProps) {
             transition={{ delay: i * 0.06, duration: 0.5 }}
           >
             <Link
-              to={`/explore?category=${cat.value}`}
+              to={`/map`}
               className="im-card flex flex-col items-center gap-3 px-7 py-6
                 min-w-[120px] group"
             >

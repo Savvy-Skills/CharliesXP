@@ -19,9 +19,10 @@ interface BtnProps {
   icon?: boolean;
   fab?: boolean;
   children?: React.ReactNode;
+  onClick?: () => void;
 }
 
-function Btn({ variant, size = 'md', disabled, loading, icon, fab, children }: BtnProps) {
+function Btn({ variant, size = 'md', disabled, loading, icon, fab, children, onClick }: BtnProps) {
   const base = 'inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
 
   const variants = {
@@ -67,6 +68,7 @@ function Btn({ variant, size = 'md', disabled, loading, icon, fab, children }: B
       className={`${base} ${variants[variant]} ${sizeCls[size]}`}
       style={variantStyles[variant]}
       disabled={disabled || loading}
+      onClick={onClick}
     >
       {loading && <Loader2 size={16} className="animate-spin" />}
       {children}

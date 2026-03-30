@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Download, Trash2, Edit3, X, ChevronLeft } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Download, Trash2, Edit3, X } from 'lucide-react';
 import type { Place, Coordinates } from '../../types';
 import { CATEGORIES } from '../../types';
 import { CATEGORY_EMOJI } from '../../utils/mapStyles';
@@ -31,41 +31,23 @@ export function EditorPanel({
   onPlaceClick,
 }: EditorPanelProps) {
   const [editingPlace, setEditingPlace] = useState<Place | null>(null);
-  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const showForm = pendingCoordinates !== null || editingPlace !== null;
 
   return (
-    <motion.div
-      initial={{ x: '100%' }}
-      animate={{ x: isCollapsed ? 'calc(100% - 40px)' : 0 }}
-      transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-      className="absolute top-0 right-0 bottom-0 w-full sm:w-96 z-30
-        bg-[#1e1e2e]/95 backdrop-blur-md border-l border-white/10 shadow-2xl
-        flex flex-col"
-    >
-      <button
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -left-10 top-4 w-10 h-10 bg-[#1e1e2e]/95
-          backdrop-blur-md rounded-l-lg flex items-center justify-center
-          hover:bg-white/10 transition-colors cursor-pointer border border-white/10 border-r-0"
-      >
-        <ChevronLeft
-          size={18}
-          className={`text-white transition-transform ${isCollapsed ? 'rotate-180' : ''}`}
-        />
-      </button>
-
-      <div className="flex items-center justify-between p-4 border-b border-white/10">
-        <h2 className="text-lg font-bold text-white">Editor</h2>
-        <div className="flex gap-2">
-          <Button size="sm" variant="secondary" onClick={onExport}>
-            <Download size={14} className="mr-1 inline" />
-            Export
-          </Button>
-        </div>
+    <div className="h-full w-full bg-white border-r border-[var(--sg-border)] flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="px-5 py-4 border-b border-[var(--sg-border)] flex items-center justify-between">
+        <h2 className="font-display text-xl font-bold text-[var(--sg-navy)]">
+          Editor
+        </h2>
+        <Button size="sm" variant="secondary" onClick={onExport}>
+          <Download size={14} className="mr-1 inline" />
+          Export
+        </Button>
       </div>
 
+      {/* Content */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
         <AnimatePresence mode="wait">
           {showForm ? (
@@ -76,7 +58,7 @@ export function EditorPanel({
               exit={{ opacity: 0, y: -10 }}
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-white">
+                <h3 className="text-sm font-semibold text-[var(--sg-navy)]">
                   {editingPlace ? 'Edit Place' : 'New Place'}
                 </h3>
                 <button
@@ -84,9 +66,9 @@ export function EditorPanel({
                     setEditingPlace(null);
                     onCancelPending();
                   }}
-                  className="p-1 hover:bg-white/10 rounded cursor-pointer"
+                  className="p-1.5 hover:bg-[var(--sg-offwhite)] rounded-lg cursor-pointer transition-colors"
                 >
-                  <X size={16} className="text-slate-400" />
+                  <X size={16} className="text-[var(--sg-navy)]/40" />
                 </button>
               </div>
               <PlaceForm
@@ -115,14 +97,15 @@ export function EditorPanel({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <p className="text-xs text-slate-400 mb-4">
+              <p className="text-xs text-[var(--sg-navy)]/50 mb-4">
                 Click on the map to add a new place, or edit existing ones below.
               </p>
 
               {places.length === 0 ? (
-                <p className="text-sm text-slate-500 text-center py-8">
-                  No places yet. Click on the map to add one!
-                </p>
+                <div className="text-center py-12">
+                  <p className="text-sm text-[var(--sg-navy)]/40">No places in this zone yet.</p>
+                  <p className="text-xs text-[var(--sg-navy)]/30 mt-1">Click on the map to add one!</p>
+                </div>
               ) : (
                 <div className="space-y-2">
                   {places.map((place) => {
@@ -130,8 +113,8 @@ export function EditorPanel({
                     return (
                       <div
                         key={place.id}
-                        className="flex items-center gap-3 p-3 rounded-lg bg-white/5
-                          hover:bg-white/10 transition-colors group"
+                        className="flex items-center gap-3 p-3 rounded-xl
+                          hover:bg-[var(--sg-offwhite)] transition-colors group"
                       >
                         <button
                           onClick={() => onPlaceClick(place)}
@@ -144,22 +127,22 @@ export function EditorPanel({
                             {CATEGORY_EMOJI[place.category]}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-white truncate">
+                            <p className="text-sm font-medium text-[var(--sg-navy)] truncate">
                               {place.name}
                             </p>
-                            <p className="text-xs text-slate-500 truncate">{place.address}</p>
+                            <p className="text-xs text-[var(--sg-navy)]/40 truncate">{place.address}</p>
                           </div>
                         </button>
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => setEditingPlace(place)}
-                            className="p-1.5 hover:bg-white/10 rounded cursor-pointer"
+                            className="p-1.5 hover:bg-[var(--sg-border)] rounded-lg cursor-pointer transition-colors"
                           >
-                            <Edit3 size={14} className="text-slate-400" />
+                            <Edit3 size={14} className="text-[var(--sg-navy)]/40" />
                           </button>
                           <button
                             onClick={() => onDelete(place.id)}
-                            className="p-1.5 hover:bg-red-500/20 rounded cursor-pointer"
+                            className="p-1.5 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
                           >
                             <Trash2 size={14} className="text-red-400" />
                           </button>
@@ -173,6 +156,6 @@ export function EditorPanel({
           )}
         </AnimatePresence>
       </div>
-    </motion.div>
+    </div>
   );
 }

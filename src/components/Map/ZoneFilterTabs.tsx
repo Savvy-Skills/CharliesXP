@@ -12,7 +12,7 @@ interface ZoneFilterTabsProps {
 }
 
 export function ZoneFilterTabs({
-  zoneId,
+  zoneId: _zoneId,
   places,
   activeCategory,
   onCategoryChange,

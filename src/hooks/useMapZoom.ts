@@ -1,22 +1,29 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { MapRef } from 'react-map-gl/mapbox';
 import type { MapZoomState, ViewState } from '../types';
 import { DEFAULT_VIEW_STATE } from '../utils/mapStyles';
-
-const ZONE_CENTROIDS: Record<string, { lng: number; lat: number }> = {
-  SE1: { lng: -0.0934, lat: 51.5020 },
-  EC1: { lng: -0.1050, lat: 51.5235 },
-  WC2: { lng: -0.1220, lat: 51.5115 },
-  NW3: { lng: -0.1700, lat: 51.5560 },
-  W1: { lng: -0.1440, lat: 51.5140 },
-  SW1: { lng: -0.1340, lat: 51.4990 },
-  E1: { lng: -0.0600, lat: 51.5170 },
-  EC2: { lng: -0.0850, lat: 51.5190 },
-};
+import { getZoneForPostcode, ZONE_CENTROIDS, ZONE_ENTER_THRESHOLD, ZONE_EXIT_THRESHOLD } from '../utils/zoneMapping';
 
 export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
-  const [mapState, setMapState] = useState<MapZoomState>('overview');
-  const [activeZone, setActiveZone] = useState<string | null>(null);
+  const [mapState, setMapState] = useState<MapZoomState>(() => {
+    if (window.location.pathname !== '/map') return 'overview';
+    const saved = sessionStorage.getItem('map-zoom-state');
+    if (saved) {
+      try {
+        const { mapState: s } = JSON.parse(saved);
+        if (s === 'overview' || s === 'expanded' || s === 'zoneDetail') return s;
+      } catch { /* fall through */ }
+    }
+    return 'expanded';
+  });
+  const [activeZone, setActiveZone] = useState<string | null>(() => {
+    if (window.location.pathname !== '/map') return null;
+    const saved = sessionStorage.getItem('map-zoom-state');
+    if (saved) {
+      try { return JSON.parse(saved).activeZone ?? null; } catch { /* fall through */ }
+    }
+    return null;
+  });
   const previousView = useRef<ViewState | null>(null);
 
   // Prevent auto-switch during programmatic flyTo animations
@@ -25,6 +32,7 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
 
   const expandMap = useCallback(() => {
     setMapState('expanded');
+    window.history.pushState(null, '', '/map');
   }, []);
 
   // Debounced auto-switch — only fires after zoom has been stable for 400ms
@@ -38,24 +46,25 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
       // Re-check animating flag after debounce
       if (isAnimating.current) return;
 
-      if (mapState === 'zoneDetail' && zoom < 13.86) {
+      if (mapState === 'zoneDetail' && zoom < ZONE_EXIT_THRESHOLD) {
         setMapState('expanded');
         setActiveZone(null);
-      } else if (mapState === 'expanded' && zoom >= 13.86) {
+      } else if (mapState === 'expanded' && zoom >= ZONE_ENTER_THRESHOLD) {
         const map = mapRef.current?.getMap();
         if (!map) return;
         const center = map.getCenter();
         const point = map.project([center.lng, center.lat]);
         const features = map.queryRenderedFeatures(point, { layers: ['postcodes-fill'] });
         if (features.length > 0) {
-          const zoneName = features[0].properties?.Name as string;
+          const postcodeName = features[0].properties?.Name as string;
+          const zoneName = getZoneForPostcode(postcodeName);
           if (zoneName) {
             setMapState('zoneDetail');
             setActiveZone(zoneName);
           }
         }
       }
-    }, 400);
+    }, 150);
   }, [mapState, mapRef]);
 
   // Helper: run a flyTo with animation guard
@@ -70,7 +79,7 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
       // Release guard after animation completes
       setTimeout(() => {
         isAnimating.current = false;
-      }, duration + 200);
+      }, duration + 100);
     },
     [mapRef],
   );
@@ -127,6 +136,7 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
     previousView.current = null;
     setMapState('overview');
     setActiveZone(null);
+    window.history.pushState(null, '', '/');
 
     flyToWithGuard({
       center: [DEFAULT_VIEW_STATE.longitude, DEFAULT_VIEW_STATE.latitude],
@@ -138,5 +148,56 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
     }, 1200);
   }, [flyToWithGuard]);
 
-  return { mapState, activeZone, expandMap, zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, handleZoomChange };
+  const handleMoveEnd = useCallback(() => {
+    if (isAnimating.current) return;
+    if (mapState !== 'zoneDetail') return;
+
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+    if (map.getZoom() < ZONE_ENTER_THRESHOLD) return;
+
+    const center = map.getCenter();
+    const point = map.project([center.lng, center.lat]);
+    const features = map.queryRenderedFeatures(point, { layers: ['postcodes-fill'] });
+
+    if (features.length > 0) {
+      const postcodeName = features[0].properties?.Name as string;
+      const zoneName = getZoneForPostcode(postcodeName);
+      if (zoneName && zoneName !== activeZone) {
+        setActiveZone(zoneName);
+      }
+    } else {
+      setActiveZone(null);
+    }
+  }, [mapState, activeZone, mapRef]);
+
+  // Persist map state to sessionStorage for restoration on /map
+  useEffect(() => {
+    sessionStorage.setItem('map-zoom-state', JSON.stringify({ mapState, activeZone }));
+  }, [mapState, activeZone]);
+
+  // Sync with browser back/forward buttons
+  useEffect(() => {
+    const onPopState = () => {
+      const path = window.location.pathname;
+      if (path === '/' && mapState !== 'overview') {
+        setMapState('overview');
+        setActiveZone(null);
+        flyToWithGuard({
+          center: [DEFAULT_VIEW_STATE.longitude, DEFAULT_VIEW_STATE.latitude],
+          zoom: DEFAULT_VIEW_STATE.zoom,
+          pitch: DEFAULT_VIEW_STATE.pitch,
+          bearing: DEFAULT_VIEW_STATE.bearing,
+          duration: 800,
+          essential: true,
+        }, 800);
+      } else if (path === '/map' && mapState === 'overview') {
+        setMapState('expanded');
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [mapState, flyToWithGuard]);
+
+  return { mapState, activeZone, expandMap, zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, handleZoomChange, handleMoveEnd };
 }
