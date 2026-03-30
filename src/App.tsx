@@ -6,6 +6,7 @@ import { FullScreenMapPage } from './pages/FullScreenMapPage';
 import { PlaceDetailPage } from './pages/PlaceDetailPage';
 import { ZoneDetailPage } from './pages/ZoneDetailPage';
 import { EditorPage } from './pages/EditorPage';
+import { StyleGuidePage } from './pages/StyleGuide/StyleGuidePage';
 
 function AnimatedPage({ children }: { children: React.ReactNode }) {
   return (
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/place/:id" element={<AnimatedPage><PlaceDetailPage /></AnimatedPage>} />
           <Route path="/zone/:name" element={<AnimatedPage><ZoneDetailPage /></AnimatedPage>} />
           <Route path="/editor" element={<EditorPage />} />
+          <Route path="/style-guide" element={<StyleGuidePage />} />
         </Routes>
       </AnimatePresence>
     </UserProvider>

@@ -47,9 +47,9 @@ export function FullScreenMapPage() {
 
       <Link
         to="/"
-        className="absolute top-4 left-4 z-20 p-2.5 rounded-lg
+        className="absolute top-4 left-4 z-20 p-2.5 rounded-xl
           bg-white/90 backdrop-blur-sm hover:bg-white
-          text-[#8b7355] shadow-md transition-colors border border-[#e8dfd5]"
+          text-[var(--sg-navy)]/60 shadow-md transition-colors border border-[var(--sg-border)]"
         title="Back to home"
       >
         <ArrowLeft size={18} />
@@ -58,7 +58,7 @@ export function FullScreenMapPage() {
       <Link
         to="/editor"
         className="absolute bottom-20 md:bottom-4 right-4 z-20 p-3 rounded-full
-          bg-[#7c2d36] hover:bg-[#9b4550] text-white shadow-lg transition-colors"
+          bg-[var(--sg-crimson)] hover:bg-[#8a3033] text-white shadow-lg transition-all"
         title="Edit mode"
       >
         <Edit3 size={20} />

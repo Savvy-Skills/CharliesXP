@@ -208,12 +208,12 @@ export function InteractiveMap({
 
   if (!MAPBOX_TOKEN) {
     return (
-      <div className="h-full w-full flex items-center justify-center bg-[#faf8f5]">
+      <div className="h-full w-full flex items-center justify-center bg-[var(--sg-offwhite)]">
         <div className="text-center p-8">
-          <p className="text-xl font-semibold text-[#2d1f1a] mb-2 font-display">Mapbox Token Required</p>
-          <p className="text-[#8b7355]">
-            Create a <code className="bg-[#f5f0eb] px-2 py-0.5 rounded text-[#5c3a2e]">.env</code> file with your{' '}
-            <code className="bg-[#f5f0eb] px-2 py-0.5 rounded text-[#5c3a2e]">VITE_MAPBOX_TOKEN</code>
+          <p className="text-xl font-semibold text-[var(--sg-navy)] mb-2 font-display">Mapbox Token Required</p>
+          <p className="text-[var(--sg-navy)]/60">
+            Create a <code className="bg-[var(--sg-offwhite)] px-2 py-0.5 rounded text-[var(--sg-navy)]">.env</code> file with your{' '}
+            <code className="bg-[var(--sg-offwhite)] px-2 py-0.5 rounded text-[var(--sg-navy)]">VITE_MAPBOX_TOKEN</code>
           </p>
         </div>
       </div>

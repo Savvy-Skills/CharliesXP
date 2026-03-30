@@ -1,6 +1,6 @@
-import { Star, MapPin, ChevronRight } from 'lucide-react';
+import { Star, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import type { Place, PlaceCategory } from '../../types';
+import type { Place } from '../../types';
 import { CATEGORIES } from '../../types';
 import { CATEGORY_EMOJI } from '../../utils/mapStyles';
 
@@ -14,14 +14,14 @@ export function ZoneSidePanel({ zoneId, places, onPlaceClick }: ZoneSidePanelPro
   const navigate = useNavigate();
 
   return (
-    <div className="h-full w-full md:w-[380px] shrink-0 bg-white border-r border-[#e8dfd5]
+    <div className="h-full w-full md:w-[380px] shrink-0 bg-white border-r border-[var(--sg-border)]
       flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-[#e8dfd5]">
-        <h2 className="font-display text-xl font-bold text-[#2d1f1a]">
-          Places in <span className="text-[#7c2d36]">{zoneId}</span>
+      <div className="px-5 py-4 border-b border-[var(--sg-border)]">
+        <h2 className="font-display text-xl font-bold text-[var(--sg-navy)]">
+          Places in <span className="text-[var(--sg-crimson)]">{zoneId}</span>
         </h2>
-        <p className="text-xs text-[#8b7355] mt-1">
+        <p className="text-xs text-[var(--sg-navy)]/60 mt-1">
           {places.length} pick{places.length !== 1 ? 's' : ''}
         </p>
       </div>
@@ -30,23 +30,23 @@ export function ZoneSidePanel({ zoneId, places, onPlaceClick }: ZoneSidePanelPro
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {places.length === 0 ? (
           <div className="px-5 py-12 text-center">
-            <p className="text-sm text-[#8b7355]">No places in this zone yet.</p>
-            <p className="text-xs text-[#b8a08a] mt-1">Coming soon!</p>
+            <p className="text-sm text-[var(--sg-navy)]/60">No places in this zone yet.</p>
+            <p className="text-xs text-[var(--sg-navy)]/40 mt-1">Coming soon!</p>
           </div>
         ) : (
-          <div className="divide-y divide-[#f0ebe4]">
+          <div className="divide-y divide-[var(--sg-border)]">
             {places.map((place, index) => {
               const cat = CATEGORIES.find((c) => c.value === place.category);
               return (
                 <button
                   key={place.id}
                   onClick={() => onPlaceClick(place)}
-                  className="w-full text-left px-5 py-4 hover:bg-[#faf8f5] transition-colors
+                  className="w-full text-left px-5 py-4 hover:bg-[var(--sg-offwhite)] transition-colors
                     cursor-pointer group"
                 >
                   <div className="flex gap-3">
                     {/* Number badge */}
-                    <div className="w-7 h-7 rounded-full bg-[#7c2d36] text-white text-xs
+                    <div className="w-7 h-7 rounded-full bg-[var(--sg-crimson)] text-white text-xs
                       font-bold flex items-center justify-center shrink-0 mt-0.5">
                       {index + 1}
                     </div>
@@ -54,7 +54,7 @@ export function ZoneSidePanel({ zoneId, places, onPlaceClick }: ZoneSidePanelPro
                     <div className="flex-1 min-w-0">
                       {/* Name + category */}
                       <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-sm font-bold text-[#2d1f1a] group-hover:text-[#7c2d36]
+                        <h3 className="text-sm font-bold text-[var(--sg-navy)] group-hover:text-[var(--sg-crimson)]
                           transition-colors leading-snug">
                           {place.name}
                         </h3>
@@ -71,13 +71,13 @@ export function ZoneSidePanel({ zoneId, places, onPlaceClick }: ZoneSidePanelPro
                         </span>
                         <div className="flex items-center gap-0.5">
                           {Array.from({ length: place.rating }).map((_, i) => (
-                            <Star key={i} size={9} className="text-[#c9a96e] fill-[#c9a96e]" />
+                            <Star key={i} size={9} className="text-amber-400 fill-amber-400" />
                           ))}
                         </div>
                       </div>
 
                       {/* Description snippet */}
-                      <p className="text-xs text-[#8b7355] mt-1.5 line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-[var(--sg-navy)]/60 mt-1.5 line-clamp-2 leading-relaxed">
                         {place.description}
                       </p>
 
@@ -85,7 +85,7 @@ export function ZoneSidePanel({ zoneId, places, onPlaceClick }: ZoneSidePanelPro
                       {place.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
                           {place.tags.slice(0, 3).map((tag) => (
-                            <span key={tag} className="text-[10px] text-[#b8a08a] bg-[#f5f0eb] px-1.5 py-0.5 rounded">
+                            <span key={tag} className="text-[10px] text-[var(--sg-navy)]/40 bg-[var(--sg-offwhite)] px-1.5 py-0.5 rounded">
                               {tag}
                             </span>
                           ))}
@@ -99,7 +99,7 @@ export function ZoneSidePanel({ zoneId, places, onPlaceClick }: ZoneSidePanelPro
                           navigate(`/place/${place.id}`);
                         }}
                         className="flex items-center gap-1 mt-2 text-[10px] font-semibold
-                          text-[#7c2d36] hover:text-[#9b4550] transition-colors cursor-pointer"
+                          text-[var(--sg-crimson)] hover:text-[#8a3033] transition-colors cursor-pointer"
                       >
                         View Details <ChevronRight size={10} />
                       </button>

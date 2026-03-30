@@ -90,17 +90,17 @@ export function LandingPage() {
         onZoomChange={handleZoomChange}
       />
 
-      <div className="bg-[#faf8f5]">
+      <div className="bg-[var(--sg-offwhite)]">
         <FeaturedSection places={places} />
 
         <CategoryBrowse places={places} />
 
         <section id="zones" className="max-w-6xl mx-auto px-5 md:px-8 py-20">
           <div className="text-center mb-14">
-            <h2 className="font-display text-3xl md:text-4xl font-bold text-[#2d1f1a] mb-3">
+            <h2 className="font-display text-3xl md:text-4xl font-bold text-[var(--sg-crimson)] mb-3">
               Explore Zones
             </h2>
-            <p className="text-[#8b7355] text-lg">
+            <p className="text-[var(--sg-navy)]/60 text-lg">
               Discover London neighbourhood by neighbourhood
             </p>
             <div className="section-divider mt-6">
@@ -129,10 +129,10 @@ export function LandingPage() {
 
         <section id="about" className="max-w-6xl mx-auto px-5 md:px-8 pb-20">
           <div className="im-card p-10 md:p-16 text-center">
-            <h2 className="font-display text-3xl md:text-4xl font-bold text-[#2d1f1a] mb-6">
+            <h2 className="font-display text-3xl md:text-4xl font-bold text-[var(--sg-crimson)] mb-6">
               About Interest Map
             </h2>
-            <p className="text-[#8b7355] max-w-2xl mx-auto leading-relaxed text-lg">
+            <p className="text-[var(--sg-navy)]/60 max-w-2xl mx-auto leading-relaxed text-lg">
               A curated collection of the best spots in central London — from hidden cocktail bars
               to world-class museums. Every place has been personally visited and reviewed.
               Unlock zones to discover insider guides, detailed reviews, and hidden gems

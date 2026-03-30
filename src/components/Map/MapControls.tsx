@@ -31,16 +31,16 @@ export function MapControls({
       <div className="relative">
         <button
           onClick={() => setShowStyles(!showStyles)}
-          className="p-2.5 bg-white/90 backdrop-blur-sm rounded-lg
-            hover:bg-white transition-colors shadow-md cursor-pointer border border-[#e8dfd5]"
+          className="p-2.5 bg-white/90 backdrop-blur-sm rounded-xl
+            hover:bg-white transition-colors shadow-md cursor-pointer border border-[var(--sg-border)]"
           title="Map style"
         >
-          <Layers size={18} className="text-[#8b7355]" />
+          <Layers size={18} className="text-[var(--sg-navy)]/60" />
         </button>
 
         {showStyles && (
           <div className="absolute right-0 top-full mt-2 bg-white/95 backdrop-blur-sm
-            rounded-lg shadow-xl overflow-hidden min-w-[120px] border border-[#e8dfd5]">
+            rounded-xl shadow-xl overflow-hidden min-w-[120px] border border-[var(--sg-border)]">
             {(Object.keys(MAP_STYLES) as MapStyleKey[]).map((key) => (
               <button
                 key={key}
@@ -50,8 +50,8 @@ export function MapControls({
                 }}
                 className={`w-full px-4 py-2 text-left text-sm transition-colors cursor-pointer
                   ${currentStyle === key
-                    ? 'bg-[#7c2d36]/10 text-[#7c2d36] font-medium'
-                    : 'text-[#8b7355] hover:bg-[#f5f0eb]'
+                    ? 'bg-[var(--sg-crimson)]/10 text-[var(--sg-crimson)] font-medium'
+                    : 'text-[var(--sg-navy)]/60 hover:bg-[var(--sg-offwhite)]'
                   }`}
               >
                 {styleNames[key]}
@@ -63,10 +63,10 @@ export function MapControls({
 
       <button
         onClick={onToggleTerrain}
-        className={`p-2.5 rounded-lg transition-colors shadow-md cursor-pointer border
+        className={`p-2.5 rounded-xl transition-colors shadow-md cursor-pointer border
           ${terrainEnabled
-            ? 'bg-[#7c2d36]/10 text-[#7c2d36] border-[#7c2d36]/30'
-            : 'bg-white/90 text-[#8b7355] hover:bg-white border-[#e8dfd5]'
+            ? 'bg-[var(--sg-crimson)]/10 text-[var(--sg-crimson)] border-[var(--sg-crimson)]/30'
+            : 'bg-white/90 text-[var(--sg-navy)]/60 hover:bg-white border-[var(--sg-border)]'
           } backdrop-blur-sm`}
         title="3D Terrain"
       >
@@ -75,11 +75,11 @@ export function MapControls({
 
       <button
         onClick={onResetView}
-        className="p-2.5 bg-white/90 backdrop-blur-sm rounded-lg
-          hover:bg-white transition-colors shadow-md cursor-pointer border border-[#e8dfd5]"
+        className="p-2.5 bg-white/90 backdrop-blur-sm rounded-xl
+          hover:bg-white transition-colors shadow-md cursor-pointer border border-[var(--sg-border)]"
         title="Reset view"
       >
-        <RotateCcw size={18} className="text-[#8b7355]" />
+        <RotateCcw size={18} className="text-[var(--sg-navy)]/60" />
       </button>
     </div>
   );

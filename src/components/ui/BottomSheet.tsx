@@ -17,7 +17,7 @@ export function BottomSheet({ isOpen, onClose, children }: BottomSheetProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/30 z-40"
+            className="fixed inset-0 bg-[rgba(53,60,79,0.4)] z-40"
             onClick={onClose}
           />
           <motion.div
@@ -30,14 +30,14 @@ export function BottomSheet({ isOpen, onClose, children }: BottomSheetProps) {
               max-h-[80vh] overflow-y-auto custom-scrollbar"
           >
             <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full bg-[#e8dfd5]" />
+              <div className="w-10 h-1 rounded-full bg-[var(--sg-border)]" />
             </div>
             <button
               onClick={onClose}
               className="absolute top-3 right-3 p-1.5 rounded-full
-                bg-[#f5f0eb] hover:bg-[#e8dfd5] transition-colors cursor-pointer"
+                bg-[var(--sg-offwhite)] hover:bg-[var(--sg-border)] transition-colors cursor-pointer"
             >
-              <X size={18} className="text-[#8b7355]" />
+              <X size={18} className="text-[var(--sg-navy)]/60" />
             </button>
             {children}
           </motion.div>

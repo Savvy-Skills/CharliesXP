@@ -44,9 +44,9 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
     onSubmit(place);
   };
 
-  const inputClass = `w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2
-    text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-400
-    focus:ring-1 focus:ring-indigo-400/50`;
+  const inputClass = `w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2
+    text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[var(--sg-thames)]
+    focus:ring-1 focus:ring-[var(--sg-thames)]/30`;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">

@@ -60,7 +60,7 @@ export function EditorPage() {
       <Link
         to="/"
         className="absolute bottom-4 left-4 z-20 p-3 rounded-full
-          bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg transition-colors"
+          bg-[var(--sg-thames)] hover:bg-[#5565a0] text-white shadow-lg transition-all"
         title="Viewer mode"
       >
         <Eye size={20} />

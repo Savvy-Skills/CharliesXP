@@ -22,16 +22,16 @@ export function PlacePreviewCard({ place, onClose }: PlacePreviewCardProps) {
           exit={{ y: 120, opacity: 0 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
           className="absolute bottom-4 left-4 right-4 z-40 md:left-auto md:right-4 md:w-96
-            bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-[#e8dfd5]
+            bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-[var(--sg-border)]
             overflow-hidden"
         >
           <div className="p-4">
             <button
               onClick={onClose}
-              className="absolute top-3 right-3 p-1 rounded-full bg-[#f5f0eb]
-                hover:bg-[#e8dfd5] transition-colors cursor-pointer"
+              className="absolute top-3 right-3 p-1 rounded-full bg-[var(--sg-offwhite)]
+                hover:bg-[var(--sg-border)] transition-colors cursor-pointer"
             >
-              <X size={14} className="text-[#8b7355]" />
+              <X size={14} className="text-[var(--sg-navy)]/60" />
             </button>
 
             <div className="flex items-center gap-3">
@@ -46,7 +46,7 @@ export function PlacePreviewCard({ place, onClose }: PlacePreviewCardProps) {
               </div>
 
               <div className="flex-1 min-w-0">
-                <h3 className="text-base font-bold text-[#2d1f1a] truncate">{place.name}</h3>
+                <h3 className="text-base font-bold text-[var(--sg-navy)] truncate">{place.name}</h3>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span
                     className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
@@ -66,13 +66,13 @@ export function PlacePreviewCard({ place, onClose }: PlacePreviewCardProps) {
               </div>
             </div>
 
-            <p className="text-xs text-[#8b7355] mt-2 line-clamp-2">{place.description}</p>
+            <p className="text-xs text-[var(--sg-navy)]/60 mt-2 line-clamp-2">{place.description}</p>
 
             <button
               onClick={() => navigate(`/place/${place.id}`)}
-              className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg
-                bg-[#7c2d36] hover:bg-[#9b4550] text-white text-sm font-medium
-                transition-colors cursor-pointer"
+              className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl
+                bg-[var(--sg-crimson)] hover:bg-[#8a3033] text-white text-sm font-semibold
+                transition-all cursor-pointer"
             >
               View Details
               <ChevronRight size={14} />
