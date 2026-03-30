@@ -5,6 +5,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { PlaceMarker } from './PlaceMarker';
 import { MapControls } from './MapControls';
 import { MAP_STYLES, DEFAULT_VIEW_STATE, LONDON_BOUNDS, ALLOWED_LABEL_LAYERS, type MapStyleKey } from '../../utils/mapStyles';
+import { ALL_ZONE_POSTCODES, getZoneExcludeFilter } from '../../utils/zoneMapping';
 import { createModelLayer } from './ModelLayer';
 import type { Place, ViewState } from '../../types';
 
@@ -75,8 +76,7 @@ export function InteractiveMap({
   }, []);
 
   // Only show these managed zones on the map
-  const MANAGED_ZONES = ['SE1', 'EC1', 'WC2', 'NW3', 'W1', 'SW1', 'E1', 'EC2'];
-  const zoneFilter: mapboxgl.FilterSpecification = ['in', ['get', 'Name'], ['literal', MANAGED_ZONES]];
+  const zoneFilter: mapboxgl.FilterSpecification = ['in', ['get', 'Name'], ['literal', ALL_ZONE_POSTCODES]];
 
   const addPostcodeLayers = useCallback((map: mapboxgl.Map) => {
     if (map.getSource('postcodes')) return;
@@ -177,7 +177,7 @@ export function InteractiveMap({
     if (!map.getLayer('postcodes-dim')) return;
 
     if (activeZone) {
-      map.setFilter('postcodes-dim', ['!=', ['get', 'Name'], activeZone]);
+      map.setFilter('postcodes-dim', getZoneExcludeFilter(activeZone));
       map.setLayoutProperty('postcodes-dim', 'visibility', 'visible');
     } else {
       map.setLayoutProperty('postcodes-dim', 'visibility', 'none');
