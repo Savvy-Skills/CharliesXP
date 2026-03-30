@@ -58,7 +58,7 @@ export function FullScreenMapPage() {
       <Link
         to="/editor"
         className="absolute bottom-20 md:bottom-4 right-4 z-20 p-3 rounded-full
-          bg-[var(--sg-crimson)] hover:bg-[#8a3033] text-white shadow-lg transition-all"
+          bg-[var(--sg-crimson)] hover:bg-[var(--sg-crimson-hover)] text-white shadow-lg transition-all"
         title="Edit mode"
       >
         <Edit3 size={20} />

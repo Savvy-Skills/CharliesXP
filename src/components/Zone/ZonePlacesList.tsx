@@ -36,7 +36,7 @@ export function ZonePlacesList({ places }: ZonePlacesListProps) {
                 <span className="text-xs text-[var(--sg-navy)]/60">{cat?.label}</span>
                 <div className="flex items-center gap-0.5">
                   {Array.from({ length: place.rating }).map((_, i) => (
-                    <Star key={i} size={10} className="text-amber-400 fill-amber-400" />
+                    <Star key={i} size={10} className="text-[var(--sg-thames)] fill-[var(--sg-thames)]" />
                   ))}
                 </div>
               </div>

@@ -18,12 +18,12 @@ export function ZoneCard({ zone, placeCount, isLocked }: ZoneCardProps) {
         <div className="flex items-center gap-4">
           <div
             className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-            style={{ backgroundColor: `${zone.color ?? '#9D3A3D'}12` }}
+            style={{ backgroundColor: `${zone.color ?? 'var(--sg-crimson)'}12` }}
           >
             {isLocked ? (
               <Lock size={20} className="text-[var(--sg-navy)]/40" />
             ) : (
-              <MapPin size={20} style={{ color: zone.color ?? '#9D3A3D' }} />
+              <MapPin size={20} style={{ color: zone.color ?? 'var(--sg-crimson)' }} />
             )}
           </div>
           <div>

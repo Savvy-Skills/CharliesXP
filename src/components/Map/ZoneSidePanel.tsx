@@ -71,7 +71,7 @@ export function ZoneSidePanel({ zoneId, places, onPlaceClick }: ZoneSidePanelPro
                         </span>
                         <div className="flex items-center gap-0.5">
                           {Array.from({ length: place.rating }).map((_, i) => (
-                            <Star key={i} size={9} className="text-amber-400 fill-amber-400" />
+                            <Star key={i} size={9} className="text-[var(--sg-thames)] fill-[var(--sg-thames)]" />
                           ))}
                         </div>
                       </div>
@@ -99,7 +99,7 @@ export function ZoneSidePanel({ zoneId, places, onPlaceClick }: ZoneSidePanelPro
                           navigate(`/place/${place.id}`);
                         }}
                         className="flex items-center gap-1 mt-2 text-[10px] font-semibold
-                          text-[var(--sg-crimson)] hover:text-[#8a3033] transition-colors cursor-pointer"
+                          text-[var(--sg-crimson)] hover:text-[var(--sg-crimson-hover)] transition-colors cursor-pointer"
                       >
                         View Details <ChevronRight size={10} />
                       </button>

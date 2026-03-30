@@ -1,6 +1,7 @@
 import { useParams, Link } from 'react-router';
 import { ArrowLeft, MapPin, Lock } from 'lucide-react';
 import { PageShell } from '../components/Layout/PageShell';
+import { SEOHead } from '../components/SEOHead';
 import { ZonePlacesList } from '../components/Zone/ZonePlacesList';
 import { usePlaces } from '../hooks/usePlaces';
 import { useUser } from '../hooks/useUser';
@@ -18,7 +19,7 @@ export function ZoneDetailPage() {
       <PageShell>
         <div className="max-w-2xl mx-auto px-4 py-20 text-center">
           <p className="text-[var(--sg-navy)]/60 text-lg mb-4">Zone not found</p>
-          <Link to="/" className="text-[var(--sg-crimson)] hover:text-[#8a3033] font-medium">
+          <Link to="/" className="text-[var(--sg-crimson)] hover:text-[var(--sg-crimson-hover)] font-medium">
             Back to home
           </Link>
         </div>
@@ -28,6 +29,12 @@ export function ZoneDetailPage() {
 
   return (
     <PageShell>
+      <SEOHead
+        title={`${zone.name} — London Zone`}
+        description={`Explore ${zone.name}, a curated London zone on Charlies XP. ${zone.description.slice(0, 120)}…`}
+        path={`/zone/${zone.id}`}
+        type="article"
+      />
       <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="flex items-center gap-3 mb-6">
           <Link

@@ -50,7 +50,7 @@ export function PlaceModalContent({ place }: PlaceModalContentProps) {
           <Star
             key={i}
             size={16}
-            className={i < place.rating ? 'text-amber-400 fill-amber-400' : 'text-[var(--sg-border)]'}
+            className={i < place.rating ? 'text-[var(--sg-thames)] fill-[var(--sg-thames)]' : 'text-[var(--sg-border)]'}
           />
         ))}
       </div>
@@ -94,7 +94,7 @@ export function PlaceModalContent({ place }: PlaceModalContentProps) {
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl
-          bg-[var(--sg-crimson)] hover:bg-[#8a3033] text-white transition-all text-sm font-semibold"
+          bg-[var(--sg-crimson)] hover:bg-[var(--sg-crimson-hover)] text-white transition-all text-sm font-semibold"
       >
         <ExternalLink size={14} />
         Open in Google Maps
