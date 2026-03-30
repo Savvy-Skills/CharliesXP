@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-const SITE_NAME = 'Charlies XP';
+const SITE_NAME = 'Charlies XP — Experience London Like a Londoner';
 const SITE_URL = 'https://charliesxp.com';
 
 interface SEOHeadProps {

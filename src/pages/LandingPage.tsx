@@ -134,7 +134,7 @@ export function LandingPage() {
     '@type': 'WebSite',
     name: 'Charlies XP',
     url: 'https://charliesxp.com',
-    description: 'Curated London guides by someone who has walked every part of it.',
+    description: 'Experience London like a Londoner. Personal, human, editorial guides to London.',
     potentialAction: {
       '@type': 'SearchAction',
       target: 'https://charliesxp.com/map',
@@ -145,8 +145,8 @@ export function LandingPage() {
   return (
     <PageShell>
       <SEOHead
-        title="Curated London Guides"
-        description="Charlies XP — personal, human, editorial guides to London. Discover curated places, zones, and stories from someone who has walked every part of the city."
+        title="Experience London Like a Londoner"
+        description="Charlies XP — personal, human, editorial guides to London's best places, zones, and hidden stories. From someone who has walked every part of the city."
         path="/"
         jsonLd={jsonLd}
       />
