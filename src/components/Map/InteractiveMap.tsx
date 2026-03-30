@@ -327,7 +327,7 @@ export function InteractiveMap({
         touchPitch={canInteract}
         keyboard={canInteract}
       >
-        {viewState.zoom >= 13.86 && places
+        {viewState.zoom >= ZONE_ENTER_THRESHOLD && places
           .filter((place) => !place.model)
           .map((place) => (
             <PlaceMarker

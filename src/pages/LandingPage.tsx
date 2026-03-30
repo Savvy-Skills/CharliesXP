@@ -43,12 +43,18 @@ export function LandingPage() {
           if (mapState === 'overview') {
             // From collapsed: expand first, then zoom after mount
             expandMap();
-            setTimeout(() => zoomIntoZone(zoneName), 400);
+            setTimeout(() => zoomIntoZone(zoneName), 450);
           } else {
             zoomIntoZone(zoneName);
           }
         } else {
-          setPaywallZone(zoneName);
+          if (mapState === 'overview') {
+            // From collapsed: expand first, then show paywall
+            expandMap();
+            setTimeout(() => setPaywallZone(zoneName), 300);
+          } else {
+            setPaywallZone(zoneName);
+          }
         }
       }
     },
