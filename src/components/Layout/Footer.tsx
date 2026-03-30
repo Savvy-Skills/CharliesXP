@@ -33,7 +33,7 @@ export function Footer() {
               <p className="text-white/30 font-semibold uppercase tracking-wider text-xs mb-3">Explore</p>
               <ul className="space-y-2">
                 <li><Link to="/" className="text-white/60 hover:text-white transition-colors">Home</Link></li>
-                <li><Link to="/explore" className="text-white/60 hover:text-white transition-colors">Map</Link></li>
+                <li><Link to="/map" className="text-white/60 hover:text-white transition-colors">Map</Link></li>
                 <li><Link to="/who-is-charlie" className="text-white/60 hover:text-white transition-colors">Who is Charlie</Link></li>
                 <li><Link to="/families" className="text-white/60 hover:text-white transition-colors">Families</Link></li>
                 <li><Link to="/#zones" className="text-white/60 hover:text-white transition-colors">Zones</Link></li>

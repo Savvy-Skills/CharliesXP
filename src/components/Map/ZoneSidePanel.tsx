@@ -1,4 +1,4 @@
-import { Star, ChevronRight } from 'lucide-react';
+import { Star, ChevronRight, Lock, Check } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import type { Place } from '../../types';
 import { CATEGORIES } from '../../types';
@@ -8,9 +8,11 @@ interface ZoneSidePanelProps {
   zoneId: string;
   places: Place[];
   onPlaceClick: (place: Place) => void;
+  locked?: boolean;
+  onUnlock?: () => void;
 }
 
-export function ZoneSidePanel({ zoneId, places, onPlaceClick }: ZoneSidePanelProps) {
+export function ZoneSidePanel({ zoneId, places, onPlaceClick, locked = false, onUnlock }: ZoneSidePanelProps) {
   const navigate = useNavigate();
 
   return (
@@ -19,14 +21,100 @@ export function ZoneSidePanel({ zoneId, places, onPlaceClick }: ZoneSidePanelPro
       {/* Header */}
       <div className="px-5 py-4 border-b border-[var(--sg-border)]">
         <h2 className="font-display text-xl font-bold text-[var(--sg-navy)]">
-          Places in <span className="text-[var(--sg-crimson)]">{zoneId}</span>
+          {locked ? (
+            <>
+              <Lock size={16} className="inline -mt-0.5 mr-1.5 text-[var(--sg-crimson)]" />
+              <span className="text-[var(--sg-crimson)]">{zoneId}</span>
+            </>
+          ) : (
+            <>Places in <span className="text-[var(--sg-crimson)]">{zoneId}</span></>
+          )}
         </h2>
         <p className="text-xs text-[var(--sg-navy)]/60 mt-1">
-          {places.length} pick{places.length !== 1 ? 's' : ''}
+          {locked
+            ? `${places.length} place${places.length !== 1 ? 's' : ''} waiting to be discovered`
+            : `${places.length} pick${places.length !== 1 ? 's' : ''}`}
         </p>
       </div>
 
-      {/* Place list */}
+      {/* Locked state — inline paywall CTA */}
+      {locked ? (
+        <div className="flex-1 flex flex-col">
+          <div className="px-5 py-6 flex flex-col items-center text-center">
+            <div className="w-12 h-12 rounded-full bg-[var(--sg-crimson)]/10 flex items-center justify-center mb-4">
+              <Lock size={20} className="text-[var(--sg-crimson)]" />
+            </div>
+            <h3 className="font-display text-lg font-bold text-[var(--sg-navy)] mb-2">
+              Unlock {zoneId}
+            </h3>
+            <p className="text-sm text-[var(--sg-navy)]/60 mb-5 leading-relaxed">
+              Get full access to all recommendations, reviews, and insider tips in this zone.
+            </p>
+
+            <div className="w-full bg-[var(--sg-offwhite)] rounded-xl p-4 mb-5 text-left">
+              <div className="flex items-baseline justify-center gap-1 mb-3">
+                <span className="text-2xl font-bold text-[var(--sg-navy)]">£3.99</span>
+                <span className="text-xs text-[var(--sg-navy)]/60">/zone</span>
+              </div>
+              <ul className="space-y-2">
+                {[
+                  'All places & recommendations',
+                  'Detailed reviews & ratings',
+                  'Insider tips & hidden gems',
+                  '30 days of full access',
+                ].map((feature) => (
+                  <li key={feature} className="flex items-center gap-2 text-xs text-[var(--sg-navy)]">
+                    <Check size={12} className="text-green-600 shrink-0" />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <button
+              onClick={onUnlock}
+              className="w-full py-3 rounded-xl bg-[var(--sg-crimson)] hover:bg-[var(--sg-crimson-hover)] text-white
+                font-semibold transition-all cursor-pointer text-sm shadow-md"
+            >
+              Unlock {zoneId} — £3.99
+            </button>
+          </div>
+
+          {/* Blurred preview of places */}
+          <div className="flex-1 overflow-hidden relative">
+            <div className="absolute inset-0 backdrop-blur-[2px] pointer-events-none" />
+            <div className="divide-y divide-[var(--sg-border)] opacity-40 select-none">
+              {places.slice(0, 3).map((place, index) => {
+                const cat = CATEGORIES.find((c) => c.value === place.category);
+                return (
+                  <div key={place.id} className="px-5 py-4">
+                    <div className="flex gap-3">
+                      <div className="w-7 h-7 rounded-full bg-[var(--sg-navy)]/20 text-white text-xs
+                        font-bold flex items-center justify-center shrink-0 mt-0.5">
+                        {index + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="h-3.5 w-32 bg-[var(--sg-navy)]/15 rounded mb-2" />
+                        <div className="flex items-center gap-2 mt-1">
+                          <span
+                            className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                            style={{ backgroundColor: `${cat?.color}15`, color: cat?.color }}
+                          >
+                            {cat?.label}
+                          </span>
+                        </div>
+                        <div className="h-2.5 w-full bg-[var(--sg-navy)]/10 rounded mt-2" />
+                        <div className="h-2.5 w-3/4 bg-[var(--sg-navy)]/10 rounded mt-1" />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : (
+      /* Place list */
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {places.length === 0 ? (
           <div className="px-5 py-12 text-center">
@@ -111,6 +199,7 @@ export function ZoneSidePanel({ zoneId, places, onPlaceClick }: ZoneSidePanelPro
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

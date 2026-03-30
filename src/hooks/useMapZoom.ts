@@ -5,10 +5,25 @@ import { DEFAULT_VIEW_STATE } from '../utils/mapStyles';
 import { getZoneForPostcode, ZONE_CENTROIDS, ZONE_ENTER_THRESHOLD, ZONE_EXIT_THRESHOLD } from '../utils/zoneMapping';
 
 export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
-  const [mapState, setMapState] = useState<MapZoomState>(
-    window.location.pathname === '/map' ? 'expanded' : 'overview'
-  );
-  const [activeZone, setActiveZone] = useState<string | null>(null);
+  const [mapState, setMapState] = useState<MapZoomState>(() => {
+    if (window.location.pathname !== '/map') return 'overview';
+    const saved = sessionStorage.getItem('map-zoom-state');
+    if (saved) {
+      try {
+        const { mapState: s } = JSON.parse(saved);
+        if (s === 'overview' || s === 'expanded' || s === 'zoneDetail') return s;
+      } catch { /* fall through */ }
+    }
+    return 'expanded';
+  });
+  const [activeZone, setActiveZone] = useState<string | null>(() => {
+    if (window.location.pathname !== '/map') return null;
+    const saved = sessionStorage.getItem('map-zoom-state');
+    if (saved) {
+      try { return JSON.parse(saved).activeZone ?? null; } catch { /* fall through */ }
+    }
+    return null;
+  });
   const previousView = useRef<ViewState | null>(null);
 
   // Prevent auto-switch during programmatic flyTo animations
@@ -155,6 +170,11 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
       setActiveZone(null);
     }
   }, [mapState, activeZone, mapRef]);
+
+  // Persist map state to sessionStorage for restoration on /map
+  useEffect(() => {
+    sessionStorage.setItem('map-zoom-state', JSON.stringify({ mapState, activeZone }));
+  }, [mapState, activeZone]);
 
   // Sync with browser back/forward buttons
   useEffect(() => {

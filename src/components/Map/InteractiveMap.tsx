@@ -28,6 +28,8 @@ interface InteractiveMapProps {
   activeZone?: string | null;
   /** Zone ID to highlight (from icon hover or external source) */
   hoveredZone?: string | null;
+  editorMode?: boolean;
+  onMarkerDragEnd?: (place: Place, lngLat: { lng: number; lat: number }) => void;
 }
 
 // World polygon for full-map dim overlay
@@ -58,12 +60,28 @@ export function InteractiveMap({
   skip3DModels = false,
   activeZone = null,
   hoveredZone = null,
+  editorMode = false,
+  onMarkerDragEnd,
 }: InteractiveMapProps) {
   const isContained = mode === 'contained';
   const canInteract = !isContained && interactive;
-  const [viewState, setViewState] = useState<ViewState>(DEFAULT_VIEW_STATE);
+  const [viewState, setViewState] = useState<ViewState>(() => {
+    if (window.location.pathname === '/map') {
+      const saved = sessionStorage.getItem('map-viewport');
+      if (saved) {
+        try { return JSON.parse(saved); } catch { /* fall through */ }
+      }
+    }
+    return DEFAULT_VIEW_STATE;
+  });
   const [mapStyle] = useState<MapStyleKey>('streets');
+  const [mapReady, setMapReady] = useState(false);
   const hoveredZoneRef = useRef<string | null>(null);
+
+  // Persist viewport to sessionStorage so it can be restored on /map
+  useEffect(() => {
+    sessionStorage.setItem('map-viewport', JSON.stringify(viewState));
+  }, [viewState]);
 
   const handleMove = useCallback((evt: ViewStateChangeEvent) => {
     const vs = evt.viewState as ViewState;
@@ -170,7 +188,7 @@ export function InteractiveMap({
         filter: ['==', ['get', 'zone'], ''],
         paint: {
           'fill-color': ['get', 'color'],
-          'fill-opacity': 0.05,
+          'fill-opacity': 0.02,
         },
         layout: { visibility: 'none' },
       });
@@ -304,6 +322,7 @@ export function InteractiveMap({
     addPostcodeLayers(map);
     registerHoverHandlers(map);
     if (modelPlaces.length > 0) add3DModels(map, modelPlaces);
+    setMapReady(true);
 
     map.on('style.load', () => {
       hideClutterLabels(map);
@@ -370,7 +389,10 @@ export function InteractiveMap({
   }
 
   return (
-    <div className="h-full w-full relative">
+    <div
+      className="h-full w-full relative transition-opacity duration-300"
+      style={{ opacity: mapReady ? 1 : 0 }}
+    >
       <MapGL
         ref={mapRef}
         {...viewState}
@@ -400,14 +422,16 @@ export function InteractiveMap({
               place={place}
               zoom={viewState.zoom}
               onClick={isContained ? () => { } : onPlaceClick}
+              draggable={editorMode}
+              onDragEnd={onMarkerDragEnd}
             />
           ))}
         {mapChildren}
       </MapGL>
 
       {/* Debug overlay */}
-      <div className="absolute top-4 right-3 z-50 bg-black/70 text-white text-[10px]
-        font-mono px-3 py-2 rounded-lg pointer-events-none space-y-0.5">
+      <div className={`absolute top-4 right-3 z-50 bg-black/70 text-white text-[10px]
+        font-mono px-3 py-2 rounded-lg pointer-events-none space-y-0.5`}>
         <div>zoom: <span className="text-green-400">{viewState.zoom.toFixed(2)}</span></div>
         <div>pitch: <span className="text-yellow-400">{viewState.pitch.toFixed(1)}</span></div>
         <div>bearing: <span className="text-blue-400">{viewState.bearing.toFixed(1)}</span></div>

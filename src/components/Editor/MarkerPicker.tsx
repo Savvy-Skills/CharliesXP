@@ -16,8 +16,8 @@ export function MarkerPicker({ value, onChange }: MarkerPickerProps) {
           onClick={() => onChange(cat.value)}
           className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all cursor-pointer
             ${value === cat.value
-              ? 'bg-white/15 ring-2 ring-[var(--sg-crimson)]'
-              : 'bg-white/5 hover:bg-white/10'
+              ? 'bg-[var(--sg-offwhite)] ring-2 ring-[var(--sg-crimson)]'
+              : 'hover:bg-[var(--sg-offwhite)]'
             }`}
         >
           <div
@@ -26,7 +26,7 @@ export function MarkerPicker({ value, onChange }: MarkerPickerProps) {
           >
             {CATEGORY_EMOJI[cat.value]}
           </div>
-          <span className="text-[10px] text-slate-400">{cat.label}</span>
+          <span className="text-[10px] text-[var(--sg-navy)]/50">{cat.label}</span>
         </button>
       ))}
     </div>

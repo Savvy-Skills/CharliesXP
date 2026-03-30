@@ -7,18 +7,22 @@ interface PlaceMarkerProps {
   place: Place;
   zoom: number;
   onClick: (place: Place) => void;
+  draggable?: boolean;
+  onDragEnd?: (place: Place, lngLat: { lng: number; lat: number }) => void;
 }
 
-export function PlaceMarker({ place, zoom, onClick }: PlaceMarkerProps) {
+export function PlaceMarker({ place, zoom, onClick, draggable = false, onDragEnd }: PlaceMarkerProps) {
   const categoryColor =
     CATEGORIES.find((c) => c.value === place.category)?.color ?? '#6b7280';
-  const emoji = CATEGORY_EMOJI[place.category] ?? '📍';
+  const emoji = CATEGORY_EMOJI[place.category] ?? '';
 
   return (
     <Marker
       longitude={place.coordinates.lng}
       latitude={place.coordinates.lat}
       anchor="center"
+      draggable={draggable}
+      onDragEnd={(e) => onDragEnd?.(place, e.lngLat)}
       onClick={(e) => {
         e.originalEvent.stopPropagation();
         onClick(place);
