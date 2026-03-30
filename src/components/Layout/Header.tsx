@@ -34,18 +34,12 @@ export function Header() {
       <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
 
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-3 group" aria-label="Charlies XP — home">
-          <div className="w-8 h-8 rounded-lg bg-[var(--sg-crimson)] flex items-center justify-center" aria-hidden="true">
-            <span className="text-white text-sm font-bold font-display">IM</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="font-display text-xl font-bold text-[var(--sg-navy)] leading-none tracking-tight">
-              Interest Map
-            </span>
-            <span className="text-[10px] uppercase tracking-[0.15em] text-[var(--sg-navy)]/40 font-medium hidden sm:block">
-              London Guides
-            </span>
-          </div>
+        <Link to="/" className="flex items-center group" aria-label="Charlies XP — home">
+          <img
+            src="/logo.jpg"
+            alt="Charlies XP — Experience London Like a Londoner"
+            className="h-10 w-auto object-contain"
+          />
         </Link>
 
         {/* Desktop nav */}

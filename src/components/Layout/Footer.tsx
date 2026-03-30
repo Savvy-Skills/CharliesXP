@@ -8,11 +8,15 @@ export function Footer() {
 
           {/* Brand */}
           <div className="max-w-xs">
-            <Link to="/" className="font-display text-xl font-bold text-white hover:text-white/80 transition-colors">
-              Charlies XP
+            <Link to="/" className="inline-block hover:opacity-80 transition-opacity" aria-label="Charlies XP — home">
+              <img
+                src="/logo.jpg"
+                alt="Charlies XP — Experience London Like a Londoner"
+                className="h-16 w-auto object-contain brightness-0 invert"
+              />
             </Link>
-            <p className="text-sm text-white/50 mt-2 leading-relaxed">
-              Curated London, neighbourhood by neighbourhood. Personal, human, editorial.
+            <p className="text-sm text-white/50 mt-3 leading-relaxed">
+              Experience London like a Londoner. Personal, human, editorial.
             </p>
           </div>
 
@@ -44,7 +48,7 @@ export function Footer() {
 
         <div className="mt-10 pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-xs text-white/40">
-            &copy; 2026 Charlies XP. London, United Kingdom.
+            &copy; 2026 Charlies XP · Experience London Like a Londoner
           </p>
           <p className="text-xs text-white/40">
             charliesxp.com · The London I Love · Confidential · 2026
