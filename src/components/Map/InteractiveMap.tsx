@@ -28,6 +28,8 @@ interface InteractiveMapProps {
   children?: ReactNode;
   /** Called when zoom level changes (for parent to react to manual zoom) */
   onZoomChange?: (zoom: number) => void;
+  /** Called when a pan/zoom gesture ends (for zone detection after panning) */
+  onMoveEnd?: () => void;
   /** Skip loading 3D models (prevents them from intercepting zone clicks) */
   skip3DModels?: boolean;
   /** Active zone for dim overlay (dims everything outside this zone) */
@@ -45,6 +47,7 @@ export function InteractiveMap({
   mapChildren,
   children,
   onZoomChange,
+  onMoveEnd,
   skip3DModels = false,
   activeZone = null,
 }: InteractiveMapProps) {
@@ -307,6 +310,7 @@ export function InteractiveMap({
         ref={mapRef}
         {...viewState}
         onMove={isContained ? undefined : handleMove}
+        onMoveEnd={() => onMoveEnd?.()}
         onClick={isContained ? undefined : onMapClick}
         mapboxAccessToken={MAPBOX_TOKEN}
         mapStyle={MAP_STYLES[mapStyle]}

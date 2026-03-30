@@ -25,6 +25,7 @@ interface HeroMapSectionProps {
   onResetView: () => void;
   onMapClick?: (e: { lngLat: { lng: number; lat: number } }) => void;
   onZoomChange?: (zoom: number) => void;
+  onMoveEnd?: () => void;
 }
 
 export function HeroMapSection({
@@ -42,6 +43,7 @@ export function HeroMapSection({
   onResetView,
   onMapClick,
   onZoomChange,
+  onMoveEnd,
 }: HeroMapSectionProps) {
   const [previewPlace, setPreviewPlace] = useState<Place | null>(null);
   const [activeCategory, setActiveCategory] = useState<PlaceCategory | null>(null);
@@ -155,6 +157,7 @@ export function HeroMapSection({
               mode="full"
               interactive={hasUnlockedZones}
               onZoomChange={onZoomChange}
+              onMoveEnd={onMoveEnd}
               skip3DModels
               activeZone={mapState === 'zoneDetail' ? activeZone : null}
               mapChildren={

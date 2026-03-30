@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import type { MapRef } from 'react-map-gl/mapbox';
 import type { MapZoomState, ViewState } from '../types';
 import { DEFAULT_VIEW_STATE } from '../utils/mapStyles';
-import { getZoneForPostcode, ZONE_CENTROIDS } from '../utils/zoneMapping';
+import { getZoneForPostcode, ZONE_CENTROIDS, ZONE_ENTER_THRESHOLD, ZONE_EXIT_THRESHOLD } from '../utils/zoneMapping';
 
 export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
   const [mapState, setMapState] = useState<MapZoomState>('overview');
@@ -28,10 +28,10 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
       // Re-check animating flag after debounce
       if (isAnimating.current) return;
 
-      if (mapState === 'zoneDetail' && zoom < 13.86) {
+      if (mapState === 'zoneDetail' && zoom < ZONE_EXIT_THRESHOLD) {
         setMapState('expanded');
         setActiveZone(null);
-      } else if (mapState === 'expanded' && zoom >= 13.86) {
+      } else if (mapState === 'expanded' && zoom >= ZONE_ENTER_THRESHOLD) {
         const map = mapRef.current?.getMap();
         if (!map) return;
         const center = map.getCenter();
@@ -129,5 +129,28 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
     }, 1200);
   }, [flyToWithGuard]);
 
-  return { mapState, activeZone, expandMap, zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, handleZoomChange };
+  const handleMoveEnd = useCallback(() => {
+    if (isAnimating.current) return;
+    if (mapState !== 'zoneDetail') return;
+
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+    if (map.getZoom() < ZONE_ENTER_THRESHOLD) return;
+
+    const center = map.getCenter();
+    const point = map.project([center.lng, center.lat]);
+    const features = map.queryRenderedFeatures(point, { layers: ['postcodes-fill'] });
+
+    if (features.length > 0) {
+      const postcodeName = features[0].properties?.Name as string;
+      const zoneName = getZoneForPostcode(postcodeName);
+      if (zoneName && zoneName !== activeZone) {
+        setActiveZone(zoneName);
+      }
+    } else {
+      setActiveZone(null);
+    }
+  }, [mapState, activeZone, mapRef]);
+
+  return { mapState, activeZone, expandMap, zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, handleZoomChange, handleMoveEnd };
 }
