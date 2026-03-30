@@ -15,8 +15,8 @@ export function PlaceDetailPage() {
       <PageShell>
         <div className="max-w-2xl mx-auto px-4 py-20 text-center">
           <p className="text-[var(--sg-navy)]/60 text-lg mb-4">Place not found</p>
-          <Link to="/" className="text-[var(--sg-crimson)] hover:text-[#8a3033] font-medium">
-            Back to home
+          <Link to="/map" className="text-[var(--sg-crimson)] hover:text-[#8a3033] font-medium">
+            Back to map
           </Link>
         </div>
       </PageShell>
@@ -32,18 +32,18 @@ export function PlaceDetailPage() {
       <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="flex items-center gap-3 mb-6">
           <Link
-            to="/"
+            to="/map"
             className="p-2 rounded-xl bg-[var(--sg-offwhite)] hover:bg-[var(--sg-border)] text-[var(--sg-navy)]/60 transition-colors"
           >
             <ArrowLeft size={18} />
           </Link>
-          <span className="text-sm text-[var(--sg-navy)]/60">Back to home</span>
+          <span className="text-sm text-[var(--sg-navy)]/60">Back to map</span>
         </div>
 
         <PlaceContent place={place} />
 
         <Link
-          to="/"
+          to="/map"
           className="flex items-center justify-center gap-2 w-full mt-4 py-3 rounded-xl
             bg-[var(--sg-offwhite)] hover:bg-[var(--sg-border)] text-[var(--sg-navy)] text-sm font-medium transition-colors"
         >

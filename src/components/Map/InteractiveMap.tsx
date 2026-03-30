@@ -82,6 +82,17 @@ export function InteractiveMap({
     }
   }, []);
 
+  const highlightTransitLines = useCallback((map: MapboxMap) => {
+    const transitIds = ['rail', 'rail-transit', 'bridge-rail', 'bridge-rail-transit'];
+    for (const id of transitIds) {
+      if (map.getLayer(id)) {
+        map.setPaintProperty(id, 'line-color', '#7c2d36');
+        map.setPaintProperty(id, 'line-width', 2);
+        map.setPaintProperty(id, 'line-opacity', 0.6);
+      }
+    }
+  }, []);
+
   const addPostcodeLayers = useCallback((map: MapboxMap) => {
     // Source: All postcodes (for background lines + click detection)
     if (!map.getSource('postcodes')) {
@@ -159,7 +170,7 @@ export function InteractiveMap({
         filter: ['==', ['get', 'zone'], ''],
         paint: {
           'fill-color': ['get', 'color'],
-          'fill-opacity': 0.15,
+          'fill-opacity': 0.05,
         },
         layout: { visibility: 'none' },
       });
@@ -289,16 +300,18 @@ export function InteractiveMap({
 
     const modelPlaces = skip3DModels ? [] : places.filter((p) => p.model);
     hideClutterLabels(map);
+    highlightTransitLines(map);
     addPostcodeLayers(map);
     registerHoverHandlers(map);
     if (modelPlaces.length > 0) add3DModels(map, modelPlaces);
 
     map.on('style.load', () => {
       hideClutterLabels(map);
+      highlightTransitLines(map);
       addPostcodeLayers(map);
       if (modelPlaces.length > 0) add3DModels(map, modelPlaces);
     });
-  }, [mapRef, places, hideClutterLabels, addPostcodeLayers, registerHoverHandlers, add3DModels]);
+  }, [mapRef, places, hideClutterLabels, highlightTransitLines, addPostcodeLayers, registerHoverHandlers, add3DModels]);
 
   // Toggle dim overlay when activeZone changes — dims ENTIRE map except active zone
   useEffect(() => {
@@ -379,14 +392,14 @@ export function InteractiveMap({
         touchPitch={canInteract}
         keyboard={canInteract}
       >
-        {viewState.zoom >= ZONE_ENTER_THRESHOLD && places
+        {activeZone && places
           .filter((place) => !place.model)
           .map((place) => (
             <PlaceMarker
               key={place.id}
               place={place}
               zoom={viewState.zoom}
-              onClick={isContained ? () => {} : onPlaceClick}
+              onClick={isContained ? () => { } : onPlaceClick}
             />
           ))}
         {mapChildren}

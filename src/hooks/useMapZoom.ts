@@ -49,7 +49,7 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
           }
         }
       }
-    }, 400);
+    }, 150);
   }, [mapState, mapRef]);
 
   // Helper: run a flyTo with animation guard
@@ -64,7 +64,7 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
       // Release guard after animation completes
       setTimeout(() => {
         isAnimating.current = false;
-      }, duration + 200);
+      }, duration + 100);
     },
     [mapRef],
   );

@@ -27,8 +27,9 @@ export default function App() {
   return (
     <UserProvider>
       <AnimatePresence mode="wait">
-        <Routes location={location} key={location.pathname}>
+        <Routes location={location} key={location.pathname === '/map' ? '/' : location.pathname}>
           <Route path="/" element={<AnimatedPage><LandingPage /></AnimatedPage>} />
+          <Route path="/map" element={<AnimatedPage><LandingPage /></AnimatedPage>} />
           <Route path="/explore" element={<FullScreenMapPage />} />
           <Route path="/place/:id" element={<AnimatedPage><PlaceDetailPage /></AnimatedPage>} />
           <Route path="/zone/:name" element={<AnimatedPage><ZoneDetailPage /></AnimatedPage>} />

@@ -84,7 +84,8 @@ export function HeroMapSection({
     .filter(([zoneId]) => unlockedZones.includes(zoneId));
 
   const isFullscreen = mapState === 'expanded' || mapState === 'zoneDetail';
-  const showZoneIcons = mapState === 'overview' || mapState === 'expanded';
+  const showLockedIcons = true;
+  const showUnlockedIcons = mapState === 'overview' || mapState === 'expanded';
 
   // Mapbox needs resize() when container size changes
   useEffect(() => {
@@ -169,33 +170,31 @@ export function HeroMapSection({
               activeZone={mapState === 'zoneDetail' ? activeZone : null}
               hoveredZone={hoveredZoneId}
               mapChildren={
-                showZoneIcons
-                  ? <>
-                      {lockedZonesWithCentroids.map(([zoneId, coords]) => (
-                        <ZoneLockIcon
-                          key={zoneId}
-                          longitude={coords.lng}
-                          latitude={coords.lat}
-                          zoneId={zoneId}
-                          onClick={() => onLockedZoneClick(zoneId)}
-                          onMouseEnter={() => setHoveredZoneId(zoneId)}
-                          onMouseLeave={() => setHoveredZoneId(null)}
-                        />
-                      ))}
-                      {unlockedZonesWithCentroids.map(([zoneId, coords]) => (
-                        <ZoneLockIcon
-                          key={zoneId}
-                          longitude={coords.lng}
-                          latitude={coords.lat}
-                          zoneId={zoneId}
-                          unlocked
-                          onClick={() => onZoneClick(zoneId)}
-                          onMouseEnter={() => setHoveredZoneId(zoneId)}
-                          onMouseLeave={() => setHoveredZoneId(null)}
-                        />
-                      ))}
-                    </>
-                  : undefined
+                <>
+                  {showLockedIcons && lockedZonesWithCentroids.map(([zoneId, coords]) => (
+                    <ZoneLockIcon
+                      key={zoneId}
+                      longitude={coords.lng}
+                      latitude={coords.lat}
+                      zoneId={zoneId}
+                      onClick={() => onLockedZoneClick(zoneId)}
+                      onMouseEnter={() => setHoveredZoneId(zoneId)}
+                      onMouseLeave={() => setHoveredZoneId(null)}
+                    />
+                  ))}
+                  {showUnlockedIcons && unlockedZonesWithCentroids.map(([zoneId, coords]) => (
+                    <ZoneLockIcon
+                      key={zoneId}
+                      longitude={coords.lng}
+                      latitude={coords.lat}
+                      zoneId={zoneId}
+                      unlocked
+                      onClick={() => onZoneClick(zoneId)}
+                      onMouseEnter={() => setHoveredZoneId(zoneId)}
+                      onMouseLeave={() => setHoveredZoneId(null)}
+                    />
+                  ))}
+                </>
               }
             />
 
@@ -205,9 +204,10 @@ export function HeroMapSection({
             )}
 
             {/* Zone teaser summary panel */}
-            {mapState === 'zoneDetail' && allUnlockedPlaces && (
+            {mapState === 'zoneDetail' && (
               <ZoneTeaser
-                places={allUnlockedPlaces}
+                zoneId={activeZone}
+                places={allUnlockedPlaces ?? []}
                 activeCategory={activeCategoryProp ?? null}
               />
             )}

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { getZoneForPostcode } from '../utils/zoneMapping';
 import { motion } from 'framer-motion';
 import { PageShell } from '../components/Layout/PageShell';
@@ -20,11 +20,8 @@ export function LandingPage() {
   const { unlockedZones, isZoneUnlocked, unlockZone } = useUser();
   const [paywallZone, setPaywallZone] = useState<string | null>(null);
 
-  const zonePlaces = activeZone ? getPlacesByZone(activeZone) : [];
-
-  const allUnlockedPlaces = useMemo(() => {
-    return places.filter(p => p.zone && isZoneUnlocked(p.zone));
-  }, [places, isZoneUnlocked]);
+  const zonePlaces = activeZone && isZoneUnlocked(activeZone) ? getPlacesByZone(activeZone) : [];
+  const activeZonePlaces = activeZone ? getPlacesByZone(activeZone) : [];
 
   const activeCategory = activeCategories.length === 1 ? activeCategories[0] : null;
 
@@ -118,7 +115,7 @@ export function LandingPage() {
         onMapClick={handleMapClick}
         onZoomChange={handleZoomChange}
         onMoveEnd={handleMoveEnd}
-        allUnlockedPlaces={allUnlockedPlaces}
+        allUnlockedPlaces={activeZonePlaces}
         activeCategory={activeCategory}
       />
 
