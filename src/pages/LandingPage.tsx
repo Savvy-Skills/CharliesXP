@@ -35,8 +35,34 @@ export function LandingPage() {
 
   const handleMapClick = useCallback(
     (e: { lngLat: { lng: number; lat: number } }) => {
-      // Only detect zone clicks in overview or expanded mode
       if (mapState === 'zoneDetail') return;
+
+      // From overview: any click expands the map
+      if (mapState === 'overview') {
+        const map = mapRef.current?.getMap();
+        if (!map) return;
+        const point = map.project([e.lngLat.lng, e.lngLat.lat]);
+        const features = map.queryRenderedFeatures(point, { layers: ['postcodes-fill'] });
+
+        if (features.length > 0) {
+          const postcodeName = features[0].properties?.Name as string;
+          const zoneName = getZoneForPostcode(postcodeName);
+          if (zoneName) {
+            expandMap();
+            if (isZoneUnlocked(zoneName)) {
+              setTimeout(() => zoomIntoZone(zoneName), 450);
+            } else {
+              setTimeout(() => setPaywallZone(zoneName), 300);
+            }
+            return;
+          }
+        }
+        // Clicked outside any zone — still expand
+        expandMap();
+        return;
+      }
+
+      // In expanded mode: zone clicks zoom in or show paywall
       const map = mapRef.current?.getMap();
       if (!map) return;
       const point = map.project([e.lngLat.lng, e.lngLat.lat]);
@@ -46,25 +72,13 @@ export function LandingPage() {
         const zoneName = getZoneForPostcode(postcodeName);
         if (!zoneName) return;
         if (isZoneUnlocked(zoneName)) {
-          if (mapState === 'overview') {
-            // From collapsed: expand first, then zoom after mount
-            expandMap();
-            setTimeout(() => zoomIntoZone(zoneName), 450);
-          } else {
-            zoomIntoZone(zoneName);
-          }
+          zoomIntoZone(zoneName);
         } else {
-          if (mapState === 'overview') {
-            // From collapsed: expand first, then show paywall
-            expandMap();
-            setTimeout(() => setPaywallZone(zoneName), 300);
-          } else {
-            setPaywallZone(zoneName);
-          }
+          setPaywallZone(zoneName);
         }
       }
     },
-    [mapState, mapRef, isZoneUnlocked, zoomIntoZone],
+    [mapState, mapRef, isZoneUnlocked, zoomIntoZone, expandMap],
   );
 
   const handleZoneClick = useCallback(
@@ -99,6 +113,7 @@ export function LandingPage() {
         onZoneClick={handleZoneClick}
         onZoomOut={zoomOutToExpanded}
         onCollapse={zoomOutToOverview}
+        onExpand={expandMap}
         onResetView={flyToDefault}
         onMapClick={handleMapClick}
         onZoomChange={handleZoomChange}

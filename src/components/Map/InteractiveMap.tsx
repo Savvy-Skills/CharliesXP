@@ -1,10 +1,10 @@
-import { useState, useCallback, useEffect, type ReactNode } from 'react';
+import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import type { Map as MapboxMap, FilterSpecification, MapMouseEvent } from 'mapbox-gl';
 import MapGL, { type MapRef, type ViewStateChangeEvent } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { PlaceMarker } from './PlaceMarker';
 import { MAP_STYLES, DEFAULT_VIEW_STATE, LONDON_BOUNDS, ALLOWED_LABEL_LAYERS, type MapStyleKey } from '../../utils/mapStyles';
-import { ALL_ZONE_POSTCODES, getZoneExcludeFilter, getZoneForPostcode, ZONE_POSTCODES, ZONE_ENTER_THRESHOLD } from '../../utils/zoneMapping';
+import { ALL_ZONE_POSTCODES, ZONE_ENTER_THRESHOLD } from '../../utils/zoneMapping';
 import { createModelLayer } from './ModelLayer';
 import type { Place, ViewState } from '../../types';
 
@@ -19,21 +19,29 @@ interface InteractiveMapProps {
   onMapClick?: (e: { lngLat: { lng: number; lat: number } }) => void;
   onResetView: () => void;
   mode?: MapMode;
-  /** When false, disables zoom/pan/rotate but keeps click events for zone detection */
   interactive?: boolean;
-  /** Children rendered INSIDE MapGL (Markers, Sources, etc.) */
   mapChildren?: ReactNode;
-  /** Children rendered OUTSIDE MapGL (overlays, controls, panels) */
   children?: ReactNode;
-  /** Called when zoom level changes (for parent to react to manual zoom) */
   onZoomChange?: (zoom: number) => void;
-  /** Called when a pan/zoom gesture ends (for zone detection after panning) */
   onMoveEnd?: () => void;
-  /** Skip loading 3D models (prevents them from intercepting zone clicks) */
   skip3DModels?: boolean;
-  /** Active zone for dim overlay (dims everything outside this zone) */
   activeZone?: string | null;
+  /** Zone ID to highlight (from icon hover or external source) */
+  hoveredZone?: string | null;
 }
+
+// World polygon for full-map dim overlay
+const WORLD_GEOJSON = {
+  type: 'FeatureCollection' as const,
+  features: [{
+    type: 'Feature' as const,
+    properties: {},
+    geometry: {
+      type: 'Polygon' as const,
+      coordinates: [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
+    },
+  }],
+};
 
 export function InteractiveMap({
   places,
@@ -49,11 +57,13 @@ export function InteractiveMap({
   onMoveEnd,
   skip3DModels = false,
   activeZone = null,
+  hoveredZone = null,
 }: InteractiveMapProps) {
   const isContained = mode === 'contained';
   const canInteract = !isContained && interactive;
   const [viewState, setViewState] = useState<ViewState>(DEFAULT_VIEW_STATE);
   const [mapStyle] = useState<MapStyleKey>('streets');
+  const hoveredZoneRef = useRef<string | null>(null);
 
   const handleMove = useCallback((evt: ViewStateChangeEvent) => {
     const vs = evt.viewState as ViewState;
@@ -72,90 +82,144 @@ export function InteractiveMap({
     }
   }, []);
 
-  // Only show these managed zones on the map
-  const zoneFilter: FilterSpecification = ['in', ['get', 'Name'], ['literal', ALL_ZONE_POSTCODES]];
-
   const addPostcodeLayers = useCallback((map: MapboxMap) => {
-    if (map.getSource('postcodes')) return;
+    // Source: All postcodes (for background lines + click detection)
+    if (!map.getSource('postcodes')) {
+      map.addSource('postcodes', {
+        type: 'geojson',
+        data: '/london_postcodes.geojson',
+      });
+    }
 
-    map.addSource('postcodes', {
-      type: 'geojson',
-      data: '/london_postcodes.geojson',
-    });
+    // Source: Merged zone polygons (outer borders, per-zone colors)
+    if (!map.getSource('zones')) {
+      map.addSource('zones', {
+        type: 'geojson',
+        data: '/managed_zones.geojson',
+      });
+    }
 
-    // Subtle fill for all zones in the GeoJSON (background context)
-    map.addLayer({
-      id: 'postcodes-bg',
-      type: 'line',
-      source: 'postcodes',
-      paint: {
-        'line-color': '#8b7355',
-        'line-width': 0.3,
-        'line-opacity': 0.15,
-      },
-    });
+    // Source: World polygon for full-map dim
+    if (!map.getSource('world-dim-src')) {
+      map.addSource('world-dim-src', {
+        type: 'geojson',
+        data: WORLD_GEOJSON as GeoJSON.FeatureCollection,
+      });
+    }
 
-    // Highlighted fill for managed zones only
-    map.addLayer({
-      id: 'postcodes-fill',
-      type: 'fill',
-      source: 'postcodes',
-      filter: zoneFilter,
-      paint: {
-        'fill-color': '#7c2d36',
-        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.1, 14, 0.06, 16, 0.02],
-      },
-    });
+    // Subtle background lines for all postcodes
+    if (!map.getLayer('postcodes-bg')) {
+      map.addLayer({
+        id: 'postcodes-bg',
+        type: 'line',
+        source: 'postcodes',
+        paint: {
+          'line-color': '#8b7355',
+          'line-width': 0.3,
+          'line-opacity': 0.15,
+        },
+      });
+    }
 
-    // Prominent border for managed zones
-    map.addLayer({
-      id: 'postcodes-border',
-      type: 'line',
-      source: 'postcodes',
-      filter: zoneFilter,
-      paint: {
-        'line-color': '#7c2d36',
-        'line-width': ['interpolate', ['linear'], ['zoom'], 10, 2.5, 13, 2, 15, 1, 17, 0.3],
-        'line-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.6, 13, 0.5, 15, 0.3, 17, 0.1],
-      },
-    });
+    // Invisible fill for queryRenderedFeatures (click/zoom detection)
+    if (!map.getLayer('postcodes-fill')) {
+      const subPostcodeFilter: FilterSpecification = ['in', ['get', 'Name'], ['literal', ALL_ZONE_POSTCODES]];
+      map.addLayer({
+        id: 'postcodes-fill',
+        type: 'fill',
+        source: 'postcodes',
+        filter: subPostcodeFilter,
+        paint: {
+          'fill-color': 'transparent',
+          'fill-opacity': 0,
+        },
+      });
+    }
 
-    // Hover highlight fill — only visible when a zone is hovered
-    map.addLayer({
-      id: 'postcodes-hover-fill',
-      type: 'fill',
-      source: 'postcodes',
-      filter: ['==', ['get', 'Name'], ''],
-      paint: {
-        'fill-color': '#7c2d36',
-        'fill-opacity': 0.15,
-      },
-    });
+    // World dim — covers ENTIRE map when inside a zone (hidden by default)
+    if (!map.getLayer('world-dim')) {
+      map.addLayer({
+        id: 'world-dim',
+        type: 'fill',
+        source: 'world-dim-src',
+        paint: {
+          'fill-color': '#faf8f5',
+          'fill-opacity': 0.6,
+        },
+        layout: { visibility: 'none' },
+      });
+    }
 
-    // Hover highlight border — brighter border on hovered zone
-    map.addLayer({
-      id: 'postcodes-hover-border',
-      type: 'line',
-      source: 'postcodes',
-      filter: ['==', ['get', 'Name'], ''],
-      paint: {
-        'line-color': '#7c2d36',
-        'line-width': 3.5,
-        'line-opacity': 0.8,
-      },
-    });
+    // Active zone fill — shows active zone color above the dim (hidden by default)
+    if (!map.getLayer('zones-active-fill')) {
+      map.addLayer({
+        id: 'zones-active-fill',
+        type: 'fill',
+        source: 'zones',
+        filter: ['==', ['get', 'zone'], ''],
+        paint: {
+          'fill-color': ['get', 'color'],
+          'fill-opacity': 0.15,
+        },
+        layout: { visibility: 'none' },
+      });
+    }
 
-    // Dim overlay — covers everything outside the active zone (hidden by default)
-    map.addLayer({
-      id: 'postcodes-dim',
-      type: 'fill',
-      source: 'postcodes',
-      paint: {
-        'fill-color': '#faf8f5',
-        'fill-opacity': 0.55,
-      },
-      layout: { visibility: 'none' },
-    });
+    // Zone fill — semi-transparent, per-zone color
+    if (!map.getLayer('zones-fill')) {
+      map.addLayer({
+        id: 'zones-fill',
+        type: 'fill',
+        source: 'zones',
+        paint: {
+          'fill-color': ['get', 'color'],
+          'fill-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.12, 14, 0.06, 16, 0.03],
+        },
+      });
+    }
+
+    // Zone border — outer borders only, per-zone color
+    if (!map.getLayer('zones-border')) {
+      map.addLayer({
+        id: 'zones-border',
+        type: 'line',
+        source: 'zones',
+        paint: {
+          'line-color': ['get', 'color'],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 2.5, 13, 2, 15, 1, 17, 0.3],
+          'line-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.7, 13, 0.6, 15, 0.35, 17, 0.15],
+        },
+      });
+    }
+
+    // Hover highlight fill — initially hidden
+    if (!map.getLayer('zones-hover-fill')) {
+      map.addLayer({
+        id: 'zones-hover-fill',
+        type: 'fill',
+        source: 'zones',
+        filter: ['==', ['get', 'zone'], ''],
+        paint: {
+          'fill-color': ['get', 'color'],
+          'fill-opacity': 0.2,
+        },
+      });
+    }
+
+    // Hover highlight border — initially hidden
+    if (!map.getLayer('zones-hover-border')) {
+      map.addLayer({
+        id: 'zones-hover-border',
+        type: 'line',
+        source: 'zones',
+        filter: ['==', ['get', 'zone'], ''],
+        paint: {
+          'line-color': ['get', 'color'],
+          'line-width': 3.5,
+          'line-opacity': 0.9,
+        },
+      });
+    }
   }, []);
 
   const add3DModels = useCallback((map: MapboxMap, modelPlaces: Place[]) => {
@@ -176,55 +240,26 @@ export function InteractiveMap({
     }
   }, [onPlaceClick]);
 
-  const handleLoad = useCallback(() => {
-    const map = mapRef.current?.getMap();
-    if (!map) return;
-
-    const modelPlaces = skip3DModels ? [] : places.filter((p) => p.model);
-    hideClutterLabels(map);
-    addPostcodeLayers(map);
-    if (modelPlaces.length > 0) add3DModels(map, modelPlaces);
-
-    map.on('style.load', () => {
-      hideClutterLabels(map);
-      addPostcodeLayers(map);
-      if (modelPlaces.length > 0) add3DModels(map, modelPlaces);
-    });
-  }, [mapRef, places, hideClutterLabels, addPostcodeLayers, add3DModels]);
-
-  // Toggle dim overlay when activeZone changes
-  useEffect(() => {
-    const map = mapRef.current?.getMap();
-    if (!map || !map.isStyleLoaded()) return;
-    if (!map.getLayer('postcodes-dim')) return;
-
-    if (activeZone) {
-      map.setFilter('postcodes-dim', getZoneExcludeFilter(activeZone));
-      map.setLayoutProperty('postcodes-dim', 'visibility', 'visible');
-    } else {
-      map.setLayoutProperty('postcodes-dim', 'visibility', 'none');
-    }
-  }, [activeZone, mapRef]);
-
-  // Zone hover effect — only at city level
-  useEffect(() => {
-    const map = mapRef.current?.getMap();
-    if (!map) return;
-
-    let hoveredZone: string | null = null;
-
+  // Register hover handlers directly in handleLoad (guaranteed map is ready)
+  const registerHoverHandlers = useCallback((map: MapboxMap) => {
     const clearHover = () => {
-      if (hoveredZone) {
-        map.setFilter('postcodes-hover-fill', ['==', ['get', 'Name'], '']);
-        map.setFilter('postcodes-hover-border', ['==', ['get', 'Name'], '']);
-        hoveredZone = null;
+      if (hoveredZoneRef.current) {
+        map.setFilter('zones-hover-fill', ['==', ['get', 'zone'], '']);
+        map.setFilter('zones-hover-border', ['==', ['get', 'zone'], '']);
+        hoveredZoneRef.current = null;
         map.getCanvas().style.cursor = '';
       }
     };
 
-    const onMouseMove = (e: MapMouseEvent) => {
-      // Only check if hover layers exist
-      if (!map.getLayer('postcodes-hover-fill')) return;
+    const setHover = (zone: string) => {
+      hoveredZoneRef.current = zone;
+      map.setFilter('zones-hover-fill', ['==', ['get', 'zone'], zone]);
+      map.setFilter('zones-hover-border', ['==', ['get', 'zone'], zone]);
+      map.getCanvas().style.cursor = 'pointer';
+    };
+
+    map.on('mousemove', (e: MapMouseEvent) => {
+      if (!map.getLayer('zones-hover-fill')) return;
 
       const zoom = map.getZoom();
       if (zoom >= ZONE_ENTER_THRESHOLD) {
@@ -232,35 +267,80 @@ export function InteractiveMap({
         return;
       }
 
-      const features = map.queryRenderedFeatures(e.point, { layers: ['postcodes-fill'] });
-      if (features.length > 0) {
-        const postcode = features[0].properties?.Name as string;
-        const zone = getZoneForPostcode(postcode);
-        if (zone && zone !== hoveredZone) {
-          hoveredZone = zone;
-          const postcodes = ZONE_POSTCODES[zone] ?? [];
-          const filter: FilterSpecification = ['in', ['get', 'Name'], ['literal', postcodes]];
-          map.setFilter('postcodes-hover-fill', filter);
-          map.setFilter('postcodes-hover-border', filter);
-          map.getCanvas().style.cursor = 'pointer';
+      const zoneFeatures = map.queryRenderedFeatures(e.point, { layers: ['zones-fill'] });
+      if (zoneFeatures.length > 0) {
+        const zone = zoneFeatures[0].properties?.zone as string;
+        if (zone && zone !== hoveredZoneRef.current) {
+          setHover(zone);
         }
       } else {
         clearHover();
       }
-    };
+    });
 
-    const onMouseLeave = () => {
+    map.on('mouseleave', 'zones-fill', () => {
       clearHover();
-    };
+    });
+  }, []);
 
-    map.on('mousemove', onMouseMove);
-    map.on('mouseleave', 'postcodes-fill', onMouseLeave);
+  const handleLoad = useCallback(() => {
+    const map = mapRef.current?.getMap();
+    if (!map) return;
 
-    return () => {
-      map.off('mousemove', onMouseMove);
-      map.off('mouseleave', 'postcodes-fill', onMouseLeave);
-    };
-  }, [mapRef]);
+    const modelPlaces = skip3DModels ? [] : places.filter((p) => p.model);
+    hideClutterLabels(map);
+    addPostcodeLayers(map);
+    registerHoverHandlers(map);
+    if (modelPlaces.length > 0) add3DModels(map, modelPlaces);
+
+    map.on('style.load', () => {
+      hideClutterLabels(map);
+      addPostcodeLayers(map);
+      if (modelPlaces.length > 0) add3DModels(map, modelPlaces);
+    });
+  }, [mapRef, places, hideClutterLabels, addPostcodeLayers, registerHoverHandlers, add3DModels]);
+
+  // Toggle dim overlay when activeZone changes — dims ENTIRE map except active zone
+  useEffect(() => {
+    const map = mapRef.current?.getMap();
+    if (!map || !map.isStyleLoaded()) return;
+
+    if (activeZone) {
+      // Show world dim (covers everything)
+      if (map.getLayer('world-dim')) {
+        map.setLayoutProperty('world-dim', 'visibility', 'visible');
+      }
+      // Show active zone fill above the dim
+      if (map.getLayer('zones-active-fill')) {
+        map.setFilter('zones-active-fill', ['==', ['get', 'zone'], activeZone]);
+        map.setLayoutProperty('zones-active-fill', 'visibility', 'visible');
+      }
+    } else {
+      if (map.getLayer('world-dim')) {
+        map.setLayoutProperty('world-dim', 'visibility', 'none');
+      }
+      if (map.getLayer('zones-active-fill')) {
+        map.setLayoutProperty('zones-active-fill', 'visibility', 'none');
+      }
+    }
+  }, [activeZone, mapRef]);
+
+  // External hover from icon hover (ZoneLockIcon onMouseEnter/Leave)
+  useEffect(() => {
+    const map = mapRef.current?.getMap();
+    if (!map || !map.isStyleLoaded()) return;
+    if (!map.getLayer('zones-hover-fill')) return;
+
+    if (hoveredZone) {
+      hoveredZoneRef.current = hoveredZone;
+      map.setFilter('zones-hover-fill', ['==', ['get', 'zone'], hoveredZone]);
+      map.setFilter('zones-hover-border', ['==', ['get', 'zone'], hoveredZone]);
+    } else if (hoveredZoneRef.current) {
+      map.setFilter('zones-hover-fill', ['==', ['get', 'zone'], '']);
+      map.setFilter('zones-hover-border', ['==', ['get', 'zone'], '']);
+      hoveredZoneRef.current = null;
+    }
+  }, [hoveredZone, mapRef]);
 
   if (!MAPBOX_TOKEN) {
     return (

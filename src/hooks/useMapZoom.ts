@@ -1,11 +1,13 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { MapRef } from 'react-map-gl/mapbox';
 import type { MapZoomState, ViewState } from '../types';
 import { DEFAULT_VIEW_STATE } from '../utils/mapStyles';
 import { getZoneForPostcode, ZONE_CENTROIDS, ZONE_ENTER_THRESHOLD, ZONE_EXIT_THRESHOLD } from '../utils/zoneMapping';
 
 export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
-  const [mapState, setMapState] = useState<MapZoomState>('overview');
+  const [mapState, setMapState] = useState<MapZoomState>(
+    window.location.pathname === '/map' ? 'expanded' : 'overview'
+  );
   const [activeZone, setActiveZone] = useState<string | null>(null);
   const previousView = useRef<ViewState | null>(null);
 
@@ -15,6 +17,7 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
 
   const expandMap = useCallback(() => {
     setMapState('expanded');
+    window.history.pushState(null, '', '/map');
   }, []);
 
   // Debounced auto-switch — only fires after zoom has been stable for 400ms
@@ -118,6 +121,7 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
     previousView.current = null;
     setMapState('overview');
     setActiveZone(null);
+    window.history.pushState(null, '', '/');
 
     flyToWithGuard({
       center: [DEFAULT_VIEW_STATE.longitude, DEFAULT_VIEW_STATE.latitude],
@@ -151,6 +155,29 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
       setActiveZone(null);
     }
   }, [mapState, activeZone, mapRef]);
+
+  // Sync with browser back/forward buttons
+  useEffect(() => {
+    const onPopState = () => {
+      const path = window.location.pathname;
+      if (path === '/' && mapState !== 'overview') {
+        setMapState('overview');
+        setActiveZone(null);
+        flyToWithGuard({
+          center: [DEFAULT_VIEW_STATE.longitude, DEFAULT_VIEW_STATE.latitude],
+          zoom: DEFAULT_VIEW_STATE.zoom,
+          pitch: DEFAULT_VIEW_STATE.pitch,
+          bearing: DEFAULT_VIEW_STATE.bearing,
+          duration: 800,
+          essential: true,
+        }, 800);
+      } else if (path === '/map' && mapState === 'overview') {
+        setMapState('expanded');
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [mapState, flyToWithGuard]);
 
   return { mapState, activeZone, expandMap, zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, handleZoomChange, handleMoveEnd };
 }

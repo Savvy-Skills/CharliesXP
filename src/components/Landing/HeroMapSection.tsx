@@ -23,6 +23,7 @@ interface HeroMapSectionProps {
   onZoneClick: (zoneId: string) => void;
   onZoomOut: () => void;
   onCollapse: () => void;
+  onExpand: () => void;
   onResetView: () => void;
   onMapClick?: (e: { lngLat: { lng: number; lat: number } }) => void;
   onZoomChange?: (zoom: number) => void;
@@ -43,6 +44,7 @@ export function HeroMapSection({
   onZoneClick,
   onZoomOut,
   onCollapse,
+  onExpand,
   onResetView,
   onMapClick,
   onZoomChange,
@@ -52,6 +54,7 @@ export function HeroMapSection({
 }: HeroMapSectionProps) {
   const [previewPlace, setPreviewPlace] = useState<Place | null>(null);
   const [activeCategory, setActiveCategory] = useState<PlaceCategory | null>(null);
+  const [hoveredZoneId, setHoveredZoneId] = useState<string | null>(null);
 
   const handlePlaceClick = useCallback(
     (place: Place) => {
@@ -81,7 +84,6 @@ export function HeroMapSection({
     .filter(([zoneId]) => unlockedZones.includes(zoneId));
 
   const isFullscreen = mapState === 'expanded' || mapState === 'zoneDetail';
-  const hasUnlockedZones = unlockedZones.length > 0;
   const showZoneIcons = mapState === 'overview' || mapState === 'expanded';
 
   // Mapbox needs resize() when container size changes
@@ -160,11 +162,12 @@ export function HeroMapSection({
               onMapClick={onMapClick}
               onResetView={onResetView}
               mode="full"
-              interactive={hasUnlockedZones}
+              interactive
               onZoomChange={onZoomChange}
               onMoveEnd={onMoveEnd}
               skip3DModels
               activeZone={mapState === 'zoneDetail' ? activeZone : null}
+              hoveredZone={hoveredZoneId}
               mapChildren={
                 showZoneIcons
                   ? <>
@@ -175,6 +178,8 @@ export function HeroMapSection({
                           latitude={coords.lat}
                           zoneId={zoneId}
                           onClick={() => onLockedZoneClick(zoneId)}
+                          onMouseEnter={() => setHoveredZoneId(zoneId)}
+                          onMouseLeave={() => setHoveredZoneId(null)}
                         />
                       ))}
                       {unlockedZonesWithCentroids.map(([zoneId, coords]) => (
@@ -185,6 +190,8 @@ export function HeroMapSection({
                           zoneId={zoneId}
                           unlocked
                           onClick={() => onZoneClick(zoneId)}
+                          onMouseEnter={() => setHoveredZoneId(zoneId)}
+                          onMouseLeave={() => setHoveredZoneId(null)}
                         />
                       ))}
                     </>
@@ -198,7 +205,7 @@ export function HeroMapSection({
             )}
 
             {/* Zone teaser summary panel */}
-            {(mapState === 'expanded' || mapState === 'zoneDetail') && allUnlockedPlaces && (
+            {mapState === 'zoneDetail' && allUnlockedPlaces && (
               <ZoneTeaser
                 places={allUnlockedPlaces}
                 activeCategory={activeCategoryProp ?? null}
@@ -233,6 +240,7 @@ export function HeroMapSection({
           onResetView={onResetView}
           mode="full"
           interactive={false}
+          hoveredZone={hoveredZoneId}
           mapChildren={
             lockedZonesWithCentroids.map(([zoneId, coords]) => (
               <ZoneLockIcon
@@ -241,20 +249,25 @@ export function HeroMapSection({
                 latitude={coords.lat}
                 zoneId={zoneId}
                 onClick={() => onLockedZoneClick(zoneId)}
+                onMouseEnter={() => setHoveredZoneId(zoneId)}
+                onMouseLeave={() => setHoveredZoneId(null)}
               />
             ))
           }
         />
 
-        <div className="absolute bottom-0 left-0 right-0 z-30">
+        <button
+          onClick={onExpand}
+          className="absolute bottom-0 left-0 right-0 z-30 w-full cursor-pointer"
+        >
           <div className="bg-gradient-to-t from-[var(--sg-navy)]/90 to-[var(--sg-navy)]/60 backdrop-blur-sm
             px-6 py-3.5 flex items-center justify-center gap-3">
             <Sparkles size={14} className="text-[var(--sg-thames)]" />
             <span className="text-sm font-medium text-[var(--sg-offwhite)]">
-              Tap a zone to unlock curated local guides
+              Tap the map or here to start exploring
             </span>
           </div>
-        </div>
+        </button>
       </div>
     </section>
   );

@@ -7,9 +7,11 @@ interface ZoneLockIconProps {
   zoneId: string;
   unlocked?: boolean;
   onClick: () => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
-export function ZoneLockIcon({ longitude, latitude, zoneId, unlocked = false, onClick }: ZoneLockIconProps) {
+export function ZoneLockIcon({ longitude, latitude, zoneId, unlocked = false, onClick, onMouseEnter, onMouseLeave }: ZoneLockIconProps) {
   return (
     <Marker longitude={longitude} latitude={latitude} anchor="center">
       <button
@@ -17,6 +19,8 @@ export function ZoneLockIcon({ longitude, latitude, zoneId, unlocked = false, on
           e.stopPropagation();
           onClick();
         }}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
         className="flex flex-col items-center gap-1 cursor-pointer group"
       >
         <div className={`w-11 h-11 rounded-full shadow-md flex items-center justify-center
