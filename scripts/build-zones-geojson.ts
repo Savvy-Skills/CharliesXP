@@ -12,7 +12,7 @@ import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import union from '@turf/union';
 import circle from '@turf/circle';
-import centroid from '@turf/centroid';
+import pointOnFeature from '@turf/point-on-feature';
 import { featureCollection } from '@turf/helpers';
 import type { Feature, Polygon, MultiPolygon, FeatureCollection } from 'geojson';
 
@@ -127,11 +127,11 @@ function mergePolygons(features: Feature<Polygon | MultiPolygon>[]): Feature<Pol
 }
 
 /**
- * Compute the centroid of a polygon feature
+ * Get a point guaranteed to be inside the polygon (not just geometric centroid)
  */
-function getPolygonCentroid(feature: Feature<Polygon | MultiPolygon>): { lng: number; lat: number } {
-  const c = centroid(feature);
-  return { lng: c.geometry.coordinates[0], lat: c.geometry.coordinates[1] };
+function getInteriorPoint(feature: Feature<Polygon | MultiPolygon>): { lng: number; lat: number } {
+  const p = pointOnFeature(feature);
+  return { lng: p.geometry.coordinates[0], lat: p.geometry.coordinates[1] };
 }
 
 // Build zone features
@@ -149,7 +149,7 @@ for (const [postcode, stationsInPostcode] of Object.entries(zonesByPostcode)) {
         zone.radius / 1000,
         { units: 'kilometers', steps: 64 }
       );
-      const polyCenter = getPolygonCentroid(fallbackCircle as Feature<Polygon>);
+      const polyCenter = getInteriorPoint(fallbackCircle as Feature<Polygon>);
       outputFeatures.push({
         type: 'Feature',
         properties: { zone: zone.id, color: zone.color, name: zone.name, centerLng: polyCenter.lng, centerLat: polyCenter.lat },
@@ -167,7 +167,7 @@ for (const [postcode, stationsInPostcode] of Object.entries(zonesByPostcode)) {
     const merged = mergePolygons(postcodeFeatures);
     if (!merged) continue;
     const zone = stationsInPostcode[0];
-    const polyCenter = getPolygonCentroid(merged);
+    const polyCenter = getInteriorPoint(merged);
     outputFeatures.push({
       type: 'Feature',
       properties: { zone: zone.id, color: zone.color, name: zone.name, centerLng: polyCenter.lng, centerLat: polyCenter.lat },
@@ -204,7 +204,7 @@ for (const [postcode, stationsInPostcode] of Object.entries(zonesByPostcode)) {
       }
       const merged = mergePolygons(zoneFeatures);
       if (!merged) continue;
-      const polyCenter = getPolygonCentroid(merged);
+      const polyCenter = getInteriorPoint(merged);
       outputFeatures.push({
         type: 'Feature',
         properties: { zone: zone.id, color: zone.color, name: zone.name, centerLng: polyCenter.lng, centerLat: polyCenter.lat },
@@ -253,7 +253,7 @@ for (const [postcode, stationsInPostcode] of Object.entries(zonesByPostcode)) {
         continue;
       }
 
-      const polyCenter = getPolygonCentroid(clipped as Feature<Polygon | MultiPolygon>);
+      const polyCenter = getInteriorPoint(clipped as Feature<Polygon | MultiPolygon>);
       outputFeatures.push({
         type: 'Feature',
         properties: { zone: zone.id, color: zone.color, name: zone.name, centerLng: polyCenter.lng, centerLat: polyCenter.lat },
