@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router';
-import { ZONE_MAP } from '../utils/zoneMapping';
+import { ZONE_MAP, MANAGED_ZONES } from '../utils/zoneMapping';
 import { motion } from 'framer-motion';
 import { PageShell } from '../components/Layout/PageShell';
 import { SEOHead } from '../components/SEOHead';
@@ -26,7 +26,10 @@ export function LandingPage() {
   const { places, zones, getPlacesByZone, activeCategories } = usePlaces();
   const { mapRef, flyToPlace, flyToDefault } = useMapFlyTo();
   const { mapState, activeZone, expandMap, zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, handleZoomChange, handleMoveEnd } = useMapZoom(mapRef);
-  const { unlockedZones, isZoneUnlocked } = useAuth();
+  const { unlockedZones: rawUnlockedZones, isZoneUnlocked, isAdmin } = useAuth();
+
+  // Admins have all zones unlocked
+  const unlockedZones = isAdmin ? MANAGED_ZONES : rawUnlockedZones;
   const [paywallZone, setPaywallZone] = useState<string | null>(null);
 
   // Editor state
