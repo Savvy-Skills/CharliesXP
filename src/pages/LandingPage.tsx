@@ -19,7 +19,7 @@ export function LandingPage() {
   const [searchParams] = useSearchParams();
   const isEditorMode = searchParams.get('editor') === 'true';
 
-  const { places, zones, getPlacesByZone, activeCategories, addPlace, updatePlace, deletePlace, exportPlaces } = usePlaces();
+  const { places, zones, getPlacesByZone, activeCategories } = usePlaces();
   const { mapRef, flyToPlace, flyToDefault } = useMapFlyTo();
   const { mapState, activeZone, expandMap, zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, handleZoomChange, handleMoveEnd } = useMapZoom(mapRef);
   const { unlockedZones, isZoneUnlocked } = useAuth();
@@ -119,11 +119,6 @@ export function LandingPage() {
     }
   }, [paywallZone, expandMap, zoomIntoZone]);
 
-  // Editor CRUD wrappers
-  const handleAddPlace = useCallback((place: Omit<Place, 'id'>) => {
-    addPlace({ ...place, zone: activeZone ?? undefined } as Omit<Place, 'id'>);
-  }, [addPlace, activeZone]);
-
   const handleCancelPending = useCallback(() => {
     setPendingCoordinates(null);
   }, []);
@@ -173,10 +168,6 @@ export function LandingPage() {
         isEditorMode={isEditorMode}
         pendingCoordinates={pendingCoordinates}
         currentView={currentView}
-        onAddPlace={handleAddPlace}
-        onUpdatePlace={updatePlace}
-        onDeletePlace={deletePlace}
-        onExportPlaces={exportPlaces}
         onCancelPending={handleCancelPending}
       />
 

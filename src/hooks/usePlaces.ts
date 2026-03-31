@@ -1,11 +1,10 @@
 import { useState, useCallback } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import type { Place, PlaceCategory, Zone } from '../types';
-import initialPlaces from '../data/places.json';
+import type { PlaceCategory, Zone } from '../types';
 import zonesData from '../data/zones.json';
+import { useSupabasePlaces } from './useSupabasePlaces';
 
 export function usePlaces() {
-  const [places, setPlaces] = useState<Place[]>(initialPlaces as Place[]);
+  const { places, loading, error, refetch } = useSupabasePlaces();
   const [activeCategories, setActiveCategories] = useState<PlaceCategory[]>([]);
 
   const filteredPlaces =
@@ -20,33 +19,6 @@ export function usePlaces() {
         : [...prev, category]
     );
   }, []);
-
-  const addPlace = useCallback((place: Omit<Place, 'id'>) => {
-    const newPlace: Place = { ...place, id: uuidv4() };
-    setPlaces((prev) => [...prev, newPlace]);
-    return newPlace;
-  }, []);
-
-  const updatePlace = useCallback((id: string, updates: Partial<Place>) => {
-    setPlaces((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
-    );
-  }, []);
-
-  const deletePlace = useCallback((id: string) => {
-    setPlaces((prev) => prev.filter((p) => p.id !== id));
-  }, []);
-
-  const exportPlaces = useCallback(() => {
-    const json = JSON.stringify(places, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'places.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [places]);
 
   const zones: Zone[] = zonesData;
 
@@ -71,12 +43,11 @@ export function usePlaces() {
     zones,
     activeCategories,
     toggleCategory,
-    addPlace,
-    updatePlace,
-    deletePlace,
-    exportPlaces,
     getPlaceById,
     getPlacesByZone,
     getZoneById,
+    loading,
+    error,
+    refetch,
   };
 }
