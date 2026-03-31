@@ -96,8 +96,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [clearUserData]);
 
   const isZoneUnlocked = useCallback(
-    (zoneId: string) => unlockedZones.includes(zoneId),
-    [unlockedZones],
+    (zoneId: string) => profile?.role === 'admin' || unlockedZones.includes(zoneId),
+    [unlockedZones, profile],
   );
 
   const refreshAccess = useCallback(async () => {

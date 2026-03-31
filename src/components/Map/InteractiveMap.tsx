@@ -6,6 +6,7 @@ import { PlaceMarker } from './PlaceMarker';
 import { MAP_STYLES, DEFAULT_VIEW_STATE, LONDON_BOUNDS, ALLOWED_LABEL_LAYERS, type MapStyleKey } from '../../utils/mapStyles';
 import { ZONE_ENTER_THRESHOLD } from '../../utils/zoneMapping';
 import { createModelLayer } from './ModelLayer';
+import { useAuth } from '../../hooks/useAuth';
 import type { Place, ViewState } from '../../types';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -30,6 +31,40 @@ interface InteractiveMapProps {
   hoveredZone?: string | null;
   editorMode?: boolean;
   onMarkerDragEnd?: (place: Place, lngLat: { lng: number; lat: number }) => void;
+}
+
+function DebugOverlay({ viewState, activeZone, editorMode }: { viewState: ViewState; activeZone: string | null; editorMode?: boolean }) {
+  const { profile, isAdmin } = useAuth();
+  const searchParams = new URLSearchParams(window.location.search);
+  const isEditor = editorMode || searchParams.get('editor') === 'true';
+
+  return (
+    <div className="absolute top-4 right-3 z-50 bg-black/70 text-white text-[10px] font-mono px-3 py-2 rounded-lg space-y-0.5">
+      <div>role: <span className={isAdmin ? 'text-red-400' : 'text-gray-400'}>{profile?.role ?? 'anon'}</span></div>
+      <div>zoom: <span className="text-green-400">{viewState.zoom.toFixed(2)}</span></div>
+      <div>bearing: <span className="text-blue-400">{viewState.bearing.toFixed(1)}</span></div>
+      <div>lng: {viewState.longitude.toFixed(4)}</div>
+      <div>lat: {viewState.latitude.toFixed(4)}</div>
+      {activeZone && <div>zone: <span className="text-pink-400">{activeZone}</span></div>}
+      {isAdmin && (
+        <div className="pt-1 mt-1 border-t border-white/20 space-y-1 pointer-events-auto">
+          {!isEditor && (
+            <a href="/map?editor=true" className="block text-cyan-400 hover:text-cyan-300">
+              Editor Mode
+            </a>
+          )}
+          {isEditor && (
+            <a href="/map" className="block text-cyan-400 hover:text-cyan-300">
+              Exit Editor
+            </a>
+          )}
+          <a href="/admin" className="block text-orange-400 hover:text-orange-300">
+            Dashboard
+          </a>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // World polygon for full-map dim overlay
@@ -419,15 +454,7 @@ export function InteractiveMap({
       </MapGL>
 
       {/* Debug overlay */}
-      <div className={`absolute top-4 right-3 z-50 bg-black/70 text-white text-[10px]
-        font-mono px-3 py-2 rounded-lg pointer-events-none space-y-0.5`}>
-        <div>zoom: <span className="text-green-400">{viewState.zoom.toFixed(2)}</span></div>
-        <div>pitch: <span className="text-yellow-400">{viewState.pitch.toFixed(1)}</span></div>
-        <div>bearing: <span className="text-blue-400">{viewState.bearing.toFixed(1)}</span></div>
-        <div>lng: {viewState.longitude.toFixed(4)}</div>
-        <div>lat: {viewState.latitude.toFixed(4)}</div>
-        {activeZone && <div>zone: <span className="text-pink-400">{activeZone}</span></div>}
-      </div>
+      <DebugOverlay viewState={viewState} activeZone={activeZone ?? null} editorMode={editorMode} />
 
       {children}
     </div>
