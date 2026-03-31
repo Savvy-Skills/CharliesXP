@@ -50,7 +50,7 @@ const SUB_POSTCODE_ASSIGNMENTS: Record<string, Record<string, string>> = {
     SW1P: 'westminster',   // Millbank, Pimlico north
     SW1V: 'victoria',      // Pimlico, Victoria
     SW1W: 'victoria',      // Belgravia south, Victoria
-    SW1X: 'green-park',    // Belgravia north, near Green Park
+    SW1X: 'victoria',      // Belgravia, between Victoria and Knightsbridge
     SW1Y: 'green-park',    // St James's, Piccadilly south, Green Park
   },
   // W1: Oxford Circus, Piccadilly Circus, Bond Street, Marble Arch
