@@ -2,20 +2,19 @@
  * Generates zone boundaries from postcode polygons.
  *
  * - Single-station postcodes: zone boundary = merged postcode boundary
- * - Multi-station postcodes: Voronoi-split the merged postcode between stations
+ * - Multi-station postcodes: sub-postcodes manually assigned to stations, then merged
  * - Missing postcodes (HA9): circle fallback
+ * - Outputs polygon centroid for each zone (used for lock icon placement)
  *
  * Run: npx tsx scripts/build-zones-geojson.ts
  */
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import union from '@turf/union';
-import voronoi from '@turf/voronoi';
-import intersect from '@turf/intersect';
 import circle from '@turf/circle';
-import bbox from '@turf/bbox';
-import { featureCollection, point } from '@turf/helpers';
-import type { Feature, Polygon, MultiPolygon, FeatureCollection, Point } from 'geojson';
+import centroid from '@turf/centroid';
+import { featureCollection } from '@turf/helpers';
+import type { Feature, Polygon, MultiPolygon, FeatureCollection } from 'geojson';
 
 const ROOT = join(import.meta.dirname, '..');
 
@@ -38,6 +37,50 @@ for (const f of postcodes.features) {
   featuresByName[f.properties.Name] = f;
 }
 
+/**
+ * Manual sub-postcode assignments for multi-station postcodes.
+ * Each sub-postcode is assigned to the station zone it best belongs to.
+ */
+const SUB_POSTCODE_ASSIGNMENTS: Record<string, Record<string, string>> = {
+  // SW1: Westminster, Green Park, Victoria
+  SW1: {
+    SW1A: 'westminster',   // Parliament, Buckingham Palace, Whitehall
+    SW1E: 'victoria',      // Victoria Station area
+    SW1H: 'westminster',   // Westminster/St James's Park
+    SW1P: 'westminster',   // Millbank, Pimlico north
+    SW1V: 'victoria',      // Pimlico, Victoria
+    SW1W: 'victoria',      // Belgravia south, Victoria
+    SW1X: 'green-park',    // Belgravia north, near Green Park
+    SW1Y: 'green-park',    // St James's, Piccadilly south, Green Park
+  },
+  // W1: Oxford Circus, Piccadilly Circus, Bond Street, Marble Arch
+  W1: {
+    W1B: 'oxford-circus',      // Oxford Street east
+    W1C: 'marble-arch',        // Selfridges, Oxford Street west
+    W1D: 'piccadilly-circus',  // Soho south
+    W1F: 'piccadilly-circus',  // Soho
+    W1G: 'bond-street',        // Harley Street area
+    W1H: 'marble-arch',        // Marble Arch, Edgware Road
+    W1J: 'piccadilly-circus',  // Mayfair south, Piccadilly
+    W1K: 'bond-street',        // Mayfair, Grosvenor Square
+    W1S: 'bond-street',        // Bond Street, Savile Row
+    W1T: 'oxford-circus',      // Fitzrovia
+    W1U: 'bond-street',        // Marylebone south
+    W1W: 'oxford-circus',      // Fitzrovia north
+  },
+  // WC2: Holborn, Charing Cross, Embankment
+  WC2: {
+    WC2A: 'holborn',         // Lincoln's Inn, Kingsway
+    WC2B: 'holborn',         // Covent Garden north
+    WC2E: 'holborn',         // Covent Garden, Strand north
+    WC2H: 'holborn',         // Shaftesbury Avenue, Chinatown
+    WC2N: 'charing-cross',   // Charing Cross, Trafalgar Square
+    WC2R: 'embankment',      // Embankment, Strand south, Waterloo Bridge
+  },
+  // SE1: Waterloo, London Bridge (SE1 is a single polygon, use Voronoi split)
+  // NW1: Marylebone, Camden Town (NW1 is a single polygon, use Voronoi split)
+};
+
 // Group zones by postcode
 const zonesByPostcode: Record<string, ZoneConfig[]> = {};
 for (const zone of zones) {
@@ -49,25 +92,18 @@ for (const zone of zones) {
 
 /**
  * Find all GeoJSON features matching a postcode prefix.
- * e.g., "SW1" matches SW1A, SW1E, SW1H, etc.
- * e.g., "SE1" matches exactly SE1 (and SE10 is NOT matched because we check prefix + non-alphanumeric or end)
  */
 function findPostcodeFeatures(postcode: string): Feature<Polygon | MultiPolygon>[] {
   const features: Feature<Polygon | MultiPolygon>[] = [];
   for (const [name, feature] of Object.entries(featuresByName)) {
-    // Exact match or prefix match where next char is a letter (sub-postcode)
     if (name === postcode) {
       features.push(feature);
     } else if (name.startsWith(postcode) && name.length > postcode.length) {
-      // Ensure we don't match SE10 when looking for SE1
-      // Sub-postcodes add a letter: SW1A, EC2M, W1B
-      // But SE1 should not match SE10, SE11, etc.
       const suffix = name.slice(postcode.length);
-      // If the postcode ends with a digit and suffix starts with a digit, skip (SE1 → SE10)
       const lastChar = postcode[postcode.length - 1];
       const firstSuffix = suffix[0];
       if (/\d/.test(lastChar) && /\d/.test(firstSuffix)) {
-        continue; // Skip: this is a different postcode area (SE1 vs SE10)
+        continue;
       }
       features.push(feature);
     }
@@ -90,6 +126,14 @@ function mergePolygons(features: Feature<Polygon | MultiPolygon>[]): Feature<Pol
   return merged;
 }
 
+/**
+ * Compute the centroid of a polygon feature
+ */
+function getPolygonCentroid(feature: Feature<Polygon | MultiPolygon>): { lng: number; lat: number } {
+  const c = centroid(feature);
+  return { lng: c.geometry.coordinates[0], lat: c.geometry.coordinates[1] };
+}
+
 // Build zone features
 const outputFeatures: Feature<Polygon | MultiPolygon>[] = [];
 
@@ -105,9 +149,10 @@ for (const [postcode, stationsInPostcode] of Object.entries(zonesByPostcode)) {
         zone.radius / 1000,
         { units: 'kilometers', steps: 64 }
       );
+      const polyCenter = getPolygonCentroid(fallbackCircle as Feature<Polygon>);
       outputFeatures.push({
         type: 'Feature',
-        properties: { zone: zone.id, color: zone.color, name: zone.name },
+        properties: { zone: zone.id, color: zone.color, name: zone.name, centerLng: polyCenter.lng, centerLat: polyCenter.lat },
         geometry: fallbackCircle.geometry,
       });
       console.log(`  ✓ ${zone.id}: circle fallback (${zone.radius}m)`);
@@ -115,93 +160,107 @@ for (const [postcode, stationsInPostcode] of Object.entries(zonesByPostcode)) {
     continue;
   }
 
-  // Merge all sub-postcode polygons into one boundary
-  const mergedPostcode = mergePolygons(postcodeFeatures);
-  if (!mergedPostcode) {
-    console.warn(`⚠ Failed to merge polygons for ${postcode}`);
-    continue;
-  }
-
-  console.log(`${postcode}: merged ${postcodeFeatures.length} polygon(s) → ${stationsInPostcode.length} station(s)`);
+  console.log(`${postcode}: ${postcodeFeatures.length} polygon(s) → ${stationsInPostcode.length} station(s)`);
 
   // Single station: use the full merged postcode boundary
   if (stationsInPostcode.length === 1) {
+    const merged = mergePolygons(postcodeFeatures);
+    if (!merged) continue;
     const zone = stationsInPostcode[0];
+    const polyCenter = getPolygonCentroid(merged);
     outputFeatures.push({
       type: 'Feature',
-      properties: { zone: zone.id, color: zone.color, name: zone.name },
-      geometry: mergedPostcode.geometry,
+      properties: { zone: zone.id, color: zone.color, name: zone.name, centerLng: polyCenter.lng, centerLat: polyCenter.lat },
+      geometry: merged.geometry,
     });
     console.log(`  ✓ ${zone.id}: full postcode boundary`);
     continue;
   }
 
-  // Multiple stations: Voronoi-split within the postcode boundary
-  const stationPoints = featureCollection(
-    stationsInPostcode.map((z) =>
-      point([z.centroid.lng, z.centroid.lat], { zone: z.id, color: z.color, name: z.name })
-    )
-  );
+  // Multiple stations: check if we have manual sub-postcode assignments
+  const assignments = SUB_POSTCODE_ASSIGNMENTS[postcode];
 
-  // Use the postcode's bounding box (with padding) for Voronoi generation
-  const [minX, minY, maxX, maxY] = bbox(mergedPostcode);
-  const pad = 0.02; // ~2km padding
-  const voronoiBbox: [number, number, number, number] = [minX - pad, minY - pad, maxX + pad, maxY + pad];
-
-  const voronoiResult = voronoi(stationPoints as FeatureCollection<Point>, { bbox: voronoiBbox });
-  if (!voronoiResult) {
-    console.warn(`  ⚠ Voronoi failed for ${postcode} — assigning full boundary to first station`);
-    const zone = stationsInPostcode[0];
-    outputFeatures.push({
-      type: 'Feature',
-      properties: { zone: zone.id, color: zone.color, name: zone.name },
-      geometry: mergedPostcode.geometry,
-    });
-    continue;
-  }
-
-  // Intersect each Voronoi cell with the merged postcode boundary
-  for (let i = 0; i < stationsInPostcode.length; i++) {
-    const zone = stationsInPostcode[i];
-    const voronoiCell = voronoiResult.features[i];
-
-    if (!voronoiCell) {
-      console.warn(`  ⚠ No Voronoi cell for ${zone.id}`);
-      continue;
+  if (assignments) {
+    // Group sub-postcodes by assigned zone
+    const featuresByZone: Record<string, Feature<Polygon | MultiPolygon>[]> = {};
+    for (const zone of stationsInPostcode) {
+      featuresByZone[zone.id] = [];
     }
 
-    const clipped = intersect(
-      featureCollection([voronoiCell as Feature<Polygon>, mergedPostcode as Feature<Polygon>])
+    for (const [subPostcode, zoneId] of Object.entries(assignments)) {
+      const feature = featuresByName[subPostcode];
+      if (feature && featuresByZone[zoneId]) {
+        featuresByZone[zoneId].push(feature);
+      } else if (!feature) {
+        console.warn(`  ⚠ Sub-postcode ${subPostcode} not found in GeoJSON`);
+      }
+    }
+
+    for (const zone of stationsInPostcode) {
+      const zoneFeatures = featuresByZone[zone.id];
+      if (!zoneFeatures || zoneFeatures.length === 0) {
+        console.warn(`  ⚠ No sub-postcodes assigned to ${zone.id}`);
+        continue;
+      }
+      const merged = mergePolygons(zoneFeatures);
+      if (!merged) continue;
+      const polyCenter = getPolygonCentroid(merged);
+      outputFeatures.push({
+        type: 'Feature',
+        properties: { zone: zone.id, color: zone.color, name: zone.name, centerLng: polyCenter.lng, centerLat: polyCenter.lat },
+        geometry: merged.geometry,
+      });
+      console.log(`  ✓ ${zone.id}: merged ${zoneFeatures.length} sub-postcode(s)`);
+    }
+  } else {
+    // No manual assignments — use Voronoi split (for SE1, NW1 which are single polygons)
+    const merged = mergePolygons(postcodeFeatures);
+    if (!merged) continue;
+
+    // Import voronoi + intersect dynamically for this path
+    const voronoiMod = await import('@turf/voronoi');
+    const intersectMod = await import('@turf/intersect');
+    const bboxMod = await import('@turf/bbox');
+    const { point } = await import('@turf/helpers');
+
+    const stationPoints = featureCollection(
+      stationsInPostcode.map((z) =>
+        point([z.centroid.lng, z.centroid.lat], { zone: z.id, color: z.color, name: z.name })
+      )
     );
 
-    if (!clipped) {
-      console.warn(`  ⚠ Intersection empty for ${zone.id} — station may be outside postcode boundary`);
-      // Fallback: use a circle within the postcode
-      const fallbackCircle = circle(
-        [zone.centroid.lng, zone.centroid.lat],
-        zone.radius / 1000,
-        { units: 'kilometers', steps: 64 }
-      );
-      const circleClipped = intersect(
-        featureCollection([fallbackCircle as Feature<Polygon>, mergedPostcode as Feature<Polygon>])
-      );
-      if (circleClipped) {
-        outputFeatures.push({
-          type: 'Feature',
-          properties: { zone: zone.id, color: zone.color, name: zone.name },
-          geometry: circleClipped.geometry,
-        });
-        console.log(`  ✓ ${zone.id}: circle-clipped fallback within postcode`);
-      }
+    const [minX, minY, maxX, maxY] = bboxMod.default(merged);
+    const pad = 0.02;
+    const voronoiBbox: [number, number, number, number] = [minX - pad, minY - pad, maxX + pad, maxY + pad];
+
+    const voronoiResult = voronoiMod.default(stationPoints as any, { bbox: voronoiBbox });
+    if (!voronoiResult) {
+      console.warn(`  ⚠ Voronoi failed for ${postcode}`);
       continue;
     }
 
-    outputFeatures.push({
-      type: 'Feature',
-      properties: { zone: zone.id, color: zone.color, name: zone.name },
-      geometry: clipped.geometry,
-    });
-    console.log(`  ✓ ${zone.id}: Voronoi split within ${postcode}`);
+    for (let i = 0; i < stationsInPostcode.length; i++) {
+      const zone = stationsInPostcode[i];
+      const voronoiCell = voronoiResult.features[i];
+      if (!voronoiCell) continue;
+
+      const clipped = intersectMod.default(
+        featureCollection([voronoiCell as Feature<Polygon>, merged as Feature<Polygon>])
+      );
+
+      if (!clipped) {
+        console.warn(`  ⚠ Intersection empty for ${zone.id}`);
+        continue;
+      }
+
+      const polyCenter = getPolygonCentroid(clipped as Feature<Polygon | MultiPolygon>);
+      outputFeatures.push({
+        type: 'Feature',
+        properties: { zone: zone.id, color: zone.color, name: zone.name, centerLng: polyCenter.lng, centerLat: polyCenter.lat },
+        geometry: clipped.geometry,
+      });
+      console.log(`  ✓ ${zone.id}: Voronoi split within ${postcode}`);
+    }
   }
 }
 
@@ -213,3 +272,13 @@ const output: FeatureCollection = {
 const outPath = join(ROOT, 'public/managed_zones.geojson');
 writeFileSync(outPath, JSON.stringify(output));
 console.log(`\nWrote ${outputFeatures.length} zones to ${outPath}`);
+
+// Also output polygon centers as a small JSON for lock icon placement
+const polygonCenters: Record<string, { lng: number; lat: number }> = {};
+for (const f of outputFeatures) {
+  const props = f.properties as { zone: string; centerLng: number; centerLat: number };
+  polygonCenters[props.zone] = { lng: props.centerLng, lat: props.centerLat };
+}
+const centersPath = join(ROOT, 'src/data/zone-centers.json');
+writeFileSync(centersPath, JSON.stringify(polygonCenters, null, 2));
+console.log(`Wrote polygon centers to ${centersPath}`);

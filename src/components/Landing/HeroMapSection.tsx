@@ -11,7 +11,7 @@ import { ZoneSidePanel } from '../Map/ZoneSidePanel';
 import { ZoneLockIcon } from '../Map/ZoneLockIcon';
 import { EditorPanel } from '../Editor/EditorPanel';
 import type { Place, PlaceCategory, MapZoomState, Coordinates } from '../../types';
-import { ZONE_CENTROIDS, ZONE_MAP } from '../../utils/zoneMapping';
+import { ZONE_POLYGON_CENTERS, ZONE_MAP } from '../../utils/zoneMapping';
 import { useLandmarks } from '../../hooks/useLandmarks';
 
 interface HeroMapSectionProps {
@@ -105,8 +105,8 @@ export function HeroMapSection({
   const filteredZonePlaces =
     zonePlaces.filter((p) => !activeCategory || p.category === activeCategory);
 
-  // In editor mode, all zones are treated as unlocked for icons
-  const allZonesWithCentroids = Object.entries(ZONE_CENTROIDS);
+  // Use polygon centers for icon placement (center of zone boundary, not station location)
+  const allZonesWithCentroids = Object.entries(ZONE_POLYGON_CENTERS);
   const lockedZonesWithCentroids = isEditorMode
     ? []
     : allZonesWithCentroids.filter(([zoneId]) => !unlockedZones.includes(zoneId));

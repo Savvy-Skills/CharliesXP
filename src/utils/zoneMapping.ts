@@ -1,4 +1,5 @@
 import zonesData from '../data/zones.json';
+import zoneCentersData from '../data/zone-centers.json';
 import type { Zone } from '../types';
 
 /** All 28 zones loaded from config */
@@ -9,10 +10,14 @@ export const ZONE_MAP: Record<string, Zone> = Object.fromEntries(
   ZONES.map((z) => [z.id, z]),
 );
 
-/** Zone centroids for flyTo animations — derived from zones config */
+/** Station centroids for flyTo animations */
 export const ZONE_CENTROIDS: Record<string, { lng: number; lat: number }> = Object.fromEntries(
   ZONES.map((z) => [z.id, z.centroid]),
 );
+
+/** Polygon centroids for lock icon placement (center of actual zone boundary) */
+export const ZONE_POLYGON_CENTERS: Record<string, { lng: number; lat: number }> =
+  zoneCentersData as Record<string, { lng: number; lat: number }>;
 
 /** All valid zone IDs */
 export const MANAGED_ZONES: string[] = ZONES.map((z) => z.id);
