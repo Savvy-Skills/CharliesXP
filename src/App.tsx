@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route, useLocation } from 'react-router';
 import { AnimatePresence, motion } from 'framer-motion';
-import { UserProvider } from './hooks/useUser';
+import { AuthProvider } from './hooks/useAuth';
 
 // Code-split every route for optimal initial load
 const LandingPage       = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
@@ -12,6 +12,9 @@ const WhoIsCharliePage  = lazy(() => import('./pages/WhoIsCharliePage').then(m =
 const TheLondonILovePage = lazy(() => import('./pages/TheLondonILovePage').then(m => ({ default: m.TheLondonILovePage })));
 const LondonSectionPage = lazy(() => import('./pages/LondonSectionPage').then(m => ({ default: m.LondonSectionPage })));
 const FamiliesPage      = lazy(() => import('./pages/FamiliesPage').then(m => ({ default: m.FamiliesPage })));
+const LoginPage         = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })));
+const AccountPage       = lazy(() => import('./pages/AccountPage').then(m => ({ default: m.AccountPage })));
+const AdminPage         = lazy(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })));
 
 function PageFallback() {
   return (
@@ -38,7 +41,7 @@ export default function App() {
   const location = useLocation();
 
   return (
-    <UserProvider>
+    <AuthProvider>
       <Suspense fallback={<PageFallback />}>
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname === '/map' ? '/' : location.pathname}>
@@ -51,9 +54,12 @@ export default function App() {
             <Route path="/the-london-i-love" element={<AnimatedPage><TheLondonILovePage /></AnimatedPage>} />
             <Route path="/the-london-i-love/:slug" element={<AnimatedPage><LondonSectionPage /></AnimatedPage>} />
             <Route path="/families" element={<AnimatedPage><FamiliesPage /></AnimatedPage>} />
+            <Route path="/login" element={<AnimatedPage><LoginPage /></AnimatedPage>} />
+            <Route path="/account" element={<AnimatedPage><AccountPage /></AnimatedPage>} />
+            <Route path="/admin" element={<AnimatedPage><AdminPage /></AnimatedPage>} />
           </Routes>
         </AnimatePresence>
       </Suspense>
-    </UserProvider>
+    </AuthProvider>
   );
 }

@@ -73,3 +73,39 @@ export interface User {
   isLoggedIn: boolean;
   unlockedZones: string[];
 }
+
+export interface Profile {
+  id: string;
+  email: string;
+  display_name: string | null;
+  role: 'user' | 'admin';
+  created_at: string;
+}
+
+export interface Package {
+  id: string;
+  slug: string;
+  name: string;
+  price_cents: number;
+  benefits: Record<string, unknown>;
+  stripe_price_id: string | null;
+  active: boolean;
+}
+
+export interface Purchase {
+  id: string;
+  user_id: string;
+  package_id: string;
+  zone_ids: string[];
+  zone_credits: number;
+  stripe_session_id: string | null;
+  amount_cents: number;
+  created_at: string;
+}
+
+export interface UserZone {
+  user_id: string;
+  zone_id: string;
+  purchase_id: string;
+  granted_at: string;
+}
