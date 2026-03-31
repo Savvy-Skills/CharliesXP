@@ -119,8 +119,8 @@ export function PaywallModal({ isOpen, onClose, zoneName, zoneId }: PaywallModal
                 </span>
               </div>
               <p className="text-xs text-[var(--sg-navy)]/60">
-                {pkg.slug === 'individual' && 'Unlock this postcode'}
-                {pkg.slug === 'smile' && '5 postcodes of your choice'}
+                {pkg.slug === 'individual' && 'Unlock this zone'}
+                {pkg.slug === 'smile' && '5 zones of your choice'}
                 {pkg.slug === 'atane' && 'Unlock everything — all zones'}
               </p>
             </button>

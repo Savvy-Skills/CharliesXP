@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router';
+import { ZONE_MAP } from '../utils/zoneMapping';
 import { motion } from 'framer-motion';
 import { PageShell } from '../components/Layout/PageShell';
 import { SEOHead } from '../components/SEOHead';
@@ -86,7 +87,7 @@ export function LandingPage() {
         return;
       }
 
-      // In expanded mode: zone clicks always zoom in
+      // In expanded mode: zoom in if unlocked, paywall if locked
       const map = mapRef.current?.getMap();
       if (!map) return;
       const point = map.project([e.lngLat.lng, e.lngLat.lat]);
@@ -94,7 +95,11 @@ export function LandingPage() {
       if (features.length > 0) {
         const zoneName = features[0].properties?.zone as string;
         if (!zoneName) return;
-        zoomIntoZone(zoneName);
+        if (isEditorMode || isZoneUnlocked(zoneName)) {
+          zoomIntoZone(zoneName);
+        } else {
+          setPaywallZone(zoneName);
+        }
       }
     },
     [mapState, mapRef, isZoneUnlocked, zoomIntoZone, expandMap, isEditorMode, activeZone],
@@ -265,7 +270,7 @@ export function LandingPage() {
       <PaywallModal
         isOpen={!!paywallZone}
         onClose={() => setPaywallZone(null)}
-        zoneName={paywallZone ?? ''}
+        zoneName={paywallZone ? (ZONE_MAP[paywallZone]?.name ?? paywallZone) : ''}
         zoneId={paywallZone ?? ''}
       />
     </PageShell>
