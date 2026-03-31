@@ -100,10 +100,16 @@ export function InteractiveMap({
     }
   }, []);
 
-  const hideTransitLines = useCallback((map: MapboxMap) => {
-    const transitIds = ['rail', 'rail-transit', 'bridge-rail', 'bridge-rail-transit'];
-    for (const id of transitIds) {
-      if (map.getLayer(id)) {
+  const hideTransitLayers = useCallback((map: MapboxMap) => {
+    // Hide rail lines and transit station icons/labels
+    for (const layer of map.getStyle().layers ?? []) {
+      const id = layer.id;
+      if (
+        id.includes('rail') ||
+        id.includes('transit') ||
+        id.includes('airport') ||
+        id.includes('ferry')
+      ) {
         map.setLayoutProperty(id, 'visibility', 'none');
       }
     }
@@ -301,7 +307,7 @@ export function InteractiveMap({
 
     const modelPlaces = skip3DModels ? [] : places.filter((p) => p.model);
     hideClutterLabels(map);
-    hideTransitLines(map);
+    hideTransitLayers(map);
     addPostcodeLayers(map);
     registerHoverHandlers(map);
     if (modelPlaces.length > 0) add3DModels(map, modelPlaces);
@@ -309,11 +315,11 @@ export function InteractiveMap({
 
     map.on('style.load', () => {
       hideClutterLabels(map);
-      hideTransitLines(map);
+      hideTransitLayers(map);
       addPostcodeLayers(map);
       if (modelPlaces.length > 0) add3DModels(map, modelPlaces);
     });
-  }, [mapRef, places, hideClutterLabels, hideTransitLines, addPostcodeLayers, registerHoverHandlers, add3DModels]);
+  }, [mapRef, places, hideClutterLabels, hideTransitLayers, addPostcodeLayers, registerHoverHandlers, add3DModels]);
 
   // Toggle dim overlay when activeZone changes — dims ENTIRE map except active zone
   useEffect(() => {
