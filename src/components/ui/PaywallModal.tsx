@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Modal } from './Modal';
 import { Lock } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
+import { usePackages } from '../../hooks/usePackages';
 import type { Package } from '../../types';
 
 interface PaywallModalProps {
@@ -16,20 +17,8 @@ interface PaywallModalProps {
 export function PaywallModal({ isOpen, onClose, zoneName, zoneId }: PaywallModalProps) {
   const { isLoggedIn, zoneCredits, refreshAccess } = useAuth();
   const navigate = useNavigate();
-  const [packages, setPackages] = useState<Package[]>([]);
+  const { packages } = usePackages();
   const [redeeming, setRedeeming] = useState(false);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    supabase
-      .from('packages')
-      .select('*')
-      .eq('active', true)
-      .order('price_cents')
-      .then(({ data }) => {
-        if (data) setPackages(data as Package[]);
-      });
-  }, [isOpen]);
 
   const handleBuyPackage = async (pkg: Package) => {
     if (!isLoggedIn) {

@@ -13,11 +13,15 @@ import { usePlaces } from '../hooks/usePlaces';
 import { useMapFlyTo } from '../hooks/useMapFlyTo';
 import { useMapZoom } from '../hooks/useMapZoom';
 import { useAuth } from '../hooks/useAuth';
+import { usePackages } from '../hooks/usePackages';
 import type { Place, Coordinates } from '../types';
 
 export function LandingPage() {
   const [searchParams] = useSearchParams();
   const isEditorMode = searchParams.get('editor') === 'true';
+
+  // Preload packages so PaywallModal opens instantly
+  usePackages();
 
   const { places, zones, getPlacesByZone, activeCategories } = usePlaces();
   const { mapRef, flyToPlace, flyToDefault } = useMapFlyTo();
