@@ -10,7 +10,7 @@ import { ZoneSidePanel } from '../Map/ZoneSidePanel';
 import { ZoneLockIcon } from '../Map/ZoneLockIcon';
 import { EditorPanel } from '../Editor/EditorPanel';
 import type { Place, PlaceCategory, MapZoomState, Coordinates } from '../../types';
-import { ZONE_CENTROIDS } from '../../utils/zoneMapping';
+import { ZONE_CENTROIDS, ZONE_MAP } from '../../utils/zoneMapping';
 
 interface HeroMapSectionProps {
   places: Place[];
@@ -177,6 +177,7 @@ export function HeroMapSection({
       return (
         <ZoneSidePanel
           zoneId={activeZone}
+          zoneName={ZONE_MAP[activeZone]?.name}
           places={filteredZonePlaces}
           onPlaceClick={handlePlaceClick}
           locked={!unlockedZones.includes(activeZone)}
@@ -212,7 +213,7 @@ export function HeroMapSection({
                 Editor
               </span>
               <span className="text-sm font-semibold text-[var(--sg-navy)]">
-                {activeZone}
+                {activeZone ? (ZONE_MAP[activeZone]?.name ?? activeZone) : ''}
               </span>
             </div>
             <button
@@ -282,6 +283,7 @@ export function HeroMapSection({
                       longitude={coords.lng}
                       latitude={coords.lat}
                       zoneId={zoneId}
+                      zoneName={ZONE_MAP[zoneId]?.name}
                       onClick={() => onLockedZoneClick(zoneId)}
                       onMouseEnter={() => setHoveredZoneId(zoneId)}
                       onMouseLeave={() => setHoveredZoneId(null)}
@@ -293,6 +295,7 @@ export function HeroMapSection({
                       longitude={coords.lng}
                       latitude={coords.lat}
                       zoneId={zoneId}
+                      zoneName={ZONE_MAP[zoneId]?.name}
                       unlocked
                       onClick={() => onZoneClick(zoneId)}
                       onMouseEnter={() => setHoveredZoneId(zoneId)}
@@ -312,6 +315,7 @@ export function HeroMapSection({
             {mapState === 'zoneDetail' && !isEditorMode && (
               <ZoneTeaser
                 zoneId={activeZone}
+                zoneName={activeZone ? ZONE_MAP[activeZone]?.name : undefined}
                 places={allUnlockedPlaces ?? []}
                 activeCategory={activeCategoryProp ?? null}
               />
@@ -355,6 +359,7 @@ export function HeroMapSection({
                 longitude={coords.lng}
                 latitude={coords.lat}
                 zoneId={zoneId}
+                zoneName={ZONE_MAP[zoneId]?.name}
                 onClick={() => onLockedZoneClick(zoneId)}
                 onMouseEnter={() => setHoveredZoneId(zoneId)}
                 onMouseLeave={() => setHoveredZoneId(null)}

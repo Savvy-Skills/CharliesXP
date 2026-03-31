@@ -6,13 +6,15 @@ import { CATEGORY_EMOJI } from '../../utils/mapStyles';
 
 interface ZoneSidePanelProps {
   zoneId: string;
+  zoneName?: string;
   places: Place[];
   onPlaceClick: (place: Place) => void;
   locked?: boolean;
   onUnlock?: () => void;
 }
 
-export function ZoneSidePanel({ zoneId, places, onPlaceClick, locked = false, onUnlock }: ZoneSidePanelProps) {
+export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked = false, onUnlock }: ZoneSidePanelProps) {
+  const displayName = zoneName || zoneId;
   const navigate = useNavigate();
 
   return (
@@ -24,7 +26,7 @@ export function ZoneSidePanel({ zoneId, places, onPlaceClick, locked = false, on
           {locked ? (
             <>
               <Lock size={16} className="inline -mt-0.5 mr-1.5 text-[var(--sg-crimson)]" />
-              <span className="text-[var(--sg-crimson)]">{zoneId}</span>
+              <span className="text-[var(--sg-crimson)]">{displayName}</span>
             </>
           ) : (
             <>Places in <span className="text-[var(--sg-crimson)]">{zoneId}</span></>
@@ -45,7 +47,7 @@ export function ZoneSidePanel({ zoneId, places, onPlaceClick, locked = false, on
               <Lock size={20} className="text-[var(--sg-crimson)]" />
             </div>
             <h3 className="font-display text-lg font-bold text-[var(--sg-navy)] mb-2">
-              Unlock {zoneId}
+              Unlock {displayName}
             </h3>
             <p className="text-sm text-[var(--sg-navy)]/60 mb-5 leading-relaxed">
               Get full access to all recommendations, reviews, and insider tips in this zone.
@@ -76,7 +78,7 @@ export function ZoneSidePanel({ zoneId, places, onPlaceClick, locked = false, on
               className="w-full py-3 rounded-xl bg-[var(--sg-crimson)] hover:bg-[var(--sg-crimson-hover)] text-white
                 font-semibold transition-all cursor-pointer text-sm shadow-md"
             >
-              Unlock {zoneId} — £3.99
+              Unlock {displayName} — £3.99
             </button>
           </div>
 

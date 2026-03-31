@@ -5,13 +5,14 @@ interface ZoneLockIconProps {
   longitude: number;
   latitude: number;
   zoneId: string;
+  zoneName?: string;
   unlocked?: boolean;
   onClick: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 }
 
-export function ZoneLockIcon({ longitude, latitude, zoneId, unlocked = false, onClick, onMouseEnter, onMouseLeave }: ZoneLockIconProps) {
+export function ZoneLockIcon({ longitude, latitude, zoneId, zoneName, unlocked = false, onClick, onMouseEnter, onMouseLeave }: ZoneLockIconProps) {
   return (
     <Marker longitude={longitude} latitude={latitude} anchor="center">
       <button
@@ -42,7 +43,7 @@ export function ZoneLockIcon({ longitude, latitude, zoneId, unlocked = false, on
             : 'bg-white/90 text-[var(--sg-navy)] border border-[var(--sg-border)]'
           }`}
         >
-          {zoneId}
+          {zoneName || zoneId}
         </span>
       </button>
     </Marker>

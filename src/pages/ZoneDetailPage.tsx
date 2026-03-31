@@ -71,7 +71,7 @@ export function ZoneDetailPage() {
 
         {unlocked ? (
           <>
-            <h2 className="font-display text-lg font-bold text-[var(--sg-navy)] mb-4">Places in {zone.id}</h2>
+            <h2 className="font-display text-lg font-bold text-[var(--sg-navy)] mb-4">Places in {zone.name}</h2>
             <ZonePlacesList places={zonePlaces} />
           </>
         ) : (
@@ -79,7 +79,7 @@ export function ZoneDetailPage() {
             <Lock size={32} className="text-[var(--sg-navy)]/60 mx-auto mb-3" />
             <p className="text-[var(--sg-navy)] font-medium mb-2">This zone is locked</p>
             <p className="text-sm text-[var(--sg-navy)]/60">
-              Purchase access to see all places and recommendations in {zone.id}.
+              Purchase access to see all places and recommendations in {zone.name}.
             </p>
           </div>
         )}

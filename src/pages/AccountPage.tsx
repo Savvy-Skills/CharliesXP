@@ -4,6 +4,7 @@ import { ArrowLeft, MapPin, CreditCard } from 'lucide-react';
 import { PageShell } from '../components/Layout/PageShell';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
+import { ZONE_MAP } from '../utils/zoneMapping';
 import type { Purchase } from '../types';
 
 export function AccountPage() {
@@ -66,7 +67,7 @@ export function AccountPage() {
                   to={`/zone/${zoneId}`}
                   className="px-4 py-2 rounded-xl bg-[var(--sg-offwhite)] text-sm font-medium text-[var(--sg-navy)] hover:bg-[var(--sg-border)] transition-colors"
                 >
-                  {zoneId}
+                  {ZONE_MAP[zoneId]?.name || zoneId}
                 </Link>
               ))}
             </div>
@@ -93,7 +94,7 @@ export function AccountPage() {
                     <p className="text-sm font-medium text-[var(--sg-navy)]">{p.package_name}</p>
                     <p className="text-xs text-[var(--sg-navy)]/60">
                       {new Date(p.created_at).toLocaleDateString('en-GB')}
-                      {p.zone_ids.length > 0 && ` — Zones: ${p.zone_ids.join(', ')}`}
+                      {p.zone_ids.length > 0 && ` — Zones: ${p.zone_ids.map(id => ZONE_MAP[id]?.name || id).join(', ')}`}
                     </p>
                   </div>
                   <span className="text-sm font-semibold text-[var(--sg-navy)]">
