@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
-import type { Map as MapboxMap, FilterSpecification, MapMouseEvent } from 'mapbox-gl';
+import type { Map as MapboxMap, MapMouseEvent } from 'mapbox-gl';
 import MapGL, { type MapRef, type ViewStateChangeEvent } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { PlaceMarker } from './PlaceMarker';
 import { MAP_STYLES, DEFAULT_VIEW_STATE, LONDON_BOUNDS, ALLOWED_LABEL_LAYERS, type MapStyleKey } from '../../utils/mapStyles';
-import { ALL_ZONE_POSTCODES, ZONE_ENTER_THRESHOLD } from '../../utils/zoneMapping';
+import { ZONE_ENTER_THRESHOLD } from '../../utils/zoneMapping';
 import { createModelLayer } from './ModelLayer';
 import type { Place, ViewState } from '../../types';
 
@@ -146,21 +146,6 @@ export function InteractiveMap({
           'line-color': '#8b7355',
           'line-width': 0.3,
           'line-opacity': 0.15,
-        },
-      });
-    }
-
-    // Invisible fill for queryRenderedFeatures (click/zoom detection)
-    if (!map.getLayer('postcodes-fill')) {
-      const subPostcodeFilter: FilterSpecification = ['in', ['get', 'Name'], ['literal', ALL_ZONE_POSTCODES]];
-      map.addLayer({
-        id: 'postcodes-fill',
-        type: 'fill',
-        source: 'postcodes',
-        filter: subPostcodeFilter,
-        paint: {
-          'fill-color': 'transparent',
-          'fill-opacity': 0,
         },
       });
     }

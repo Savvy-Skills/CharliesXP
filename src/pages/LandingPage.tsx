@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router';
-import { getZoneForPostcode } from '../utils/zoneMapping';
 import { motion } from 'framer-motion';
 import { PageShell } from '../components/Layout/PageShell';
 import { SEOHead } from '../components/SEOHead';
@@ -69,11 +68,10 @@ export function LandingPage() {
         const map = mapRef.current?.getMap();
         if (!map) return;
         const point = map.project([e.lngLat.lng, e.lngLat.lat]);
-        const features = map.queryRenderedFeatures(point, { layers: ['postcodes-fill'] });
+        const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
 
         if (features.length > 0) {
-          const postcodeName = features[0].properties?.Name as string;
-          const zoneName = getZoneForPostcode(postcodeName);
+          const zoneName = features[0].properties?.zone as string;
           if (zoneName) {
             expandMap();
             if (isEditorMode || isZoneUnlocked(zoneName)) {
@@ -92,10 +90,9 @@ export function LandingPage() {
       const map = mapRef.current?.getMap();
       if (!map) return;
       const point = map.project([e.lngLat.lng, e.lngLat.lat]);
-      const features = map.queryRenderedFeatures(point, { layers: ['postcodes-fill'] });
+      const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
       if (features.length > 0) {
-        const postcodeName = features[0].properties?.Name as string;
-        const zoneName = getZoneForPostcode(postcodeName);
+        const zoneName = features[0].properties?.zone as string;
         if (!zoneName) return;
         zoomIntoZone(zoneName);
       }
