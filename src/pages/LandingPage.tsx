@@ -110,14 +110,6 @@ export function LandingPage() {
     [zoomIntoZone],
   );
 
-  const handleUnlockZone = useCallback(() => {
-    if (paywallZone) {
-      const zoneToZoom = paywallZone;
-      setPaywallZone(null);
-      expandMap();
-      setTimeout(() => zoomIntoZone(zoneToZoom), 400);
-    }
-  }, [paywallZone, expandMap, zoomIntoZone]);
 
   const handleCancelPending = useCallback(() => {
     setPendingCoordinates(null);
@@ -277,7 +269,7 @@ export function LandingPage() {
         isOpen={!!paywallZone}
         onClose={() => setPaywallZone(null)}
         zoneName={paywallZone ?? ''}
-        onUnlock={handleUnlockZone}
+        zoneId={paywallZone ?? ''}
       />
     </PageShell>
   );
