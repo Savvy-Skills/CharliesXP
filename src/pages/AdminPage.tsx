@@ -110,28 +110,43 @@ export function AdminPage() {
   };
 
   const handleSave = async () => {
-    if (!form.name.trim() || !form.description.trim()) return;
+    if (!form.name.trim() || !form.description.trim() || !form.zone_id) {
+      alert('Name, description, and zone are required');
+      return;
+    }
     setSaving(true);
 
     if (showForm === 'create') {
-      await supabase.from('places').insert({
+      const { error } = await supabase.from('places').insert({
         name: form.name.trim(),
         description: form.description.trim(),
         category: form.category,
-        zone_id: form.zone_id || null,
+        zone_id: form.zone_id,
         placed: false,
         active: true,
       });
+      if (error) {
+        console.error('Insert error:', error);
+        alert(`Failed to create place: ${error.message}`);
+        setSaving(false);
+        return;
+      }
     } else if (showForm) {
-      await supabase
+      const { error } = await supabase
         .from('places')
         .update({
           name: form.name.trim(),
           description: form.description.trim(),
           category: form.category,
-          zone_id: form.zone_id || null,
+          zone_id: form.zone_id,
         })
         .eq('id', showForm);
+      if (error) {
+        console.error('Update error:', error);
+        alert(`Failed to update place: ${error.message}`);
+        setSaving(false);
+        return;
+      }
     }
 
     setSaving(false);
