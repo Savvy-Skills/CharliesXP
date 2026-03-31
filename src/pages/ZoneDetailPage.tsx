@@ -4,12 +4,12 @@ import { PageShell } from '../components/Layout/PageShell';
 import { SEOHead } from '../components/SEOHead';
 import { ZonePlacesList } from '../components/Zone/ZonePlacesList';
 import { usePlaces } from '../hooks/usePlaces';
-import { useUser } from '../hooks/useUser';
+import { useAuth } from '../hooks/useAuth';
 
 export function ZoneDetailPage() {
   const { name } = useParams<{ name: string }>();
   const { getZoneById, getPlacesByZone } = usePlaces();
-  const { isZoneUnlocked } = useUser();
+  const { isZoneUnlocked } = useAuth();
   const zone = name ? getZoneById(name) : null;
   const zonePlaces = name ? getPlacesByZone(name) : [];
   const unlocked = name ? isZoneUnlocked(name) : false;

@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Link } from 'react-router';
 import { Menu, X, User, ChevronDown } from 'lucide-react';
-import { useUser } from '../../hooks/useUser';
+import { useAuth } from '../../hooks/useAuth';
 import { SECTIONS } from '../../pages/TheLondonILoveData';
 
 const SIMPLE_NAV = [
@@ -14,7 +14,7 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [londonOpen, setLondonOpen] = useState(false);
   const [mobileEditorialOpen, setMobileEditorialOpen] = useState(false);
-  const { isLoggedIn, login, logout } = useUser();
+  const { isLoggedIn, signOut, isAdmin } = useAuth();
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const openDropdown = () => {
@@ -107,19 +107,31 @@ export function Header() {
 
           <div className="w-px h-6 bg-[var(--sg-border)]" aria-hidden="true" />
 
-          <button
-            onClick={isLoggedIn ? logout : login}
-            aria-label={isLoggedIn ? 'Log out of your account' : 'Log in or register'}
-            className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold
-              transition-all duration-200 cursor-pointer
-              ${isLoggedIn
-                ? 'bg-[var(--sg-offwhite)] text-[var(--sg-navy)] hover:bg-[var(--sg-border)]'
-                : 'bg-[var(--sg-thames)] text-white hover:bg-[var(--sg-thames-hover)] shadow-sm hover:shadow-md'
-              }`}
-          >
-            <User size={14} aria-hidden="true" />
-            {isLoggedIn ? 'Logout' : 'Login / Register'}
-          </button>
+          {isLoggedIn ? (
+            <div className="flex items-center gap-2">
+              {isAdmin && (
+                <Link to="/admin" className="px-4 py-2 rounded-xl text-sm font-medium text-[var(--sg-navy)]/60 hover:text-[var(--sg-navy)] hover:bg-[var(--sg-border)] transition-colors">
+                  Admin
+                </Link>
+              )}
+              <Link to="/account" className="px-4 py-2 rounded-xl text-sm font-medium text-[var(--sg-navy)]/60 hover:text-[var(--sg-navy)] hover:bg-[var(--sg-border)] transition-colors">
+                Account
+              </Link>
+              <button
+                onClick={() => signOut()}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold bg-[var(--sg-offwhite)] text-[var(--sg-navy)] hover:bg-[var(--sg-border)] transition-all cursor-pointer"
+              >
+                <User size={14} /> Logout
+              </button>
+            </div>
+          ) : (
+            <Link
+              to="/login"
+              className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold bg-[var(--sg-thames)] text-white hover:bg-[var(--sg-thames-hover)] shadow-sm hover:shadow-md transition-all"
+            >
+              <User size={14} /> Login / Register
+            </Link>
+          )}
         </div>
 
         {/* Mobile hamburger */}
@@ -178,14 +190,42 @@ export function Header() {
             </Link>
           ))}
 
-          <button
-            onClick={() => { isLoggedIn ? logout() : login(); setMenuOpen(false); }}
-            aria-label={isLoggedIn ? 'Log out of your account' : 'Log in or register'}
-            className="w-full mt-2 px-4 py-3 rounded-xl text-sm font-semibold text-center
-              bg-[var(--sg-thames)] text-white hover:bg-[var(--sg-thames-hover)] transition-colors cursor-pointer"
-          >
-            {isLoggedIn ? 'Logout' : 'Login / Register'}
-          </button>
+          {isLoggedIn ? (
+            <>
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  onClick={() => setMenuOpen(false)}
+                  className="block px-4 py-3 rounded-xl text-sm font-medium text-[var(--sg-navy)] hover:bg-[var(--sg-border)] transition-colors"
+                >
+                  Admin
+                </Link>
+              )}
+              <Link
+                to="/account"
+                onClick={() => setMenuOpen(false)}
+                className="block px-4 py-3 rounded-xl text-sm font-medium text-[var(--sg-navy)] hover:bg-[var(--sg-border)] transition-colors"
+              >
+                Account
+              </Link>
+              <button
+                onClick={() => { signOut(); setMenuOpen(false); }}
+                className="w-full mt-2 px-4 py-3 rounded-xl text-sm font-semibold text-center
+                  bg-[var(--sg-offwhite)] text-[var(--sg-navy)] hover:bg-[var(--sg-border)] transition-colors cursor-pointer"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <Link
+              to="/login"
+              onClick={() => setMenuOpen(false)}
+              className="block mt-2 px-4 py-3 rounded-xl text-sm font-semibold text-center
+                bg-[var(--sg-thames)] text-white hover:bg-[var(--sg-thames-hover)] transition-colors"
+            >
+              Login / Register
+            </Link>
+          )}
         </nav>
       )}
     </header>

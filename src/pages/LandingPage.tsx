@@ -12,7 +12,7 @@ import { PaywallModal } from '../components/ui/PaywallModal';
 import { usePlaces } from '../hooks/usePlaces';
 import { useMapFlyTo } from '../hooks/useMapFlyTo';
 import { useMapZoom } from '../hooks/useMapZoom';
-import { useUser } from '../hooks/useUser';
+import { useAuth } from '../hooks/useAuth';
 import type { Place, Coordinates } from '../types';
 
 export function LandingPage() {
@@ -22,7 +22,7 @@ export function LandingPage() {
   const { places, zones, getPlacesByZone, activeCategories, addPlace, updatePlace, deletePlace, exportPlaces } = usePlaces();
   const { mapRef, flyToPlace, flyToDefault } = useMapFlyTo();
   const { mapState, activeZone, expandMap, zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, handleZoomChange, handleMoveEnd } = useMapZoom(mapRef);
-  const { unlockedZones, isZoneUnlocked, unlockZone } = useUser();
+  const { unlockedZones, isZoneUnlocked } = useAuth();
   const [paywallZone, setPaywallZone] = useState<string | null>(null);
 
   // Editor state
@@ -112,13 +112,12 @@ export function LandingPage() {
 
   const handleUnlockZone = useCallback(() => {
     if (paywallZone) {
-      unlockZone(paywallZone);
       const zoneToZoom = paywallZone;
       setPaywallZone(null);
       expandMap();
       setTimeout(() => zoomIntoZone(zoneToZoom), 400);
     }
-  }, [paywallZone, unlockZone, expandMap, zoomIntoZone]);
+  }, [paywallZone, expandMap, zoomIntoZone]);
 
   // Editor CRUD wrappers
   const handleAddPlace = useCallback((place: Omit<Place, 'id'>) => {
@@ -159,7 +158,7 @@ export function LandingPage() {
         zonePlaces={zonePlaces}
         onPlaceClick={handlePlaceClick}
         onLockedZoneClick={(zoneId) => isEditorMode ? zoomIntoZone(zoneId) : setPaywallZone(zoneId)}
-        onUnlockZone={(zoneId) => { unlockZone(zoneId); }}
+        onUnlockZone={() => { /* handled by Edge Functions now */ }}
         onZoneClick={handleZoneClick}
         onZoomOut={zoomOutToExpanded}
         onCollapse={isEditorMode ? zoomOutToExpanded : zoomOutToOverview}

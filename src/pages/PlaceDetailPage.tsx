@@ -4,12 +4,14 @@ import { PageShell } from '../components/Layout/PageShell';
 import { SEOHead } from '../components/SEOHead';
 import { PlaceContent } from '../components/Place/PlaceContent';
 import { usePlaces } from '../hooks/usePlaces';
+import { useAuth } from '../hooks/useAuth';
 import { CATEGORY_EMOJI } from '../utils/mapStyles';
 
 export function PlaceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { getPlaceById, getPlacesByZone } = usePlaces();
   const place = id ? getPlaceById(id) : null;
+  const { isZoneUnlocked } = useAuth();
 
   if (!place) {
     return (
@@ -18,6 +20,19 @@ export function PlaceDetailPage() {
           <p className="text-[var(--sg-navy)]/60 text-lg mb-4">Place not found</p>
           <Link to="/" className="text-[var(--sg-crimson)] hover:text-[var(--sg-crimson-hover)] font-medium">
             Back to home
+          </Link>
+        </div>
+      </PageShell>
+    );
+  }
+
+  if (place.zone && !isZoneUnlocked(place.zone)) {
+    return (
+      <PageShell>
+        <div className="max-w-2xl mx-auto px-4 py-20 text-center">
+          <p className="text-[var(--sg-navy)]/60 text-lg mb-4">This place is in a locked zone</p>
+          <Link to="/map" className="text-[var(--sg-crimson)] hover:text-[var(--sg-crimson-hover)] font-medium">
+            Back to map
           </Link>
         </div>
       </PageShell>
