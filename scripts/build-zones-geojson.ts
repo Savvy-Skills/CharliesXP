@@ -12,6 +12,7 @@ import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import union from '@turf/union';
 import circle from '@turf/circle';
+import centroid from '@turf/centroid';
 import pointOnFeature from '@turf/point-on-feature';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import { featureCollection, point } from '@turf/helpers';
@@ -129,16 +130,19 @@ function mergePolygons(features: Feature<Polygon | MultiPolygon>[]): Feature<Pol
 
 /**
  * Get the best label point for a zone:
- * 1. Use station coordinates if they fall inside the polygon
+ * 1. Use geometric centroid if it falls inside the polygon
  * 2. Otherwise fall back to point-on-feature (guaranteed inside)
  */
-function getLabelPoint(feature: Feature<Polygon | MultiPolygon>, stationCoords: { lng: number; lat: number }): { lng: number; lat: number } {
-  // Try station location first — most intuitive label position
-  const stationPt = point([stationCoords.lng, stationCoords.lat]);
-  if (booleanPointInPolygon(stationPt, feature)) {
-    return stationCoords;
+function getLabelPoint(feature: Feature<Polygon | MultiPolygon>): { lng: number; lat: number } {
+  const c = centroid(feature);
+  const centerCoords = { lng: c.geometry.coordinates[0], lat: c.geometry.coordinates[1] };
+
+  // Check if centroid is inside the polygon
+  if (booleanPointInPolygon(c, feature)) {
+    return centerCoords;
   }
-  // Station is outside zone polygon — use interior point
+
+  // Centroid is outside (concave/irregular shape) — use guaranteed interior point
   const p = pointOnFeature(feature);
   return { lng: p.geometry.coordinates[0], lat: p.geometry.coordinates[1] };
 }
@@ -158,7 +162,7 @@ for (const [postcode, stationsInPostcode] of Object.entries(zonesByPostcode)) {
         zone.radius / 1000,
         { units: 'kilometers', steps: 64 }
       );
-      const polyCenter = getLabelPoint(fallbackCircle as Feature<Polygon>, zone.centroid);
+      const polyCenter = getLabelPoint(fallbackCircle as Feature<Polygon>);
       outputFeatures.push({
         type: 'Feature',
         properties: { zone: zone.id, color: zone.color, name: zone.name, centerLng: polyCenter.lng, centerLat: polyCenter.lat },
@@ -176,7 +180,7 @@ for (const [postcode, stationsInPostcode] of Object.entries(zonesByPostcode)) {
     const merged = mergePolygons(postcodeFeatures);
     if (!merged) continue;
     const zone = stationsInPostcode[0];
-    const polyCenter = getLabelPoint(merged, zone.centroid);
+    const polyCenter = getLabelPoint(merged);
     outputFeatures.push({
       type: 'Feature',
       properties: { zone: zone.id, color: zone.color, name: zone.name, centerLng: polyCenter.lng, centerLat: polyCenter.lat },
@@ -213,7 +217,7 @@ for (const [postcode, stationsInPostcode] of Object.entries(zonesByPostcode)) {
       }
       const merged = mergePolygons(zoneFeatures);
       if (!merged) continue;
-      const polyCenter = getLabelPoint(merged, zone.centroid);
+      const polyCenter = getLabelPoint(merged);
       outputFeatures.push({
         type: 'Feature',
         properties: { zone: zone.id, color: zone.color, name: zone.name, centerLng: polyCenter.lng, centerLat: polyCenter.lat },
@@ -262,7 +266,7 @@ for (const [postcode, stationsInPostcode] of Object.entries(zonesByPostcode)) {
         continue;
       }
 
-      const polyCenter = getLabelPoint(clipped as Feature<Polygon | MultiPolygon>, zone.centroid);
+      const polyCenter = getLabelPoint(clipped as Feature<Polygon | MultiPolygon>);
       outputFeatures.push({
         type: 'Feature',
         properties: { zone: zone.id, color: zone.color, name: zone.name, centerLng: polyCenter.lng, centerLat: polyCenter.lat },
