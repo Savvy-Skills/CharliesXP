@@ -1,5 +1,6 @@
 import { useCallback, useState, useEffect } from 'react';
 import type { MapRef } from 'react-map-gl/mapbox';
+import { Marker } from 'react-map-gl/mapbox';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Sparkles, X, MapPin } from 'lucide-react';
 import { InteractiveMap } from '../Map/InteractiveMap';
@@ -11,6 +12,7 @@ import { ZoneLockIcon } from '../Map/ZoneLockIcon';
 import { EditorPanel } from '../Editor/EditorPanel';
 import type { Place, PlaceCategory, MapZoomState, Coordinates } from '../../types';
 import { ZONE_CENTROIDS, ZONE_MAP } from '../../utils/zoneMapping';
+import { useLandmarks } from '../../hooks/useLandmarks';
 
 interface HeroMapSectionProps {
   places: Place[];
@@ -76,6 +78,9 @@ export function HeroMapSection({
   const [previewPlace, setPreviewPlace] = useState<Place | null>(null);
   const [activeCategory, setActiveCategory] = useState<PlaceCategory | null>(null);
   const [hoveredZoneId, setHoveredZoneId] = useState<string | null>(null);
+  const { landmarks } = useLandmarks();
+
+  const showLandmarks = mapState === 'expanded' || mapState === 'zoneDetail';
 
   const handlePlaceClick = useCallback(
     (place: Place) => {
@@ -301,6 +306,21 @@ export function HeroMapSection({
                       onMouseEnter={() => setHoveredZoneId(zoneId)}
                       onMouseLeave={() => setHoveredZoneId(null)}
                     />
+                  ))}
+                  {showLandmarks && landmarks.map((lm) => (
+                    <Marker
+                      key={lm.id}
+                      longitude={lm.coordinates.lng}
+                      latitude={lm.coordinates.lat}
+                      anchor="center"
+                    >
+                      <div className="flex flex-col items-center pointer-events-none">
+                        <div className="w-3 h-3 rounded-full bg-[var(--sg-crimson)]/60 border border-white/80 shadow-sm" />
+                        <span className="text-[9px] font-medium text-[var(--sg-navy)]/50 mt-0.5 whitespace-nowrap max-w-[80px] truncate">
+                          {lm.name}
+                        </span>
+                      </div>
+                    </Marker>
                   ))}
                 </>
               }
