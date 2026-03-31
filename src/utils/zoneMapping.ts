@@ -1,4 +1,3 @@
-import type { FilterSpecification } from 'mapbox-gl';
 import zonesData from '../data/zones.json';
 import type { Zone } from '../types';
 
@@ -55,26 +54,3 @@ export const CITY_ZOOM = 12;
 export const ZONE_ZOOM = 14;
 export const ZONE_ENTER_THRESHOLD = 13.5;
 export const ZONE_EXIT_THRESHOLD = 13;
-
-// ──────────────────────────────────────────────────────────────
-// Deprecated stubs — kept for build compat during migration.
-// Consumers will be updated in later tasks.
-// ──────────────────────────────────────────────────────────────
-
-/** @deprecated — use getZoneForPoint instead. Kept for build compat during migration. */
-export function getZoneForPostcode(_postcode: string): string | null {
-  return null;
-}
-
-/** @deprecated — no longer used in station-based zones. Kept for build compat during migration. */
-export const ALL_ZONE_POSTCODES: string[] = [];
-
-/** @deprecated — postcode-based zone filter, no longer applicable. Kept for build compat. */
-export function getZoneFilter(_zoneId: string): FilterSpecification {
-  return ['==', ['get', 'Name'], ''] as FilterSpecification;
-}
-
-/** @deprecated — postcode-based zone exclude filter, no longer applicable. Kept for build compat. */
-export function getZoneExcludeFilter(_zoneId: string): FilterSpecification {
-  return ['==', ['get', 'Name'], ''] as FilterSpecification;
-}
