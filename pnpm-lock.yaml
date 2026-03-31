@@ -45,6 +45,9 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.2.1
         version: 4.2.1(vite@8.0.0(@types/node@24.12.0)(jiti@2.6.1))
+      '@turf/bbox':
+        specifier: ^7.3.4
+        version: 7.3.4
       '@turf/bbox-polygon':
         specifier: ^7.3.4
         version: 7.3.4
@@ -531,6 +534,9 @@ packages:
 
   '@turf/bbox-polygon@7.3.4':
     resolution: {integrity: sha512-XCDYQwCA41Bum3R1xX0Na1nR4ozoe/pCYy5bxqrzyMs87kPJUIfBrD5IWxjnZyLqFpfEpolMHJz5ed1uA2PanQ==}
+
+  '@turf/bbox@7.3.4':
+    resolution: {integrity: sha512-D5ErVWtfQbEPh11yzI69uxqrcJmbPU/9Y59f1uTapgwAwQHQztDWgsYpnL3ns8r1GmPWLP8sGJLVTIk2TZSiYA==}
 
   '@turf/boolean-point-in-polygon@7.3.4':
     resolution: {integrity: sha512-v/4hfyY90Vz9cDgs2GwjQf+Lft8o7mNCLJOTz/iv8SHAIgMMX0czEoIaNVOJr7tBqPqwin1CGwsncrkf5C9n8Q==}
@@ -2173,6 +2179,13 @@ snapshots:
   '@turf/bbox-polygon@7.3.4':
     dependencies:
       '@turf/helpers': 7.3.4
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/bbox@7.3.4':
+    dependencies:
+      '@turf/helpers': 7.3.4
+      '@turf/meta': 7.3.4
       '@types/geojson': 7946.0.16
       tslib: 2.8.1
 
