@@ -93,6 +93,18 @@ for (const zone of zones) {
 }
 
 /**
+ * Voronoi center overrides for postcodes split by Voronoi.
+ * Use when the station location produces a bad split
+ * (e.g., Tate Modern falls into London Bridge instead of Waterloo).
+ * Only the centroid used for Voronoi calculation is shifted — the actual
+ * station location and flyTo target stay unchanged.
+ */
+const VORONOI_CENTER_OVERRIDES: Record<string, { lng: number; lat: number }> = {
+  // Shift Waterloo east so Tate Modern (lng -0.0994) falls in Waterloo zone
+  waterloo: { lng: -0.1010, lat: 51.5031 },
+};
+
+/**
  * Find all GeoJSON features matching a postcode prefix.
  */
 function findPostcodeFeatures(postcode: string): Feature<Polygon | MultiPolygon>[] {
@@ -237,9 +249,11 @@ for (const [postcode, stationsInPostcode] of Object.entries(zonesByPostcode)) {
     const { point } = await import('@turf/helpers');
 
     const stationPoints = featureCollection(
-      stationsInPostcode.map((z) =>
-        point([z.centroid.lng, z.centroid.lat], { zone: z.id, color: z.color, name: z.name })
-      )
+      stationsInPostcode.map((z) => {
+        const override = VORONOI_CENTER_OVERRIDES[z.id];
+        const center = override ?? z.centroid;
+        return point([center.lng, center.lat], { zone: z.id, color: z.color, name: z.name });
+      })
     );
 
     const [minX, minY, maxX, maxY] = bboxMod.default(merged);
