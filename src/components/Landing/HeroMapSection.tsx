@@ -203,47 +203,25 @@ export function HeroMapSection({
     return (
       <div className="fixed inset-0 z-[100] bg-[var(--sg-offwhite)] flex flex-col">
         {/* White header bar */}
-        {mapState === 'zoneDetail' && activeZone ? (
-          <div className="bg-white border-b border-[var(--sg-border)] px-4 py-2.5 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleBack}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[var(--sg-navy)] hover:bg-[var(--sg-offwhite)] transition-colors cursor-pointer"
-              >
-                <X size={15} />
-                <span className="text-xs font-semibold">Back</span>
-              </button>
-              {isEditorMode && (
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[var(--sg-crimson)]/10 text-[var(--sg-crimson)]">
-                  Editor
-                </span>
-              )}
-              <span className="text-sm font-semibold text-[var(--sg-navy)]">
-                {ZONE_MAP[activeZone]?.name ?? activeZone}
-              </span>
-            </div>
-            <button
-              onClick={onCollapse}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[var(--sg-navy)] hover:bg-[var(--sg-offwhite)] transition-colors cursor-pointer"
-            >
-              <X size={15} />
-              <span className="text-xs font-semibold">Close</span>
-            </button>
-          </div>
-        ) : (
-          <div className="bg-white border-b border-[var(--sg-border)] px-4 py-2.5 flex items-center justify-between">
+        <div className="bg-white border-b border-[var(--sg-border)] px-4 py-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-[var(--sg-navy)]">
-              {isEditorMode ? 'Editor — Select a Zone' : 'Explore London'}
+              {isEditorMode ? 'Editor' : 'Explore London'}
             </span>
-            <button
-              onClick={onCollapse}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[var(--sg-navy)] hover:bg-[var(--sg-offwhite)] transition-colors cursor-pointer"
-            >
-              <X size={15} />
-              <span className="text-xs font-semibold">Close</span>
-            </button>
+            {isEditorMode && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[var(--sg-crimson)]/10 text-[var(--sg-crimson)]">
+                Edit Mode
+              </span>
+            )}
           </div>
-        )}
+          <button
+            onClick={onCollapse}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[var(--sg-navy)] hover:bg-[var(--sg-offwhite)] transition-colors cursor-pointer"
+          >
+            <X size={15} />
+            <span className="text-xs font-semibold">Close</span>
+          </button>
+        </div>
 
         {/* Main area: map takes full width, sidebar overlays from left */}
         <div className="flex-1 relative overflow-hidden">
