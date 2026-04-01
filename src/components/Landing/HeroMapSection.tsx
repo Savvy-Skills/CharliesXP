@@ -336,9 +336,17 @@ export function HeroMapSection({
               </div>
             )}
 
-            {/* Mobile bottom peek bar — tap to open drawer */}
-            {mapState === 'zoneDetail' && activeZone && !isEditorMode && (
-              <div className="md:hidden absolute bottom-0 left-0 right-0 z-30">
+            {/* Mobile bottom peek bar — tap or drag up to open drawer */}
+            {mapState === 'zoneDetail' && activeZone && !isEditorMode && !mobileDrawerOpen && (
+              <motion.div
+                className="md:hidden absolute bottom-0 left-0 right-0 z-30 touch-none"
+                drag="y"
+                dragConstraints={{ top: 0, bottom: 0 }}
+                dragElastic={0.2}
+                onDragEnd={(_e, info) => {
+                  if (info.offset.y < -50) setMobileDrawerOpen(true);
+                }}
+              >
                 <button
                   onClick={() => setMobileDrawerOpen(true)}
                   className="w-full bg-white/95 backdrop-blur-sm border-t border-[var(--sg-border)] px-5 py-3 cursor-pointer"
@@ -349,11 +357,11 @@ export function HeroMapSection({
                       {ZONE_MAP[activeZone]?.name ?? activeZone}
                     </span>
                     <span className="text-xs text-[var(--sg-navy)]/40">
-                      {isZoneLocked ? 'Tap to unlock' : `${filteredZonePlaces.length} places`}
+                      {isZoneLocked ? 'Swipe up to unlock' : `${filteredZonePlaces.length} places`}
                     </span>
                   </div>
                 </button>
-              </div>
+              </motion.div>
             )}
 
             {/* Bottom bar — not in editor, not in zoneDetail on mobile */}
@@ -387,11 +395,19 @@ export function HeroMapSection({
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                drag="y"
+                dragConstraints={{ top: 0, bottom: 0 }}
+                dragElastic={{ top: 0, bottom: 0.4 }}
+                onDragEnd={(_e, info) => {
+                  if (info.offset.y > 100 || info.velocity.y > 500) {
+                    setMobileDrawerOpen(false);
+                  }
+                }}
                 className="fixed bottom-0 left-0 right-0 z-50 md:hidden
-                  bg-white rounded-t-2xl shadow-2xl max-h-[75vh] overflow-y-auto"
+                  bg-white rounded-t-2xl shadow-2xl max-h-[75vh] overflow-y-auto touch-none"
               >
                 {/* Drag handle */}
-                <div className="flex justify-center pt-3 pb-1 sticky top-0 bg-white rounded-t-2xl">
+                <div className="flex justify-center pt-3 pb-1 sticky top-0 bg-white rounded-t-2xl cursor-grab active:cursor-grabbing">
                   <div className="w-10 h-1 rounded-full bg-[var(--sg-border)]" />
                 </div>
 
