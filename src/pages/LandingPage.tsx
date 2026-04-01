@@ -231,7 +231,13 @@ export function LandingPage() {
         onUnlockZone={() => { /* handled by Edge Functions now */ }}
         onZoneClick={handleZoneClick}
         onZoomOut={zoomOutToExpanded}
-        onCollapse={isEditorMode ? zoomOutToExpanded : zoomOutToOverview}
+        onCollapse={() => {
+          zoomOutToOverview();
+          if (isEditorMode) {
+            // Clear editor params and navigate to clean /
+            window.history.pushState(null, '', '/');
+          }
+        }}
         onExpand={expandMap}
         onResetView={flyToDefault}
         onMapClick={handleMapClick}
