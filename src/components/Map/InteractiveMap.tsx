@@ -33,35 +33,49 @@ interface InteractiveMapProps {
   onMarkerDragEnd?: (place: Place, lngLat: { lng: number; lat: number }) => void;
 }
 
-function DebugOverlay({ viewState, activeZone, editorMode }: { viewState: ViewState; activeZone: string | null; editorMode?: boolean }) {
+function DebugOverlay({ viewState, activeZone, editorMode, onResetView }: { viewState: ViewState; activeZone: string | null; editorMode?: boolean; onResetView?: () => void }) {
   const { profile, isAdmin } = useAuth();
   const searchParams = new URLSearchParams(window.location.search);
   const isEditor = editorMode || searchParams.get('editor') === 'true';
 
   return (
-    <div className="absolute top-4 right-3 z-50 bg-black/70 text-white text-[10px] font-mono px-3 py-2 rounded-lg space-y-0.5">
-      <div>role: <span className={isAdmin ? 'text-red-400' : 'text-gray-400'}>{profile?.role ?? 'anon'}</span></div>
-      <div>zoom: <span className="text-green-400">{viewState.zoom.toFixed(2)}</span></div>
-      <div>bearing: <span className="text-blue-400">{viewState.bearing.toFixed(1)}</span></div>
-      <div>lng: {viewState.longitude.toFixed(4)}</div>
-      <div>lat: {viewState.latitude.toFixed(4)}</div>
-      {activeZone && <div>zone: <span className="text-pink-400">{activeZone}</span></div>}
-      {isAdmin && (
-        <div className="pt-1 mt-1 border-t border-white/20 space-y-1 pointer-events-auto">
-          {!isEditor && (
-            <a href="/map?editor=true" className="block text-cyan-400 hover:text-cyan-300">
-              Editor Mode
+    <div className="absolute top-4 right-3 z-50 flex flex-col gap-2 items-end">
+      <div className="bg-black/70 text-white text-[10px] font-mono px-3 py-2 rounded-lg space-y-0.5">
+        <div>role: <span className={isAdmin ? 'text-red-400' : 'text-gray-400'}>{profile?.role ?? 'anon'}</span></div>
+        <div>zoom: <span className="text-green-400">{viewState.zoom.toFixed(2)}</span></div>
+        <div>bearing: <span className="text-blue-400">{viewState.bearing.toFixed(1)}</span></div>
+        <div>lng: {viewState.longitude.toFixed(4)}</div>
+        <div>lat: {viewState.latitude.toFixed(4)}</div>
+        {activeZone && <div>zone: <span className="text-pink-400">{activeZone}</span></div>}
+        {isAdmin && (
+          <div className="pt-1 mt-1 border-t border-white/20 space-y-1 pointer-events-auto">
+            {!isEditor && (
+              <a href="/map?editor=true" className="block text-cyan-400 hover:text-cyan-300">
+                Editor Mode
+              </a>
+            )}
+            {isEditor && (
+              <a href="/map" className="block text-cyan-400 hover:text-cyan-300">
+                Exit Editor
+              </a>
+            )}
+            <a href="/admin" className="block text-orange-400 hover:text-orange-300">
+              Dashboard
             </a>
-          )}
-          {isEditor && (
-            <a href="/map" className="block text-cyan-400 hover:text-cyan-300">
-              Exit Editor
-            </a>
-          )}
-          <a href="/admin" className="block text-orange-400 hover:text-orange-300">
-            Dashboard
-          </a>
-        </div>
+          </div>
+        )}
+      </div>
+      {onResetView && (
+        <button
+          onClick={onResetView}
+          className="p-2.5 bg-white/90 backdrop-blur-sm rounded-xl hover:bg-white transition-colors shadow-md cursor-pointer border border-[var(--sg-border)] pointer-events-auto"
+          title="Reset camera"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--sg-navy)]/60">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+          </svg>
+        </button>
       )}
     </div>
   );
@@ -85,7 +99,7 @@ export function InteractiveMap({
   mapRef,
   onPlaceClick,
   onMapClick,
-  onResetView: _onResetView,
+  onResetView,
   mode = 'full',
   interactive = true,
   mapChildren,
@@ -454,7 +468,7 @@ export function InteractiveMap({
       </MapGL>
 
       {/* Debug overlay */}
-      <DebugOverlay viewState={viewState} activeZone={activeZone ?? null} editorMode={editorMode} />
+      <DebugOverlay viewState={viewState} activeZone={activeZone ?? null} editorMode={editorMode} onResetView={onResetView} />
 
       {children}
     </div>
