@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Plus, MapPin, Pencil, Trash2, X } from 'lucide-react';
+import { Plus, MapPin, Pencil, Trash2, X, ChevronDown, ChevronUp, RotateCcw, Ban } from 'lucide-react';
 import { PageShell } from '../components/Layout/PageShell';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
@@ -70,6 +70,47 @@ export function AdminPage() {
   const [showPkgForm, setShowPkgForm] = useState<null | 'create' | string>(null);
   const [pkgForm, setPkgForm] = useState<PackageForm>(EMPTY_PKG_FORM);
   const [pkgSaving, setPkgSaving] = useState(false);
+
+  // User management state
+  const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const [userZones, setUserZones] = useState<{ zone_id: string; expires_at: string; purchase_id: string }[]>([]);
+  const [userPurchases, setUserPurchases] = useState<{ id: string; amount_cents: number; zone_ids: string[]; zone_credits: number; created_at: string }[]>([]);
+
+  const fetchUserDetails = async (userId: string) => {
+    const [zonesRes, purchasesRes] = await Promise.all([
+      supabase.from('user_zones').select('zone_id, expires_at, purchase_id').eq('user_id', userId),
+      supabase.from('purchases').select('id, amount_cents, zone_ids, zone_credits, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
+    ]);
+    if (zonesRes.data) setUserZones(zonesRes.data);
+    if (purchasesRes.data) setUserPurchases(purchasesRes.data);
+  };
+
+  const toggleUserExpand = (userId: string) => {
+    if (expandedUser === userId) {
+      setExpandedUser(null);
+    } else {
+      setExpandedUser(userId);
+      fetchUserDetails(userId);
+    }
+  };
+
+  const expireUserZone = async (userId: string, zoneId: string) => {
+    await supabase.from('user_zones').update({ expires_at: new Date().toISOString() }).eq('user_id', userId).eq('zone_id', zoneId);
+    fetchUserDetails(userId);
+  };
+
+  const expireAllUserZones = async (userId: string) => {
+    await supabase.from('user_zones').update({ expires_at: new Date().toISOString() }).eq('user_id', userId);
+    fetchUserDetails(userId);
+  };
+
+  const deleteAllUserPurchases = async (userId: string) => {
+    if (!confirm('Delete all purchases and zone access for this user? This cannot be undone.')) return;
+    await supabase.from('user_zones').delete().eq('user_id', userId);
+    await supabase.from('purchases').delete().eq('user_id', userId);
+    setUserZones([]);
+    setUserPurchases([]);
+  };
 
   useEffect(() => {
     if (!authLoading && (!isLoggedIn || !isAdmin)) {
@@ -578,27 +619,111 @@ export function AdminPage() {
         {tab === 'users' && (
           <div className="space-y-2">
             <p className="text-sm text-[var(--sg-navy)]/60 mb-4">{users.length} users</p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="text-xs text-[var(--sg-navy)]/60 border-b border-[var(--sg-border)]">
-                  <tr>
-                    <th className="py-2 pr-4">Email</th>
-                    <th className="py-2 pr-4">Role</th>
-                    <th className="py-2">Joined</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((u) => (
-                    <tr key={u.id} className="border-b border-[var(--sg-border)]/50">
-                      <td className="py-2 pr-4 font-medium text-[var(--sg-navy)]">{u.email}</td>
-                      <td className="py-2 pr-4 text-[var(--sg-navy)]/60">{u.role}</td>
-                      <td className="py-2 text-[var(--sg-navy)]/60">
+            <div className="space-y-1">
+              {users.map((u) => (
+                <div key={u.id} className="rounded-xl border border-[var(--sg-border)] overflow-hidden">
+                  {/* User row */}
+                  <button
+                    onClick={() => toggleUserExpand(u.id)}
+                    className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--sg-offwhite)] transition-colors cursor-pointer text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-[var(--sg-navy)]">{u.email}</span>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${u.role === 'admin' ? 'bg-[var(--sg-crimson)]/10 text-[var(--sg-crimson)]' : 'bg-[var(--sg-offwhite)] text-[var(--sg-navy)]/40'}`}>
+                        {u.role}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-[var(--sg-navy)]/40">
                         {new Date(u.created_at).toLocaleDateString('en-GB')}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </span>
+                      {expandedUser === u.id ? <ChevronUp size={14} className="text-[var(--sg-navy)]/40" /> : <ChevronDown size={14} className="text-[var(--sg-navy)]/40" />}
+                    </div>
+                  </button>
+
+                  {/* Expanded details */}
+                  {expandedUser === u.id && (
+                    <div className="border-t border-[var(--sg-border)] bg-[var(--sg-offwhite)]/50 px-4 py-3 space-y-4">
+                      {/* Quick actions */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => expireAllUserZones(u.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-50 text-orange-600 text-xs font-medium hover:bg-orange-100 cursor-pointer"
+                        >
+                          <Ban size={12} /> Expire All Zones
+                        </button>
+                        <button
+                          onClick={() => deleteAllUserPurchases(u.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-medium hover:bg-red-100 cursor-pointer"
+                        >
+                          <Trash2 size={12} /> Delete All Purchases
+                        </button>
+                      </div>
+
+                      {/* Active zones */}
+                      <div>
+                        <h4 className="text-xs font-semibold text-[var(--sg-navy)]/60 mb-2">Zones ({userZones.length})</h4>
+                        {userZones.length === 0 ? (
+                          <p className="text-xs text-[var(--sg-navy)]/40">No zones</p>
+                        ) : (
+                          <div className="space-y-1">
+                            {userZones.map((uz) => {
+                              const expired = new Date(uz.expires_at) < new Date();
+                              return (
+                                <div key={uz.zone_id} className="flex items-center justify-between py-1.5 px-3 rounded-lg bg-white">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium text-[var(--sg-navy)]">{uz.zone_id}</span>
+                                    <span className={`text-xs ${expired ? 'text-red-500' : 'text-green-600'}`}>
+                                      {expired ? 'Expired' : `Expires ${new Date(uz.expires_at).toLocaleDateString('en-GB')}`}
+                                    </span>
+                                  </div>
+                                  {!expired && (
+                                    <button
+                                      onClick={() => expireUserZone(u.id, uz.zone_id)}
+                                      className="text-xs text-orange-500 hover:text-orange-700 cursor-pointer font-medium"
+                                    >
+                                      Expire
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Purchases */}
+                      <div>
+                        <h4 className="text-xs font-semibold text-[var(--sg-navy)]/60 mb-2">Purchases ({userPurchases.length})</h4>
+                        {userPurchases.length === 0 ? (
+                          <p className="text-xs text-[var(--sg-navy)]/40">No purchases</p>
+                        ) : (
+                          <div className="space-y-1">
+                            {userPurchases.map((p) => (
+                              <div key={p.id} className="flex items-center justify-between py-1.5 px-3 rounded-lg bg-white">
+                                <div>
+                                  <span className="text-sm font-medium text-[var(--sg-navy)]">
+                                    {'\u00A3'}{(p.amount_cents / 100).toFixed(2)}
+                                  </span>
+                                  <span className="text-xs text-[var(--sg-navy)]/40 ml-2">
+                                    {p.zone_ids.join(', ') || '—'}
+                                  </span>
+                                  {p.zone_credits > 0 && (
+                                    <span className="text-xs text-[var(--sg-thames)] ml-2">{p.zone_credits} credits left</span>
+                                  )}
+                                </div>
+                                <span className="text-xs text-[var(--sg-navy)]/40">
+                                  {new Date(p.created_at).toLocaleDateString('en-GB')}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         )}
