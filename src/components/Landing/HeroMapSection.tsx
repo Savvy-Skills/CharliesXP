@@ -13,6 +13,7 @@ import { EditorPanel } from '../Editor/EditorPanel';
 import type { Place, PlaceCategory, MapZoomState, Coordinates } from '../../types';
 import { ZONE_POLYGON_CENTERS, ZONE_MAP } from '../../utils/zoneMapping';
 import { useLandmarks } from '../../hooks/useLandmarks';
+import { useZoneTeasers } from '../../hooks/useZoneTeasers';
 
 interface HeroMapSectionProps {
   places: Place[];
@@ -79,6 +80,7 @@ export function HeroMapSection({
   const [activeCategory, setActiveCategory] = useState<PlaceCategory | null>(null);
   const [hoveredZoneId, setHoveredZoneId] = useState<string | null>(null);
   const { landmarks } = useLandmarks();
+  const { teasers } = useZoneTeasers();
 
   const showLandmarks = mapState === 'expanded' || mapState === 'zoneDetail';
 
@@ -188,6 +190,7 @@ export function HeroMapSection({
           onPlaceClick={handlePlaceClick}
           locked={!unlockedZones.includes(activeZone)}
           onUnlock={() => onUnlockZone(activeZone)}
+          teaserCounts={teasers[activeZone]}
         />
       );
     }
