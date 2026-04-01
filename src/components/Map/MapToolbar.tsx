@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Search, ArrowLeft, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { ZONES } from '../../utils/zoneMapping';
 import { CATEGORIES } from '../../types';
 import { CATEGORY_EMOJI } from '../../utils/mapStyles';
@@ -26,8 +26,6 @@ export function MapToolbar({
   places,
   activeCategory,
   onCategoryChange,
-  onBack,
-  onCollapse,
   isEditorMode,
 }: MapToolbarProps) {
   const [query, setQuery] = useState('');
@@ -81,25 +79,13 @@ export function MapToolbar({
 
   return (
     <div
-      className={`bg-white border-b border-[var(--sg-border)] transition-[padding] duration-300 ease-in-out ${
-        sidebarOpen ? 'md:pl-[396px]' : ''
+      className={`pointer-events-auto transition-[padding] duration-300 ease-in-out ${
+        sidebarOpen ? 'md:pl-[380px]' : ''
       }`}
     >
-      {/* Row 1: Navigation + Search + Close */}
-      <div className="px-3 py-2 flex items-center gap-2">
-        {/* Back button (zoneDetail only) */}
-        {isZoneDetail && (
-          <button
-            onClick={onBack}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[var(--sg-navy)] hover:bg-[var(--sg-offwhite)] transition-colors cursor-pointer shrink-0"
-          >
-            <ArrowLeft size={15} />
-            <span className="text-xs font-semibold hidden sm:inline">Back</span>
-          </button>
-        )}
-
+      <div className="m-3 space-y-2">
         {/* Search bar */}
-        <div className="flex-1 relative" ref={dropdownRef}>
+        <div className="relative" ref={dropdownRef}>
           <div className="relative">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--sg-navy)]/30" />
             <input
@@ -114,8 +100,9 @@ export function MapToolbar({
                 if (query.trim()) setShowDropdown(true);
               }}
               placeholder="Search by postcode..."
-              className="w-full pl-9 pr-3 py-2 rounded-xl bg-[var(--sg-offwhite)] border border-transparent
-                focus:border-[var(--sg-thames)]/30 focus:bg-white
+              className="w-full pl-9 pr-8 py-2.5 rounded-xl bg-white/95 backdrop-blur-sm
+                border border-[var(--sg-border)] shadow-md
+                focus:border-[var(--sg-thames)]/40 focus:shadow-lg
                 text-sm text-[var(--sg-navy)] placeholder:text-[var(--sg-navy)]/30
                 outline-none transition-all"
             />
@@ -162,46 +149,37 @@ export function MapToolbar({
           )}
         </div>
 
-        {/* Close button */}
-        <button
-          onClick={onCollapse}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[var(--sg-navy)] hover:bg-[var(--sg-offwhite)] transition-colors cursor-pointer shrink-0"
-        >
-          <X size={15} />
-          <span className="text-xs font-semibold hidden sm:inline">Close</span>
-        </button>
-      </div>
-
-      {/* Row 2: Filter pills (zoneDetail only) */}
-      {isZoneDetail && !isEditorMode && (
-        <div className="px-3 pb-2 flex gap-1.5 overflow-x-auto">
-          <button
-            onClick={() => onCategoryChange(null)}
-            className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer
-              ${activeCategory === null
-                ? 'bg-[var(--sg-crimson)] text-white'
-                : 'bg-[var(--sg-offwhite)] text-[var(--sg-navy)]/60 hover:bg-[var(--sg-border)]'
-              }`}
-          >
-            All Places
-          </button>
-          {categoriesInZone.map((cat) => (
+        {/* Filter pills (zoneDetail only) */}
+        {isZoneDetail && !isEditorMode && categoriesInZone.length > 0 && (
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
             <button
-              key={cat.value}
-              onClick={() => onCategoryChange(cat.value)}
-              className={`shrink-0 flex items-center gap-1 px-3.5 py-1.5 rounded-full text-xs font-semibold
-                transition-colors cursor-pointer
-                ${activeCategory === cat.value
+              onClick={() => onCategoryChange(null)}
+              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer shadow-sm
+                ${activeCategory === null
                   ? 'bg-[var(--sg-crimson)] text-white'
-                  : 'bg-[var(--sg-offwhite)] text-[var(--sg-navy)]/60 hover:bg-[var(--sg-border)]'
+                  : 'bg-white/95 backdrop-blur-sm text-[var(--sg-navy)]/60 hover:bg-white border border-[var(--sg-border)]'
                 }`}
             >
-              <span>{CATEGORY_EMOJI[cat.value]}</span>
-              {cat.label}
+              All Places
             </button>
-          ))}
-        </div>
-      )}
+            {categoriesInZone.map((cat) => (
+              <button
+                key={cat.value}
+                onClick={() => onCategoryChange(cat.value)}
+                className={`shrink-0 flex items-center gap-1 px-3.5 py-1.5 rounded-full text-xs font-semibold
+                  transition-colors cursor-pointer shadow-sm
+                  ${activeCategory === cat.value
+                    ? 'bg-[var(--sg-crimson)] text-white'
+                    : 'bg-white/95 backdrop-blur-sm text-[var(--sg-navy)]/60 hover:bg-white border border-[var(--sg-border)]'
+                  }`}
+              >
+                <span>{CATEGORY_EMOJI[cat.value]}</span>
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
