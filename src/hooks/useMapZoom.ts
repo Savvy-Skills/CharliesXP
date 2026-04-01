@@ -111,6 +111,7 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
         bearing: 0,
         duration: 1500,
         essential: true,
+        padding: { top: 80, bottom: 20, left: 20, right: 20 },
       }, 1500);
     },
     [mapRef, flyToWithGuard],
