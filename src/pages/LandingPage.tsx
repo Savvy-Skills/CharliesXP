@@ -14,6 +14,7 @@ import { useMapFlyTo } from '../hooks/useMapFlyTo';
 import { useMapZoom } from '../hooks/useMapZoom';
 import { useAuth } from '../hooks/useAuth';
 import { usePackages } from '../hooks/usePackages';
+import { supabase } from '../lib/supabase';
 import type { Place, Coordinates } from '../types';
 
 export function LandingPage() {
@@ -23,7 +24,7 @@ export function LandingPage() {
   // Preload packages so PaywallModal opens instantly
   usePackages();
 
-  const { places, zones, getPlacesByZone, activeCategories } = usePlaces();
+  const { places, zones, getPlacesByZone, activeCategories, refetch } = usePlaces();
   const { mapRef, flyToPlace, flyToDefault } = useMapFlyTo();
   const { mapState, activeZone, expandMap, zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, handleZoomChange, handleMoveEnd } = useMapZoom(mapRef);
   const { unlockedZones: rawUnlockedZones, isZoneUnlocked, isAdmin } = useAuth();
@@ -124,6 +125,54 @@ export function LandingPage() {
     setPendingCoordinates(null);
   }, []);
 
+  // Supabase-backed editor CRUD
+  const handleAddPlace = useCallback(async (place: Omit<Place, 'id'>) => {
+    const { error } = await supabase.from('places').insert({
+      name: place.name,
+      description: place.description,
+      category: place.category,
+      zone_id: place.zone ?? activeZone ?? '',
+      coordinates: place.coordinates,
+      address: place.address,
+      marker_icon: place.markerIcon,
+      marker_image: place.markerImage,
+      images: place.images,
+      rating: place.rating,
+      tags: place.tags,
+      visit_date: place.visitDate,
+      camera: { zoom: place.zoom, pitch: place.pitch, bearing: place.bearing },
+      placed: true,
+      active: true,
+    });
+    if (error) console.error('Add place error:', error);
+    else refetch();
+  }, [activeZone, refetch]);
+
+  const handleUpdatePlace = useCallback(async (id: string, updates: Partial<Place>) => {
+    const dbUpdates: Record<string, unknown> = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.category !== undefined) dbUpdates.category = updates.category;
+    if (updates.zone !== undefined) dbUpdates.zone_id = updates.zone;
+    if (updates.coordinates !== undefined) {
+      dbUpdates.coordinates = updates.coordinates;
+      dbUpdates.placed = true;
+    }
+    if (updates.address !== undefined) dbUpdates.address = updates.address;
+    if (updates.rating !== undefined) dbUpdates.rating = updates.rating;
+    if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
+
+    const { error } = await supabase.from('places').update(dbUpdates).eq('id', id);
+    if (error) console.error('Update place error:', error);
+    else refetch();
+  }, [refetch]);
+
+  const handleDeletePlace = useCallback(async (id: string) => {
+    const { error } = await supabase.from('places').delete().eq('id', id);
+    if (error) console.error('Delete place error:', error);
+    else refetch();
+  }, [refetch]);
+
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
@@ -170,6 +219,9 @@ export function LandingPage() {
         pendingCoordinates={pendingCoordinates}
         currentView={currentView}
         onCancelPending={handleCancelPending}
+        onAddPlace={handleAddPlace}
+        onUpdatePlace={handleUpdatePlace}
+        onDeletePlace={handleDeletePlace}
       />
 
       {!isEditorMode && (
