@@ -42,40 +42,37 @@ export function LandingPage() {
 
   const activeCategory = activeCategories.length === 1 ? activeCategories[0] : null;
 
-  // Auto-expand map in editor mode, zoom into zone, and fly to place if specified
+  // Auto-expand map in editor mode, zoom into zone if specified
+  const [pendingPlaceId, setPendingPlaceId] = useState<string | null>(null);
+
   useEffect(() => {
     if (!isEditorMode) return;
 
     const zone = searchParams.get('zone');
     const placeId = searchParams.get('placeId');
 
-    const flyToPlaceById = () => {
-      if (!placeId) return;
-      // Wait for places to load, then fly
-      const checkAndFly = () => {
-        const place = places.find((p) => p.id === placeId);
-        if (place) {
-          flyToPlace(place);
-        }
-      };
-      setTimeout(checkAndFly, 1500);
-    };
+    if (placeId) setPendingPlaceId(placeId);
 
     if (mapState === 'overview') {
       expandMap();
       if (zone) {
-        setTimeout(() => {
-          zoomIntoZone(zone);
-          flyToPlaceById();
-        }, 500);
+        setTimeout(() => zoomIntoZone(zone), 500);
       }
     } else if (zone && mapState === 'expanded') {
       zoomIntoZone(zone);
-      flyToPlaceById();
-    } else if (placeId) {
-      flyToPlaceById();
     }
   }, [isEditorMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fly to place once it's available in the places array
+  useEffect(() => {
+    if (!pendingPlaceId || places.length === 0) return;
+    const place = places.find((p) => p.id === pendingPlaceId);
+    if (place) {
+      // Delay to let zone zoom finish first
+      setTimeout(() => flyToPlace(place), 2000);
+      setPendingPlaceId(null);
+    }
+  }, [pendingPlaceId, places, flyToPlace]);
 
   const handlePlaceClick = useCallback(
     (place: Place) => { flyToPlace(place); },
