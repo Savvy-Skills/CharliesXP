@@ -267,7 +267,7 @@ export function LandingPage() {
         zonePlaces={zonePlaces}
         onPlaceClick={handlePlaceClick}
         onLockedZoneClick={(zoneId) => isEditorMode ? zoomIntoZone(zoneId) : setPaywallZone(zoneId)}
-        onUnlockZone={() => { /* handled by Edge Functions now */ }}
+        onUnlockZone={(zoneId) => setPaywallZone(zoneId)}
         onZoneClick={handleZoneClick}
         onZoomOut={zoomOutToExpanded}
         onCollapse={() => {
