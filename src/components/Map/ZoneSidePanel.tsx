@@ -78,7 +78,7 @@ export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked =
               className="w-full py-3 rounded-xl bg-[var(--sg-crimson)] hover:bg-[var(--sg-crimson-hover)] text-white
                 font-semibold transition-all cursor-pointer text-sm shadow-md"
             >
-              Unlock {displayName} — £3.99
+              Unlock {displayName}
             </button>
           </div>
 
