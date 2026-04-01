@@ -32,7 +32,8 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
 
   const expandMap = useCallback(() => {
     setMapState('expanded');
-    window.history.pushState(null, '', '/map');
+    const search = window.location.search;
+    window.history.pushState(null, '', '/map' + search);
   }, []);
 
   // Debounced auto-switch — only fires after zoom has been stable for 400ms
