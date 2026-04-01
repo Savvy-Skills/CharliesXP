@@ -9,6 +9,7 @@ interface SEOHeadProps {
   path?: string;
   type?: 'website' | 'article';
   jsonLd?: Record<string, unknown>;
+  noIndex?: boolean;
 }
 
 function setMeta(selector: string, attr: string, value: string) {
@@ -48,7 +49,7 @@ function removeJsonLd() {
   document.getElementById('json-ld-structured')?.remove();
 }
 
-export function SEOHead({ title, description, path = '', type = 'website', jsonLd }: SEOHeadProps) {
+export function SEOHead({ title, description, path = '', type = 'website', jsonLd, noIndex = false }: SEOHeadProps) {
   const fullTitle = `${title} | ${SITE_NAME}`;
   const url = `${SITE_URL}${path}`;
 
@@ -56,6 +57,7 @@ export function SEOHead({ title, description, path = '', type = 'website', jsonL
     document.title = fullTitle;
 
     setMeta('meta[name="description"]', 'content', description);
+    setMeta('meta[name="robots"]', 'content', noIndex ? 'noindex, nofollow' : 'index, follow');
 
     // Open Graph
     setMeta('meta[property="og:title"]', 'content', fullTitle);

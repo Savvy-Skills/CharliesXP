@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Static pages -->
   <url>
     <loc>https://charliesxp.com/</loc>
     <changefreq>weekly</changefreq>
@@ -40,9 +41,34 @@
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
-  <url>
-    <loc>https://charliesxp.com/explore</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
+
+  <!-- Zone pages (public teaser content, no paid details exposed) -->
+  <url><loc>https://charliesxp.com/zone/westminster</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/green-park</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/victoria</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/knightsbridge</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/fulham-broadway</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/south-kensington</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/high-street-kensington</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/paddington</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/notting-hill-gate</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/oxford-circus</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/piccadilly-circus</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/bond-street</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/marble-arch</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/marylebone</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/camden-town</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/kings-cross</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/holborn</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/charing-cross</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/embankment</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/waterloo</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/london-bridge</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/greenwich</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/st-pauls</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/tower-hill</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/battersea</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/arsenal</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/wembley</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/southfields</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
 </urlset>
