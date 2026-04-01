@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import type { MapRef } from 'react-map-gl/mapbox';
 import type { MapZoomState, ViewState } from '../types';
 import { DEFAULT_VIEW_STATE } from '../utils/mapStyles';
-import { ZONE_CENTROIDS, ZONE_ENTER_THRESHOLD, ZONE_EXIT_THRESHOLD } from '../utils/zoneMapping';
+import { ZONE_POLYGON_CENTERS, ZONE_CENTROIDS, ZONE_ENTER_THRESHOLD, ZONE_EXIT_THRESHOLD } from '../utils/zoneMapping';
 
 export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
   const [mapState, setMapState] = useState<MapZoomState>(() => {
@@ -89,7 +89,8 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
       const map = mapRef.current;
       if (!map) return;
 
-      const centroid = ZONE_CENTROIDS[zoneId];
+      // Use polygon center (where the icon is) for flyTo, fall back to station centroid
+      const centroid = ZONE_POLYGON_CENTERS[zoneId] ?? ZONE_CENTROIDS[zoneId];
       if (!centroid) return;
 
       const currentMap = map.getMap();
