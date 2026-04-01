@@ -475,7 +475,7 @@ export function InteractiveMap({
         onResetCamera={() => {
           const map = mapRef.current?.getMap();
           if (!map) return;
-          map.easeTo({ pitch: 0, bearing: 0, duration: 500 });
+          map.easeTo({ pitch: DEFAULT_VIEW_STATE.pitch, bearing: DEFAULT_VIEW_STATE.bearing, duration: 500 });
         }}
       />
 
