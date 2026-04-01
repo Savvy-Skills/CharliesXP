@@ -42,19 +42,38 @@ export function LandingPage() {
 
   const activeCategory = activeCategories.length === 1 ? activeCategories[0] : null;
 
-  // Auto-expand map in editor mode, and zoom into zone if specified
+  // Auto-expand map in editor mode, zoom into zone, and fly to place if specified
   useEffect(() => {
     if (!isEditorMode) return;
 
     const zone = searchParams.get('zone');
+    const placeId = searchParams.get('placeId');
+
+    const flyToPlaceById = () => {
+      if (!placeId) return;
+      // Wait for places to load, then fly
+      const checkAndFly = () => {
+        const place = places.find((p) => p.id === placeId);
+        if (place) {
+          flyToPlace(place);
+        }
+      };
+      setTimeout(checkAndFly, 1500);
+    };
 
     if (mapState === 'overview') {
       expandMap();
       if (zone) {
-        setTimeout(() => zoomIntoZone(zone), 500);
+        setTimeout(() => {
+          zoomIntoZone(zone);
+          flyToPlaceById();
+        }, 500);
       }
     } else if (zone && mapState === 'expanded') {
       zoomIntoZone(zone);
+      flyToPlaceById();
+    } else if (placeId) {
+      flyToPlaceById();
     }
   }, [isEditorMode]); // eslint-disable-line react-hooks/exhaustive-deps
 

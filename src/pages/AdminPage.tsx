@@ -354,7 +354,7 @@ export function AdminPage() {
                               <span className="inline-flex items-center gap-1.5">
                                 <button
                                   onClick={() =>
-                                    navigate(`/map?editor=true&placeId=${p.id}&zone=${p.zone_id}`)
+                                    window.location.href = `/map?editor=true&placeId=${p.id}&zone=${p.zone_id}`
                                   }
                                   className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-[var(--sg-thames)] text-white text-xs font-medium hover:opacity-90 cursor-pointer"
                                   title="Place on Map"
@@ -440,7 +440,7 @@ export function AdminPage() {
                           ) : (
                             <span className="inline-flex items-center gap-1.5">
                               <button
-                                onClick={() => navigate(`/map?editor=true&placeId=${p.id}&zone=${p.zone_id}`)}
+                                onClick={() => window.location.href = `/map?editor=true&placeId=${p.id}&zone=${p.zone_id}`}
                                 className="p-1 rounded-lg text-[var(--sg-navy)]/40 hover:text-[var(--sg-thames)] hover:bg-[var(--sg-thames)]/10 cursor-pointer"
                                 title="View on Map"
                               >
