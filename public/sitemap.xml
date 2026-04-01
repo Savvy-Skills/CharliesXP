@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Static pages -->
   <url>
     <loc>https://charliesxp.com/</loc>
     <changefreq>weekly</changefreq>
@@ -40,9 +41,25 @@
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
-  <url>
-    <loc>https://charliesxp.com/explore</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
+
+  <!-- Zone pages (19 postcode zones, public teaser content only) -->
+  <url><loc>https://charliesxp.com/zone/SW1</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/SW3</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/SW6</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/SW7</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/W8</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/W2</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/W11</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/W1</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/NW1</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/N1</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/WC2</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/SE1</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/SE10</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/EC2</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/EC3</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/SW11</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/N5</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/HA9</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://charliesxp.com/zone/SW19</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
 </urlset>

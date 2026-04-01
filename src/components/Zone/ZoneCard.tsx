@@ -28,7 +28,7 @@ export function ZoneCard({ zone, placeCount, isLocked }: ZoneCardProps) {
           </div>
           <div>
             <h3 className="font-bold text-[var(--sg-navy)] group-hover:text-[var(--sg-crimson)] transition-colors text-base">
-              {zone.id}
+              {zone.name}
             </h3>
             <span className="text-xs text-[var(--sg-navy)]/40 font-medium">
               {isLocked ? 'Locked' : `${placeCount} place${placeCount !== 1 ? 's' : ''}`}

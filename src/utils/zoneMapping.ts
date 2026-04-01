@@ -1,67 +1,58 @@
-import type { FilterSpecification } from 'mapbox-gl';
+import zonesData from '../data/zones.json';
+import zoneCentersData from '../data/zone-centers.json';
+import type { Zone } from '../types';
+
+/** All 28 zones loaded from config */
+export const ZONES: Zone[] = zonesData as Zone[];
+
+/** O(1) lookup by zone slug */
+export const ZONE_MAP: Record<string, Zone> = Object.fromEntries(
+  ZONES.map((z) => [z.id, z]),
+);
+
+/** Station centroids for flyTo animations */
+export const ZONE_CENTROIDS: Record<string, { lng: number; lat: number }> = Object.fromEntries(
+  ZONES.map((z) => [z.id, z.centroid]),
+);
+
+/** Polygon centroids for lock icon placement (center of actual zone boundary) */
+export const ZONE_POLYGON_CENTERS: Record<string, { lng: number; lat: number }> =
+  zoneCentersData as Record<string, { lng: number; lat: number }>;
+
+/** All valid zone IDs */
+export const MANAGED_ZONES: string[] = ZONES.map((z) => z.id);
 
 /**
- * Maps each managed zone to its constituent GeoJSON postcode entries.
- * The london_postcodes.geojson uses sub-postcodes (EC1A, EC1M...) for most zones,
- * but exact codes (SE1, NW3, E1) for others.
+ * Given a map coordinate, returns the nearest zone ID within that zone's radius.
+ * Uses Haversine distance. Returns null if no zone is within range.
  */
-export const ZONE_POSTCODES: Record<string, string[]> = {
-  SE1: ['SE1'],
-  EC1: ['EC1A', 'EC1M', 'EC1N', 'EC1R', 'EC1V', 'EC1Y'],
-  WC2: ['WC2A', 'WC2B', 'WC2E', 'WC2H', 'WC2N', 'WC2R'],
-  NW3: ['NW3'],
-  W1: ['W1B', 'W1C', 'W1D', 'W1F', 'W1G', 'W1H', 'W1J', 'W1K', 'W1S', 'W1T', 'W1U', 'W1W'],
-  SW1: ['SW1A', 'SW1E', 'SW1H', 'SW1P', 'SW1V', 'SW1W', 'SW1X', 'SW1Y'],
-  E1: ['E1', 'E1W'],
-  EC2: ['EC2A', 'EC2M', 'EC2N', 'EC2R', 'EC2V', 'EC2Y'],
-};
+export function getZoneForPoint(lng: number, lat: number): string | null {
+  let nearest: string | null = null;
+  let minDist = Infinity;
 
-/** All managed zone IDs */
-export const MANAGED_ZONES = Object.keys(ZONE_POSTCODES);
-
-/** Flat list of every sub-postcode belonging to a managed zone — use in Mapbox filters */
-export const ALL_ZONE_POSTCODES: string[] = Object.values(ZONE_POSTCODES).flat();
-
-/** Reverse lookup: sub-postcode → parent zone ID (e.g. 'EC1A' → 'EC1') */
-const POSTCODE_TO_ZONE: Record<string, string> = {};
-for (const [zone, postcodes] of Object.entries(ZONE_POSTCODES)) {
-  for (const pc of postcodes) {
-    POSTCODE_TO_ZONE[pc] = zone;
+  for (const zone of ZONES) {
+    const dist = haversine(lat, lng, zone.centroid.lat, zone.centroid.lng);
+    if (dist <= zone.radius && dist < minDist) {
+      minDist = dist;
+      nearest = zone.id;
+    }
   }
+
+  return nearest;
 }
 
-/** Given a GeoJSON postcode Name (e.g. 'EC1A'), returns the managed zone ('EC1') or null */
-export function getZoneForPostcode(postcode: string): string | null {
-  return POSTCODE_TO_ZONE[postcode] ?? null;
+/** Haversine distance in meters between two lat/lng points */
+function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
-
-/** Returns the Mapbox filter expression matching all postcodes for a given zone */
-export function getZoneFilter(zoneId: string): FilterSpecification {
-  const postcodes = ZONE_POSTCODES[zoneId];
-  if (!postcodes) return ['==', ['get', 'Name'], ''];
-  return ['in', ['get', 'Name'], ['literal', postcodes]];
-}
-
-/** Returns a Mapbox filter matching all postcodes EXCEPT those in the given zone */
-export function getZoneExcludeFilter(zoneId: string): FilterSpecification {
-  const postcodes = ZONE_POSTCODES[zoneId] ?? [];
-  return ['all',
-    ['in', ['get', 'Name'], ['literal', ALL_ZONE_POSTCODES]],
-    ...postcodes.map(pc => ['!=', ['get', 'Name'], pc] as FilterSpecification)
-  ];
-}
-
-/** Zone centroids for flyTo animations */
-export const ZONE_CENTROIDS: Record<string, { lng: number; lat: number }> = {
-  SE1: { lng: -0.0934, lat: 51.5020 },
-  EC1: { lng: -0.1050, lat: 51.5235 },
-  WC2: { lng: -0.1220, lat: 51.5115 },
-  NW3: { lng: -0.1700, lat: 51.5560 },
-  W1:  { lng: -0.1440, lat: 51.5140 },
-  SW1: { lng: -0.1340, lat: 51.4990 },
-  E1:  { lng: -0.0600, lat: 51.5170 },
-  EC2: { lng: -0.0850, lat: 51.5190 },
-};
 
 /** Zoom thresholds for the two-level system */
 export const CITY_ZOOM = 12;

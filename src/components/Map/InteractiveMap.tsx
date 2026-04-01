@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
-import type { Map as MapboxMap, FilterSpecification, MapMouseEvent } from 'mapbox-gl';
+import type { Map as MapboxMap, MapMouseEvent } from 'mapbox-gl';
 import MapGL, { type MapRef, type ViewStateChangeEvent } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { PlaceMarker } from './PlaceMarker';
 import { MAP_STYLES, DEFAULT_VIEW_STATE, LONDON_BOUNDS, ALLOWED_LABEL_LAYERS, type MapStyleKey } from '../../utils/mapStyles';
-import { ALL_ZONE_POSTCODES, ZONE_ENTER_THRESHOLD } from '../../utils/zoneMapping';
+import { ZONE_ENTER_THRESHOLD } from '../../utils/zoneMapping';
 import { createModelLayer } from './ModelLayer';
+import { useAuth } from '../../hooks/useAuth';
 import type { Place, ViewState } from '../../types';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -30,6 +31,54 @@ interface InteractiveMapProps {
   hoveredZone?: string | null;
   editorMode?: boolean;
   onMarkerDragEnd?: (place: Place, lngLat: { lng: number; lat: number }) => void;
+}
+
+function DebugOverlay({ viewState, activeZone, editorMode, onResetCamera }: { viewState: ViewState; activeZone: string | null; editorMode?: boolean; onResetCamera?: () => void }) {
+  const { profile, isAdmin } = useAuth();
+  const searchParams = new URLSearchParams(window.location.search);
+  const isEditor = editorMode || searchParams.get('editor') === 'true';
+
+  return (
+    <div className="absolute top-4 right-3 z-50 flex flex-col gap-2 items-end">
+      <div className="bg-black/70 text-white text-[10px] font-mono px-3 py-2 rounded-lg space-y-0.5">
+        <div>role: <span className={isAdmin ? 'text-red-400' : 'text-gray-400'}>{profile?.role ?? 'anon'}</span></div>
+        <div>zoom: <span className="text-green-400">{viewState.zoom.toFixed(2)}</span></div>
+        <div>bearing: <span className="text-blue-400">{viewState.bearing.toFixed(1)}</span></div>
+        <div>lng: {viewState.longitude.toFixed(4)}</div>
+        <div>lat: {viewState.latitude.toFixed(4)}</div>
+        {activeZone && <div>zone: <span className="text-pink-400">{activeZone}</span></div>}
+        {isAdmin && (
+          <div className="pt-1 mt-1 border-t border-white/20 space-y-1 pointer-events-auto">
+            {!isEditor && (
+              <a href="/map?editor=true" className="block text-cyan-400 hover:text-cyan-300">
+                Editor Mode
+              </a>
+            )}
+            {isEditor && (
+              <a href="/map" className="block text-cyan-400 hover:text-cyan-300">
+                Exit Editor
+              </a>
+            )}
+            <a href="/admin" className="block text-orange-400 hover:text-orange-300">
+              Dashboard
+            </a>
+          </div>
+        )}
+      </div>
+      {onResetCamera && (
+        <button
+          onClick={onResetCamera}
+          className="p-2.5 bg-white/90 backdrop-blur-sm rounded-xl hover:bg-white transition-colors shadow-md cursor-pointer border border-[var(--sg-border)] pointer-events-auto"
+          title="Reset camera angle"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--sg-navy)]/60">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
 }
 
 // World polygon for full-map dim overlay
@@ -100,13 +149,17 @@ export function InteractiveMap({
     }
   }, []);
 
-  const highlightTransitLines = useCallback((map: MapboxMap) => {
-    const transitIds = ['rail', 'rail-transit', 'bridge-rail', 'bridge-rail-transit'];
-    for (const id of transitIds) {
-      if (map.getLayer(id)) {
-        map.setPaintProperty(id, 'line-color', '#7c2d36');
-        map.setPaintProperty(id, 'line-width', 2);
-        map.setPaintProperty(id, 'line-opacity', 0.6);
+  const hideTransitLayers = useCallback((map: MapboxMap) => {
+    // Hide rail lines and transit station icons/labels
+    for (const layer of map.getStyle().layers ?? []) {
+      const id = layer.id;
+      if (
+        id.includes('rail') ||
+        id.includes('transit') ||
+        id.includes('airport') ||
+        id.includes('ferry')
+      ) {
+        map.setLayoutProperty(id, 'visibility', 'none');
       }
     }
   }, []);
@@ -146,21 +199,6 @@ export function InteractiveMap({
           'line-color': '#8b7355',
           'line-width': 0.3,
           'line-opacity': 0.15,
-        },
-      });
-    }
-
-    // Invisible fill for queryRenderedFeatures (click/zoom detection)
-    if (!map.getLayer('postcodes-fill')) {
-      const subPostcodeFilter: FilterSpecification = ['in', ['get', 'Name'], ['literal', ALL_ZONE_POSTCODES]];
-      map.addLayer({
-        id: 'postcodes-fill',
-        type: 'fill',
-        source: 'postcodes',
-        filter: subPostcodeFilter,
-        paint: {
-          'fill-color': 'transparent',
-          'fill-opacity': 0,
         },
       });
     }
@@ -318,7 +356,7 @@ export function InteractiveMap({
 
     const modelPlaces = skip3DModels ? [] : places.filter((p) => p.model);
     hideClutterLabels(map);
-    highlightTransitLines(map);
+    hideTransitLayers(map);
     addPostcodeLayers(map);
     registerHoverHandlers(map);
     if (modelPlaces.length > 0) add3DModels(map, modelPlaces);
@@ -326,11 +364,11 @@ export function InteractiveMap({
 
     map.on('style.load', () => {
       hideClutterLabels(map);
-      highlightTransitLines(map);
+      hideTransitLayers(map);
       addPostcodeLayers(map);
       if (modelPlaces.length > 0) add3DModels(map, modelPlaces);
     });
-  }, [mapRef, places, hideClutterLabels, highlightTransitLines, addPostcodeLayers, registerHoverHandlers, add3DModels]);
+  }, [mapRef, places, hideClutterLabels, hideTransitLayers, addPostcodeLayers, registerHoverHandlers, add3DModels]);
 
   // Toggle dim overlay when activeZone changes — dims ENTIRE map except active zone
   useEffect(() => {
@@ -430,15 +468,16 @@ export function InteractiveMap({
       </MapGL>
 
       {/* Debug overlay */}
-      <div className={`absolute top-4 right-3 z-50 bg-black/70 text-white text-[10px]
-        font-mono px-3 py-2 rounded-lg pointer-events-none space-y-0.5`}>
-        <div>zoom: <span className="text-green-400">{viewState.zoom.toFixed(2)}</span></div>
-        <div>pitch: <span className="text-yellow-400">{viewState.pitch.toFixed(1)}</span></div>
-        <div>bearing: <span className="text-blue-400">{viewState.bearing.toFixed(1)}</span></div>
-        <div>lng: {viewState.longitude.toFixed(4)}</div>
-        <div>lat: {viewState.latitude.toFixed(4)}</div>
-        {activeZone && <div>zone: <span className="text-pink-400">{activeZone}</span></div>}
-      </div>
+      <DebugOverlay
+        viewState={viewState}
+        activeZone={activeZone ?? null}
+        editorMode={editorMode}
+        onResetCamera={() => {
+          const map = mapRef.current?.getMap();
+          if (!map) return;
+          map.easeTo({ pitch: DEFAULT_VIEW_STATE.pitch, bearing: DEFAULT_VIEW_STATE.bearing, duration: 500 });
+        }}
+      />
 
       {children}
     </div>

@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import type { MapRef } from 'react-map-gl/mapbox';
 import type { MapZoomState, ViewState } from '../types';
 import { DEFAULT_VIEW_STATE } from '../utils/mapStyles';
-import { getZoneForPostcode, ZONE_CENTROIDS, ZONE_ENTER_THRESHOLD, ZONE_EXIT_THRESHOLD } from '../utils/zoneMapping';
+import { ZONE_CENTROIDS, ZONE_ENTER_THRESHOLD, ZONE_EXIT_THRESHOLD } from '../utils/zoneMapping';
 
 export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
   const [mapState, setMapState] = useState<MapZoomState>(() => {
@@ -32,7 +32,8 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
 
   const expandMap = useCallback(() => {
     setMapState('expanded');
-    window.history.pushState(null, '', '/map');
+    const search = window.location.search;
+    window.history.pushState(null, '', '/map' + search);
   }, []);
 
   // Debounced auto-switch — only fires after zoom has been stable for 400ms
@@ -54,10 +55,9 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
         if (!map) return;
         const center = map.getCenter();
         const point = map.project([center.lng, center.lat]);
-        const features = map.queryRenderedFeatures(point, { layers: ['postcodes-fill'] });
+        const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
         if (features.length > 0) {
-          const postcodeName = features[0].properties?.Name as string;
-          const zoneName = getZoneForPostcode(postcodeName);
+          const zoneName = features[0].properties?.zone as string;
           if (zoneName) {
             setMapState('zoneDetail');
             setActiveZone(zoneName);
@@ -158,11 +158,10 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
 
     const center = map.getCenter();
     const point = map.project([center.lng, center.lat]);
-    const features = map.queryRenderedFeatures(point, { layers: ['postcodes-fill'] });
+    const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
 
     if (features.length > 0) {
-      const postcodeName = features[0].properties?.Name as string;
-      const zoneName = getZoneForPostcode(postcodeName);
+      const zoneName = features[0].properties?.zone as string;
       if (zoneName && zoneName !== activeZone) {
         setActiveZone(zoneName);
       }

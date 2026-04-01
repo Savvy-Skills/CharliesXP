@@ -5,13 +5,14 @@ interface ZoneLockIconProps {
   longitude: number;
   latitude: number;
   zoneId: string;
+  zoneName?: string;
   unlocked?: boolean;
   onClick: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 }
 
-export function ZoneLockIcon({ longitude, latitude, zoneId, unlocked = false, onClick, onMouseEnter, onMouseLeave }: ZoneLockIconProps) {
+export function ZoneLockIcon({ longitude, latitude, zoneId, zoneName, unlocked = false, onClick, onMouseEnter, onMouseLeave }: ZoneLockIconProps) {
   return (
     <Marker longitude={longitude} latitude={latitude} anchor="center">
       <button
@@ -36,13 +37,20 @@ export function ZoneLockIcon({ longitude, latitude, zoneId, unlocked = false, on
             <Lock size={16} className="text-[var(--sg-navy)]/60 group-hover:text-[var(--sg-thames)] transition-colors" />
           )}
         </div>
-        <span className={`text-xs font-bold px-2 py-0.5 rounded shadow-sm
+        <span className={`text-xs font-bold px-2 py-0.5 rounded shadow-sm text-center leading-tight
           ${unlocked
             ? 'bg-[var(--sg-thames)] text-white'
             : 'bg-white/90 text-[var(--sg-navy)] border border-[var(--sg-border)]'
           }`}
         >
-          {zoneId}
+          {(() => {
+            const display = zoneName || zoneId;
+            const parts = display.split(' — ');
+            if (parts.length === 2) {
+              return <>{parts[0]}<br /><span className="font-medium text-[10px]">{parts[1]}</span></>;
+            }
+            return display;
+          })()}
         </span>
       </button>
     </Marker>

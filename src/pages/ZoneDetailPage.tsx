@@ -4,12 +4,12 @@ import { PageShell } from '../components/Layout/PageShell';
 import { SEOHead } from '../components/SEOHead';
 import { ZonePlacesList } from '../components/Zone/ZonePlacesList';
 import { usePlaces } from '../hooks/usePlaces';
-import { useUser } from '../hooks/useUser';
+import { useAuth } from '../hooks/useAuth';
 
 export function ZoneDetailPage() {
   const { name } = useParams<{ name: string }>();
   const { getZoneById, getPlacesByZone } = usePlaces();
-  const { isZoneUnlocked } = useUser();
+  const { isZoneUnlocked } = useAuth();
   const zone = name ? getZoneById(name) : null;
   const zonePlaces = name ? getPlacesByZone(name) : [];
   const unlocked = name ? isZoneUnlocked(name) : false;
@@ -71,7 +71,7 @@ export function ZoneDetailPage() {
 
         {unlocked ? (
           <>
-            <h2 className="font-display text-lg font-bold text-[var(--sg-navy)] mb-4">Places in {zone.id}</h2>
+            <h2 className="font-display text-lg font-bold text-[var(--sg-navy)] mb-4">Places in {zone.name}</h2>
             <ZonePlacesList places={zonePlaces} />
           </>
         ) : (
@@ -79,7 +79,7 @@ export function ZoneDetailPage() {
             <Lock size={32} className="text-[var(--sg-navy)]/60 mx-auto mb-3" />
             <p className="text-[var(--sg-navy)] font-medium mb-2">This zone is locked</p>
             <p className="text-sm text-[var(--sg-navy)]/60">
-              Purchase access to see all places and recommendations in {zone.id}.
+              Purchase access to see all places and recommendations in {zone.name}.
             </p>
           </div>
         )}

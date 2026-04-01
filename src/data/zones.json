@@ -1,50 +1,21 @@
 [
-  {
-    "id": "SE1",
-    "name": "SE1 — Southwark & Bankside",
-    "description": "The cultural heart of South London. Home to Borough Market, Tate Modern, Shakespeare's Globe, and the South Bank.",
-    "color": "#3b82f6"
-  },
-  {
-    "id": "EC1",
-    "name": "EC1 — Clerkenwell & Shoreditch",
-    "description": "Where historic London meets creative energy. Craft cocktail bars, design studios, and Exmouth Market.",
-    "color": "#a855f7"
-  },
-  {
-    "id": "WC2",
-    "name": "WC2 — Covent Garden & Strand",
-    "description": "Theatre district meets specialty coffee. Bustling piazzas, independent shops, and great people-watching.",
-    "color": "#f97316"
-  },
-  {
-    "id": "NW3",
-    "name": "NW3 — Hampstead",
-    "description": "Village life in the city. Rolling heathland, swimming ponds, literary pubs, and panoramic skyline views.",
-    "color": "#22c55e"
-  },
-  {
-    "id": "W1",
-    "name": "W1 — Mayfair & Soho",
-    "description": "London's playground. World-class restaurants, legendary music venues, and the best cocktail bars in the West End.",
-    "color": "#ec4899"
-  },
-  {
-    "id": "SW1",
-    "name": "SW1 — Westminster & Pimlico",
-    "description": "The seat of power. Westminster Abbey, Buckingham Palace, and hidden gems along the river.",
-    "color": "#eab308"
-  },
-  {
-    "id": "E1",
-    "name": "E1 — Whitechapel & Spitalfields",
-    "description": "East London's melting pot. Brick Lane, Spitalfields Market, street art, and the best curry in the city.",
-    "color": "#ef4444"
-  },
-  {
-    "id": "EC2",
-    "name": "EC2 — Barbican & Moorgate",
-    "description": "Brutalist architecture meets the City. The Barbican Centre, hidden gardens, and rooftop bars.",
-    "color": "#06b6d4"
-  }
+  { "id": "SW1", "name": "SW1", "postcode": "SW1", "description": "Westminster, Green Park, Victoria — Parliament, Big Ben, Buckingham Palace, Tate Britain.", "color": "#eab308", "centroid": { "lng": -0.1350, "lat": 51.4990 }, "radius": 2000 },
+  { "id": "SW3", "name": "SW3", "postcode": "SW3", "description": "Knightsbridge — Harrods, Harvey Nichols, Hyde Park, Sloane Square.", "color": "#ec4899", "centroid": { "lng": -0.1605, "lat": 51.4940 }, "radius": 1500 },
+  { "id": "SW6", "name": "SW6", "postcode": "SW6", "description": "Fulham Broadway — Chelsea FC, Fulham Road, King's Road.", "color": "#3b82f6", "centroid": { "lng": -0.1953, "lat": 51.4802 }, "radius": 1500 },
+  { "id": "SW7", "name": "SW7", "postcode": "SW7", "description": "South Kensington — Natural History Museum, Science Museum, V&A, Royal Albert Hall.", "color": "#a855f7", "centroid": { "lng": -0.1740, "lat": 51.4941 }, "radius": 1500 },
+  { "id": "W8", "name": "W8", "postcode": "W8", "description": "High Street Kensington — Kensington Palace, Hyde Park.", "color": "#14b8a6", "centroid": { "lng": -0.1927, "lat": 51.5009 }, "radius": 1500 },
+  { "id": "W2", "name": "W2", "postcode": "W2", "description": "Paddington — Hyde Park, Italian Gardens, Heathrow hub.", "color": "#f97316", "centroid": { "lng": -0.1757, "lat": 51.5154 }, "radius": 1500 },
+  { "id": "W11", "name": "W11", "postcode": "W11", "description": "Notting Hill Gate — Portobello Market, colorful streets.", "color": "#f43f5e", "centroid": { "lng": -0.1963, "lat": 51.5093 }, "radius": 1500 },
+  { "id": "W1", "name": "W1", "postcode": "W1", "description": "Oxford Circus, Piccadilly Circus, Bond Street, Marble Arch — Soho, Mayfair, Oxford Street.", "color": "#ef4444", "centroid": { "lng": -0.1440, "lat": 51.5140 }, "radius": 2000 },
+  { "id": "NW1", "name": "NW1", "postcode": "NW1", "description": "Marylebone & Camden Town — Regent's Park, London Zoo, Camden Market.", "color": "#84cc16", "centroid": { "lng": -0.1530, "lat": 51.5310 }, "radius": 2000 },
+  { "id": "N1", "name": "N1", "postcode": "N1", "description": "King's Cross — Eurostar, Platform 9¾, Coal Drops Yard.", "color": "#78716c", "centroid": { "lng": -0.1233, "lat": 51.5305 }, "radius": 2000 },
+  { "id": "WC2", "name": "WC2", "postcode": "WC2", "description": "Holborn, Charing Cross, Embankment — British Museum, Trafalgar Square, Covent Garden.", "color": "#f59e0b", "centroid": { "lng": -0.1220, "lat": 51.5115 }, "radius": 1500 },
+  { "id": "SE1", "name": "SE1", "postcode": "SE1", "description": "Waterloo & London Bridge — London Eye, Borough Market, The Shard, Tate Modern.", "color": "#3b82f6", "centroid": { "lng": -0.1000, "lat": 51.5020 }, "radius": 2000 },
+  { "id": "SE10", "name": "SE10", "postcode": "SE10", "description": "Greenwich — Royal Observatory, Greenwich Pier, maritime history.", "color": "#059669", "centroid": { "lng": -0.0149, "lat": 51.4769 }, "radius": 1500 },
+  { "id": "EC2", "name": "EC2", "postcode": "EC2", "description": "St Paul's — St Paul's Cathedral, City of London.", "color": "#7c3aed", "centroid": { "lng": -0.0900, "lat": 51.5170 }, "radius": 1500 },
+  { "id": "EC3", "name": "EC3", "postcode": "EC3", "description": "Tower Hill — Tower Bridge, Tower of London, The Gherkin.", "color": "#dc2626", "centroid": { "lng": -0.0765, "lat": 51.5101 }, "radius": 1500 },
+  { "id": "SW11", "name": "SW11", "postcode": "SW11", "description": "Battersea — Battersea Park, Power Station, Children's Zoo.", "color": "#ea580c", "centroid": { "lng": -0.1465, "lat": 51.4753 }, "radius": 1500 },
+  { "id": "N5", "name": "N5", "postcode": "N5", "description": "Arsenal — Emirates Stadium.", "color": "#b91c1c", "centroid": { "lng": -0.1035, "lat": 51.5575 }, "radius": 1500 },
+  { "id": "HA9", "name": "HA9", "postcode": "HA9", "description": "Wembley — Wembley Stadium.", "color": "#ca8a04", "centroid": { "lng": -0.2795, "lat": 51.5560 }, "radius": 1500 },
+  { "id": "SW19", "name": "SW19", "postcode": "SW19", "description": "Southfields — Wimbledon Tennis, All England Lawn Tennis Club.", "color": "#15803d", "centroid": { "lng": -0.2066, "lat": 51.4445 }, "radius": 1500 }
 ]

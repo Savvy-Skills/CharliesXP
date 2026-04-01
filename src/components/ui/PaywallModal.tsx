@@ -1,14 +1,68 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router';
 import { Modal } from './Modal';
-import { Lock, Check } from 'lucide-react';
+import { Lock } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../hooks/useAuth';
+import { usePackages } from '../../hooks/usePackages';
+import type { Package } from '../../types';
 
 interface PaywallModalProps {
   isOpen: boolean;
   onClose: () => void;
   zoneName: string;
-  onUnlock: () => void;
+  zoneId: string;
 }
 
-export function PaywallModal({ isOpen, onClose, zoneName, onUnlock }: PaywallModalProps) {
+export function PaywallModal({ isOpen, onClose, zoneName, zoneId }: PaywallModalProps) {
+  const { isLoggedIn, zoneCredits, refreshAccess } = useAuth();
+  const navigate = useNavigate();
+  const { packages } = usePackages();
+  const [redeeming, setRedeeming] = useState(false);
+
+  const handleBuyPackage = async (pkg: Package) => {
+    if (!isLoggedIn) {
+      navigate('/login');
+      onClose();
+      return;
+    }
+
+    const body: Record<string, unknown> = { package_id: pkg.id };
+    if (pkg.slug === 'individual') {
+      body.zone_ids = [zoneId];
+    }
+
+    const { data, error } = await supabase.functions.invoke('create-checkout', {
+      body,
+    });
+
+    if (error) {
+      console.error('Checkout error:', error);
+      return;
+    }
+
+    if (data?.url) {
+      window.location.href = data.url;
+    }
+  };
+
+  const handleRedeemCredit = async () => {
+    setRedeeming(true);
+    const { error } = await supabase.functions.invoke('redeem-zone-credit', {
+      body: { zone_id: zoneId },
+    });
+
+    if (error) {
+      console.error('Redeem error:', error);
+      setRedeeming(false);
+      return;
+    }
+
+    await refreshAccess();
+    setRedeeming(false);
+    onClose();
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <div className="p-6 pt-10 text-center">
@@ -23,43 +77,51 @@ export function PaywallModal({ isOpen, onClose, zoneName, onUnlock }: PaywallMod
           Get full access to all restaurants, cafes, bars, and hidden gems in this zone.
         </p>
 
-        <div className="bg-[var(--sg-offwhite)] rounded-xl p-5 mb-6 text-left">
-          <div className="flex items-baseline justify-center gap-1 mb-4">
-            <span className="text-3xl font-bold text-[var(--sg-navy)]">£3.99</span>
-            <span className="text-sm text-[var(--sg-navy)]/60">/zone</span>
+        {zoneCredits > 0 && (
+          <div className="mb-4">
+            <button
+              onClick={handleRedeemCredit}
+              disabled={redeeming}
+              className="w-full py-3 rounded-xl bg-[var(--sg-thames)] hover:bg-[var(--sg-thames-hover)] text-white font-semibold text-sm transition-all cursor-pointer disabled:opacity-50"
+            >
+              {redeeming ? 'Unlocking...' : `Use zone credit (${zoneCredits} remaining)`}
+            </button>
+            <div className="flex items-center gap-3 my-4">
+              <div className="flex-1 h-px bg-[var(--sg-border)]" />
+              <span className="text-xs text-[var(--sg-navy)]/40">or buy a package</span>
+              <div className="flex-1 h-px bg-[var(--sg-border)]" />
+            </div>
           </div>
+        )}
 
-          <ul className="space-y-2">
-            {[
-              'All places & recommendations',
-              'Detailed reviews & ratings',
-              'Insider tips & hidden gems',
-              '30 days of full access',
-            ].map((feature) => (
-              <li key={feature} className="flex items-center gap-2 text-sm text-[var(--sg-navy)]">
-                <Check size={14} className="text-green-600 shrink-0" />
-                {feature}
-              </li>
-            ))}
-          </ul>
+        <div className="space-y-3 mb-6">
+          {packages.map((pkg) => (
+            <button
+              key={pkg.id}
+              onClick={() => handleBuyPackage(pkg)}
+              className="w-full p-4 rounded-xl border border-[var(--sg-border)] bg-[var(--sg-offwhite)] hover:border-[var(--sg-crimson)]/30 transition-all cursor-pointer text-left"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-[var(--sg-navy)]">{pkg.name}</span>
+                <span className="text-sm font-bold text-[var(--sg-crimson)]">
+                  {'\u00A3'}{(pkg.price_cents / 100).toFixed(2)}
+                </span>
+              </div>
+              <p className="text-xs text-[var(--sg-navy)]/60">
+                {pkg.slug === 'individual' && 'Unlock this zone'}
+                {pkg.slug === 'smile' && '5 zones of your choice'}
+                {pkg.slug === 'atane' && 'Unlock everything — all zones'}
+              </p>
+            </button>
+          ))}
         </div>
 
         <button
-          onClick={onUnlock}
-          className="w-full py-3 rounded-xl bg-[var(--sg-crimson)] hover:bg-[var(--sg-crimson-hover)] text-white
-            font-semibold transition-all cursor-pointer text-sm shadow-md"
+          onClick={onClose}
+          className="text-xs text-[var(--sg-navy)]/60 hover:text-[var(--sg-crimson)] transition-colors cursor-pointer"
         >
-          Unlock {zoneName} — £3.99
+          Maybe later
         </button>
-
-        <div className="mt-3">
-          <button
-            onClick={onClose}
-            className="text-xs text-[var(--sg-navy)]/60 hover:text-[var(--sg-crimson)] transition-colors cursor-pointer"
-          >
-            Maybe later
-          </button>
-        </div>
       </div>
     </Modal>
   );

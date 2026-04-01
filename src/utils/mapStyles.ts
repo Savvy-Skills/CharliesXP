@@ -17,8 +17,8 @@ export const DEFAULT_VIEW_STATE = {
 
 // Bounding box constraining the map to central London
 export const LONDON_BOUNDS: [[number, number], [number, number]] = [
-  [-0.22, 51.47], // southwest
-  [0.01, 51.55],  // northeast
+  [-0.31, 51.42], // southwest (covers Wembley, Wimbledon)
+  [0.02, 51.57],  // northeast (covers Arsenal, Greenwich)
 ];
 
 // Only these label layers survive — everything else with "label" or "symbol" gets hidden
