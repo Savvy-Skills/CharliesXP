@@ -5,8 +5,6 @@ import { motion } from 'framer-motion';
 import { PageShell } from '../components/Layout/PageShell';
 import { SEOHead } from '../components/SEOHead';
 import { HeroMapSection } from '../components/Landing/HeroMapSection';
-import { FeaturedSection } from '../components/Landing/FeaturedSection';
-import { CategoryBrowse } from '../components/Landing/CategoryBrowse';
 import { ZoneCard } from '../components/Zone/ZoneCard';
 import { PaywallModal } from '../components/ui/PaywallModal';
 import { usePlaces } from '../hooks/usePlaces';
@@ -257,10 +255,6 @@ export function LandingPage() {
 
       {!isEditorMode && (
         <div className="bg-[var(--sg-offwhite)]">
-          <FeaturedSection places={places} />
-
-          <CategoryBrowse places={places} />
-
           {/* Why Charlie and not AI — trust panel */}
           <section className="max-w-3xl mx-auto px-5 md:px-8 py-16">
             <div className="im-card p-10 md:p-14">
