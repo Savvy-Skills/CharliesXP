@@ -29,7 +29,7 @@ export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked =
               <span className="text-[var(--sg-crimson)]">{displayName}</span>
             </>
           ) : (
-            <>Places in <span className="text-[var(--sg-crimson)]">{zoneId}</span></>
+            <>Places in <span className="text-[var(--sg-crimson)]">{displayName}</span></>
           )}
         </h2>
         <p className="text-xs text-[var(--sg-navy)]/60 mt-1">
