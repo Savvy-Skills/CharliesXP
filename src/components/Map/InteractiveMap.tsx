@@ -33,7 +33,7 @@ interface InteractiveMapProps {
   onMarkerDragEnd?: (place: Place, lngLat: { lng: number; lat: number }) => void;
 }
 
-function DebugOverlay({ viewState, activeZone, editorMode, onResetView }: { viewState: ViewState; activeZone: string | null; editorMode?: boolean; onResetView?: () => void }) {
+function DebugOverlay({ viewState, activeZone, editorMode, onResetCamera }: { viewState: ViewState; activeZone: string | null; editorMode?: boolean; onResetCamera?: () => void }) {
   const { profile, isAdmin } = useAuth();
   const searchParams = new URLSearchParams(window.location.search);
   const isEditor = editorMode || searchParams.get('editor') === 'true';
@@ -65,11 +65,11 @@ function DebugOverlay({ viewState, activeZone, editorMode, onResetView }: { view
           </div>
         )}
       </div>
-      {onResetView && (
+      {onResetCamera && (
         <button
-          onClick={onResetView}
+          onClick={onResetCamera}
           className="p-2.5 bg-white/90 backdrop-blur-sm rounded-xl hover:bg-white transition-colors shadow-md cursor-pointer border border-[var(--sg-border)] pointer-events-auto"
-          title="Reset camera"
+          title="Reset camera angle"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--sg-navy)]/60">
             <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
@@ -99,7 +99,7 @@ export function InteractiveMap({
   mapRef,
   onPlaceClick,
   onMapClick,
-  onResetView,
+  onResetView: _onResetView,
   mode = 'full',
   interactive = true,
   mapChildren,
@@ -468,7 +468,16 @@ export function InteractiveMap({
       </MapGL>
 
       {/* Debug overlay */}
-      <DebugOverlay viewState={viewState} activeZone={activeZone ?? null} editorMode={editorMode} onResetView={onResetView} />
+      <DebugOverlay
+        viewState={viewState}
+        activeZone={activeZone ?? null}
+        editorMode={editorMode}
+        onResetCamera={() => {
+          const map = mapRef.current?.getMap();
+          if (!map) return;
+          map.easeTo({ pitch: 0, bearing: 0, duration: 500 });
+        }}
+      />
 
       {children}
     </div>
