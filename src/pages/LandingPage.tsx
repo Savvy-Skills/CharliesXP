@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useSearchParams } from 'react-router';
+import { useSearchParams, useNavigate } from 'react-router';
 import { ZONE_MAP, MANAGED_ZONES } from '../utils/zoneMapping';
 import { motion } from 'framer-motion';
 import { PageShell } from '../components/Layout/PageShell';
@@ -30,6 +30,25 @@ export function LandingPage() {
   // Admins have all zones unlocked
   const unlockedZones = isAdmin ? MANAGED_ZONES : rawUnlockedZones;
   const [paywallZone, setPaywallZone] = useState<string | null>(null);
+  const [paymentToast, setPaymentToast] = useState<'success' | 'cancelled' | null>(null);
+  const navigate = useNavigate();
+
+  // Handle payment return params
+  useEffect(() => {
+    const payment = searchParams.get('payment');
+    if (payment === 'success' || payment === 'cancelled') {
+      setPaymentToast(payment);
+      // Clean up URL params
+      navigate('/map', { replace: true });
+      // Refresh user data to pick up new zones
+      if (payment === 'success') {
+        // Small delay to let webhook process
+        setTimeout(() => window.location.reload(), 1500);
+      }
+      // Auto-dismiss toast
+      setTimeout(() => setPaymentToast(null), 5000);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Editor state
   const [pendingCoordinates, setPendingCoordinates] = useState<Coordinates | null>(null);
@@ -211,6 +230,28 @@ export function LandingPage() {
 
   return (
     <PageShell>
+      {/* Payment toast */}
+      {paymentToast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-2">
+          <div className={`px-6 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 ${
+            paymentToast === 'success'
+              ? 'bg-green-600 text-white'
+              : 'bg-[var(--sg-navy)] text-white'
+          }`}>
+            {paymentToast === 'success' ? (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                Payment successful! Your zones are being unlocked...
+              </>
+            ) : (
+              <>Payment cancelled. No charge was made.</>
+            )}
+            <button onClick={() => setPaymentToast(null)} className="ml-2 opacity-70 hover:opacity-100 cursor-pointer">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
+        </div>
+      )}
       <SEOHead
         title="Experience London Like a Londoner"
         description="Charlies XP — personal, human, editorial guides to London's best places, zones, and hidden stories. From someone who has walked every part of the city."
