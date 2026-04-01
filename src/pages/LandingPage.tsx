@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { ZONE_MAP, MANAGED_ZONES } from '../utils/zoneMapping';
 import { motion } from 'framer-motion';
 import { PageShell } from '../components/Layout/PageShell';
@@ -25,28 +25,29 @@ export function LandingPage() {
   const { places, zones, getPlacesByZone, activeCategories, refetch } = usePlaces();
   const { mapRef, flyToPlace, flyToDefault } = useMapFlyTo();
   const { mapState, activeZone, expandMap, zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, handleZoomChange, handleMoveEnd } = useMapZoom(mapRef);
-  const { unlockedZones: rawUnlockedZones, isZoneUnlocked, isAdmin } = useAuth();
+  const { unlockedZones: rawUnlockedZones, isZoneUnlocked, isAdmin, refreshAccess } = useAuth();
 
   // Admins have all zones unlocked
   const unlockedZones = isAdmin ? MANAGED_ZONES : rawUnlockedZones;
   const [paywallZone, setPaywallZone] = useState<string | null>(null);
   const [paymentToast, setPaymentToast] = useState<'success' | 'cancelled' | null>(null);
-  const navigate = useNavigate();
-
   // Handle payment return params
   useEffect(() => {
     const payment = searchParams.get('payment');
     if (payment === 'success' || payment === 'cancelled') {
       setPaymentToast(payment);
-      // Clean up URL params
-      navigate('/map', { replace: true });
-      // Refresh user data to pick up new zones
+      // Clean URL without triggering navigation/reload
+      window.history.replaceState(null, '', '/map');
       if (payment === 'success') {
-        // Small delay to let webhook process
-        setTimeout(() => window.location.reload(), 1500);
+        // Poll for zone access (webhook may take a moment)
+        const poll = async (attempts = 0) => {
+          await refreshAccess();
+          refetch();
+          if (attempts < 5) setTimeout(() => poll(attempts + 1), 2000);
+        };
+        setTimeout(() => poll(), 1000);
       }
-      // Auto-dismiss toast
-      setTimeout(() => setPaymentToast(null), 5000);
+      setTimeout(() => setPaymentToast(null), 6000);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -229,10 +230,10 @@ export function LandingPage() {
   };
 
   return (
-    <PageShell>
-      {/* Payment toast */}
+    <>
+      {/* Payment toast — outside PageShell for z-index */}
       {paymentToast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-2">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999]" style={{ pointerEvents: 'auto' }}>
           <div className={`px-6 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 ${
             paymentToast === 'success'
               ? 'bg-green-600 text-white'
@@ -252,6 +253,7 @@ export function LandingPage() {
           </div>
         </div>
       )}
+    <PageShell>
       <SEOHead
         title="Experience London Like a Londoner"
         description="Charlies XP — personal, human, editorial guides to London's best places, zones, and hidden stories. From someone who has walked every part of the city."
@@ -399,5 +401,6 @@ export function LandingPage() {
         zoneId={paywallZone ?? ''}
       />
     </PageShell>
+    </>
   );
 }
