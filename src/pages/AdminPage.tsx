@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Plus, MapPin, Pencil, Trash2, X, ChevronDown, ChevronUp, RotateCcw, Ban } from 'lucide-react';
+import { Plus, MapPin, Pencil, Trash2, X, ChevronDown, ChevronUp, Ban } from 'lucide-react';
 import { PageShell } from '../components/Layout/PageShell';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
@@ -333,11 +333,10 @@ export function AdminPage() {
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
-                tab === t.key
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer ${tab === t.key
                   ? 'bg-[var(--sg-crimson)] text-white'
                   : 'bg-[var(--sg-offwhite)] text-[var(--sg-navy)] hover:bg-[var(--sg-border)]'
-              }`}
+                }`}
             >
               {t.label}
             </button>
