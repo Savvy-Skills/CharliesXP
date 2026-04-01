@@ -157,12 +157,14 @@ export function PaywallModal({ isOpen, onClose, zoneName, zoneId }: PaywallModal
 
           <button
             onClick={handleSmileCheckout}
-            disabled={selectedZones.length === 0 || checkingOut}
+            disabled={selectedZones.length < zoneCount || checkingOut}
             className="w-full py-3 rounded-xl bg-[var(--sg-crimson)] hover:bg-[var(--sg-crimson-hover)] text-white font-semibold text-sm transition-all cursor-pointer disabled:opacity-50"
           >
             {checkingOut
               ? 'Redirecting to payment...'
-              : `Checkout · ${'\u00A3'}${(selectedPkg.price_cents / 100).toFixed(2)} for ${selectedZones.length} zone${selectedZones.length !== 1 ? 's' : ''}`}
+              : selectedZones.length < zoneCount
+                ? `Select ${zoneCount - selectedZones.length} more zone${zoneCount - selectedZones.length !== 1 ? 's' : ''}`
+                : `Checkout · ${'\u00A3'}${(selectedPkg.price_cents / 100).toFixed(2)} for ${selectedZones.length} zones`}
           </button>
 
           <button
