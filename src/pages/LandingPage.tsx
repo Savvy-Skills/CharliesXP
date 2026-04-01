@@ -1,11 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router';
 import { ZONE_MAP, MANAGED_ZONES } from '../utils/zoneMapping';
-import { motion } from 'framer-motion';
 import { PageShell } from '../components/Layout/PageShell';
 import { SEOHead } from '../components/SEOHead';
 import { HeroMapSection } from '../components/Landing/HeroMapSection';
-import { ZoneCard } from '../components/Zone/ZoneCard';
 import { PaywallModal } from '../components/ui/PaywallModal';
 import { usePlaces } from '../hooks/usePlaces';
 import { useMapFlyTo } from '../hooks/useMapFlyTo';
@@ -22,7 +20,7 @@ export function LandingPage() {
   // Preload packages so PaywallModal opens instantly
   usePackages();
 
-  const { places, zones, getPlacesByZone, activeCategories, refetch } = usePlaces();
+  const { places, getPlacesByZone, activeCategories, refetch } = usePlaces();
   const { mapRef, flyToPlace, flyToDefault } = useMapFlyTo();
   const { mapState, activeZone, expandMap, zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, handleZoomChange, handleMoveEnd } = useMapZoom(mapRef);
   const { unlockedZones: rawUnlockedZones, isZoneUnlocked, isAdmin, refreshAccess } = useAuth();
@@ -343,38 +341,6 @@ export function LandingPage() {
                   The London I Love
                 </a>
               </div>
-            </div>
-          </section>
-
-          <section id="zones" className="max-w-6xl mx-auto px-5 md:px-8 py-20">
-            <div className="text-center mb-14">
-              <h2 className="font-display text-3xl md:text-4xl font-bold text-[var(--sg-crimson)] mb-3">
-                Explore Zones
-              </h2>
-              <p className="text-[var(--sg-navy)]/60 text-lg">
-                Discover London neighbourhood by neighbourhood
-              </p>
-              <div className="section-divider mt-6">
-                <div className="dot" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {zones.map((zone, i) => (
-                <motion.div
-                  key={zone.id}
-                  initial={{ opacity: 0, y: 24 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '-40px' }}
-                  transition={{ delay: i * 0.08, duration: 0.5 }}
-                >
-                  <ZoneCard
-                    zone={zone}
-                    placeCount={getPlacesByZone(zone.id).length}
-                    isLocked={!isZoneUnlocked(zone.id)}
-                  />
-                </motion.div>
-              ))}
             </div>
           </section>
 
