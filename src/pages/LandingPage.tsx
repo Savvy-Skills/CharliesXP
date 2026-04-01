@@ -1,11 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router';
 import { ZONE_MAP, MANAGED_ZONES } from '../utils/zoneMapping';
-import { motion } from 'framer-motion';
 import { PageShell } from '../components/Layout/PageShell';
 import { SEOHead } from '../components/SEOHead';
 import { HeroMapSection } from '../components/Landing/HeroMapSection';
-import { ZoneCard } from '../components/Zone/ZoneCard';
 import { PaywallModal } from '../components/ui/PaywallModal';
 import { usePlaces } from '../hooks/usePlaces';
 import { useMapFlyTo } from '../hooks/useMapFlyTo';
@@ -22,14 +20,34 @@ export function LandingPage() {
   // Preload packages so PaywallModal opens instantly
   usePackages();
 
-  const { places, zones, getPlacesByZone, activeCategories, refetch } = usePlaces();
+  const { places, getPlacesByZone, activeCategories, refetch } = usePlaces();
   const { mapRef, flyToPlace, flyToDefault } = useMapFlyTo();
   const { mapState, activeZone, expandMap, zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, handleZoomChange, handleMoveEnd } = useMapZoom(mapRef);
-  const { unlockedZones: rawUnlockedZones, isZoneUnlocked, isAdmin } = useAuth();
+  const { unlockedZones: rawUnlockedZones, isZoneUnlocked, isAdmin, refreshAccess } = useAuth();
 
   // Admins have all zones unlocked
   const unlockedZones = isAdmin ? MANAGED_ZONES : rawUnlockedZones;
   const [paywallZone, setPaywallZone] = useState<string | null>(null);
+  const [paymentToast, setPaymentToast] = useState<'success' | 'cancelled' | null>(null);
+  // Handle payment return params
+  useEffect(() => {
+    const payment = searchParams.get('payment');
+    if (payment === 'success' || payment === 'cancelled') {
+      setPaymentToast(payment);
+      // Clean URL without triggering navigation/reload
+      window.history.replaceState(null, '', '/map');
+      if (payment === 'success') {
+        // Poll for zone access (webhook may take a moment)
+        const poll = async (attempts = 0) => {
+          await refreshAccess();
+          refetch();
+          if (attempts < 5) setTimeout(() => poll(attempts + 1), 2000);
+        };
+        setTimeout(() => poll(), 1000);
+      }
+      setTimeout(() => setPaymentToast(null), 6000);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Editor state
   const [pendingCoordinates, setPendingCoordinates] = useState<Coordinates | null>(null);
@@ -210,6 +228,29 @@ export function LandingPage() {
   };
 
   return (
+    <>
+      {/* Payment toast — outside PageShell for z-index */}
+      {paymentToast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999]" style={{ pointerEvents: 'auto' }}>
+          <div className={`px-6 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 ${
+            paymentToast === 'success'
+              ? 'bg-green-600 text-white'
+              : 'bg-[var(--sg-navy)] text-white'
+          }`}>
+            {paymentToast === 'success' ? (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                Payment successful! Your zones are being unlocked...
+              </>
+            ) : (
+              <>Payment cancelled. No charge was made.</>
+            )}
+            <button onClick={() => setPaymentToast(null)} className="ml-2 opacity-70 hover:opacity-100 cursor-pointer">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
+        </div>
+      )}
     <PageShell>
       <SEOHead
         title="Experience London Like a Londoner"
@@ -303,38 +344,6 @@ export function LandingPage() {
             </div>
           </section>
 
-          <section id="zones" className="max-w-6xl mx-auto px-5 md:px-8 py-20">
-            <div className="text-center mb-14">
-              <h2 className="font-display text-3xl md:text-4xl font-bold text-[var(--sg-crimson)] mb-3">
-                Explore Zones
-              </h2>
-              <p className="text-[var(--sg-navy)]/60 text-lg">
-                Discover London neighbourhood by neighbourhood
-              </p>
-              <div className="section-divider mt-6">
-                <div className="dot" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {zones.map((zone, i) => (
-                <motion.div
-                  key={zone.id}
-                  initial={{ opacity: 0, y: 24 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '-40px' }}
-                  transition={{ delay: i * 0.08, duration: 0.5 }}
-                >
-                  <ZoneCard
-                    zone={zone}
-                    placeCount={getPlacesByZone(zone.id).length}
-                    isLocked={!isZoneUnlocked(zone.id)}
-                  />
-                </motion.div>
-              ))}
-            </div>
-          </section>
-
           <section id="about" className="max-w-6xl mx-auto px-5 md:px-8 py-20">
             <div className="im-card p-10 md:p-16 text-center">
               <h2 className="font-display text-3xl md:text-4xl font-bold text-[var(--sg-crimson)] mb-6">
@@ -358,5 +367,6 @@ export function LandingPage() {
         zoneId={paywallZone ?? ''}
       />
     </PageShell>
+    </>
   );
 }

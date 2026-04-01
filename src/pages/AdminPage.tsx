@@ -8,7 +8,30 @@ import { ZONES } from '../utils/zoneMapping';
 import type { Profile, Purchase } from '../types';
 import { CATEGORIES } from '../types';
 
-type Tab = 'places' | 'users' | 'purchases';
+type Tab = 'places' | 'users' | 'purchases' | 'packages';
+
+interface AdminPackage {
+  id: string;
+  slug: string;
+  name: string;
+  price_cents: number;
+  benefits: Record<string, unknown>;
+  stripe_price_id: string | null;
+  active: boolean;
+}
+
+interface PackageForm {
+  slug: string;
+  name: string;
+  price_cents: number;
+  benefits_zone_count: string;
+  benefits_unlock_all: boolean;
+  active: boolean;
+}
+
+const EMPTY_PKG_FORM: PackageForm = {
+  slug: '', name: '', price_cents: 300, benefits_zone_count: '1', benefits_unlock_all: false, active: true,
+};
 
 interface AdminPlace {
   id: string;
@@ -42,6 +65,12 @@ export function AdminPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Packages state
+  const [adminPackages, setAdminPackages] = useState<AdminPackage[]>([]);
+  const [showPkgForm, setShowPkgForm] = useState<null | 'create' | string>(null);
+  const [pkgForm, setPkgForm] = useState<PackageForm>(EMPTY_PKG_FORM);
+  const [pkgSaving, setPkgSaving] = useState(false);
+
   useEffect(() => {
     if (!authLoading && (!isLoggedIn || !isAdmin)) {
       navigate('/', { replace: true });
@@ -70,6 +99,14 @@ export function AdminPage() {
         .order('created_at', { ascending: false })
         .then(({ data }) => {
           if (data) setUsers(data as Profile[]);
+        });
+    } else if (tab === 'packages') {
+      supabase
+        .from('packages')
+        .select('*')
+        .order('price_cents')
+        .then(({ data }) => {
+          if (data) setAdminPackages(data as AdminPackage[]);
         });
     } else if (tab === 'purchases') {
       supabase
@@ -160,6 +197,71 @@ export function AdminPage() {
     fetchPlaces();
   };
 
+  // Package handlers
+  const openPkgCreate = () => {
+    setPkgForm(EMPTY_PKG_FORM);
+    setShowPkgForm('create');
+  };
+
+  const openPkgEdit = (pkg: AdminPackage) => {
+    const benefits = pkg.benefits || {};
+    setPkgForm({
+      slug: pkg.slug,
+      name: pkg.name,
+      price_cents: pkg.price_cents,
+      benefits_zone_count: String((benefits as Record<string, unknown>).zone_count ?? ''),
+      benefits_unlock_all: (benefits as Record<string, unknown>).unlock_all === true,
+      active: pkg.active,
+    });
+    setShowPkgForm(pkg.id);
+  };
+
+  const closePkgForm = () => {
+    setShowPkgForm(null);
+    setPkgForm(EMPTY_PKG_FORM);
+  };
+
+  const handlePkgSave = async () => {
+    if (!pkgForm.name.trim() || !pkgForm.slug.trim()) {
+      alert('Name and slug are required');
+      return;
+    }
+    setPkgSaving(true);
+
+    const benefits: Record<string, unknown> = {};
+    if (pkgForm.benefits_unlock_all) {
+      benefits.unlock_all = true;
+    } else if (pkgForm.benefits_zone_count) {
+      benefits.zone_count = parseInt(pkgForm.benefits_zone_count, 10);
+    }
+
+    const { data, error } = await supabase.functions.invoke('admin-sync-package', {
+      body: {
+        action: showPkgForm === 'create' ? 'create' : 'update',
+        package_id: showPkgForm !== 'create' ? showPkgForm : undefined,
+        name: pkgForm.name.trim(),
+        slug: pkgForm.slug.trim(),
+        price_cents: pkgForm.price_cents,
+        benefits,
+        active: pkgForm.active,
+      },
+    });
+
+    if (error) {
+      console.error('Package sync error:', error);
+      alert(`Failed to save package: ${error.message}`);
+    } else if (data?.error) {
+      alert(`Failed to save package: ${data.error}`);
+    }
+
+    setPkgSaving(false);
+    closePkgForm();
+    // Refresh packages
+    supabase.from('packages').select('*').order('price_cents').then(({ data: d }) => {
+      if (d) setAdminPackages(d as AdminPackage[]);
+    });
+  };
+
   if (authLoading || !isAdmin) return null;
 
   const unplacedPlaces = places.filter((p) => !p.placed);
@@ -167,6 +269,7 @@ export function AdminPage() {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'places', label: 'Places' },
+    { key: 'packages', label: 'Packages' },
     { key: 'users', label: 'Users' },
     { key: 'purchases', label: 'Purchases' },
   ];
@@ -491,6 +594,165 @@ export function AdminPage() {
                       <td className="py-2 pr-4 text-[var(--sg-navy)]/60">{u.role}</td>
                       <td className="py-2 text-[var(--sg-navy)]/60">
                         {new Date(u.created_at).toLocaleDateString('en-GB')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {tab === 'packages' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-[var(--sg-navy)]/60">{adminPackages.length} packages</p>
+              <button
+                onClick={openPkgCreate}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--sg-crimson)] text-white text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer"
+              >
+                <Plus size={16} /> Add Package
+              </button>
+            </div>
+
+            {showPkgForm && (
+              <div className="rounded-xl border border-[var(--sg-border)] bg-white p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="font-display text-lg font-semibold text-[var(--sg-navy)]">
+                    {showPkgForm === 'create' ? 'Add Package' : 'Edit Package'}
+                  </h2>
+                  <button onClick={closePkgForm} className="text-[var(--sg-navy)]/40 hover:text-[var(--sg-navy)] cursor-pointer">
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--sg-navy)]/60 mb-1">Slug</label>
+                    <input
+                      value={pkgForm.slug}
+                      onChange={(e) => setPkgForm({ ...pkgForm, slug: e.target.value })}
+                      placeholder="e.g. individual"
+                      disabled={showPkgForm !== 'create'}
+                      className="w-full px-3 py-2 rounded-lg border border-[var(--sg-border)] text-sm text-[var(--sg-navy)] disabled:opacity-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--sg-navy)]/60 mb-1">Name</label>
+                    <input
+                      value={pkgForm.name}
+                      onChange={(e) => setPkgForm({ ...pkgForm, name: e.target.value })}
+                      placeholder="e.g. Individual Postcode"
+                      className="w-full px-3 py-2 rounded-lg border border-[var(--sg-border)] text-sm text-[var(--sg-navy)]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--sg-navy)]/60 mb-1">Price (pence)</label>
+                    <input
+                      type="number"
+                      value={pkgForm.price_cents}
+                      onChange={(e) => setPkgForm({ ...pkgForm, price_cents: parseInt(e.target.value, 10) || 0 })}
+                      className="w-full px-3 py-2 rounded-lg border border-[var(--sg-border)] text-sm text-[var(--sg-navy)]"
+                    />
+                    <span className="text-xs text-[var(--sg-navy)]/40 mt-0.5 block">
+                      {'\u00A3'}{(pkgForm.price_cents / 100).toFixed(2)}
+                    </span>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--sg-navy)]/60 mb-1">Benefits</label>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm text-[var(--sg-navy)]">
+                        <input
+                          type="checkbox"
+                          checked={pkgForm.benefits_unlock_all}
+                          onChange={(e) => setPkgForm({ ...pkgForm, benefits_unlock_all: e.target.checked, benefits_zone_count: '' })}
+                        />
+                        Unlock all zones
+                      </label>
+                      {!pkgForm.benefits_unlock_all && (
+                        <input
+                          type="number"
+                          value={pkgForm.benefits_zone_count}
+                          onChange={(e) => setPkgForm({ ...pkgForm, benefits_zone_count: e.target.value })}
+                          placeholder="Zone count"
+                          className="w-full px-3 py-2 rounded-lg border border-[var(--sg-border)] text-sm text-[var(--sg-navy)]"
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 text-sm text-[var(--sg-navy)]">
+                  <input
+                    type="checkbox"
+                    checked={pkgForm.active}
+                    onChange={(e) => setPkgForm({ ...pkgForm, active: e.target.checked })}
+                  />
+                  Active (visible to users)
+                </label>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={handlePkgSave}
+                    disabled={pkgSaving}
+                    className="px-4 py-2 rounded-xl bg-[var(--sg-crimson)] text-white text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
+                  >
+                    {pkgSaving ? 'Syncing with Stripe...' : 'Save & Sync to Stripe'}
+                  </button>
+                  <button
+                    onClick={closePkgForm}
+                    className="px-4 py-2 rounded-xl bg-[var(--sg-offwhite)] text-[var(--sg-navy)] text-sm font-medium hover:bg-[var(--sg-border)] transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-[var(--sg-navy)]/60 border-b border-[var(--sg-border)]">
+                  <tr>
+                    <th className="py-2 pr-4">Name</th>
+                    <th className="py-2 pr-4">Slug</th>
+                    <th className="py-2 pr-4">Price</th>
+                    <th className="py-2 pr-4">Benefits</th>
+                    <th className="py-2 pr-4">Stripe</th>
+                    <th className="py-2 pr-4">Status</th>
+                    <th className="py-2 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminPackages.map((pkg) => (
+                    <tr key={pkg.id} className="border-b border-[var(--sg-border)]/50">
+                      <td className="py-2 pr-4 font-medium text-[var(--sg-navy)]">{pkg.name}</td>
+                      <td className="py-2 pr-4 text-[var(--sg-navy)]/60 font-mono text-xs">{pkg.slug}</td>
+                      <td className="py-2 pr-4 text-[var(--sg-navy)]">{'\u00A3'}{(pkg.price_cents / 100).toFixed(2)}</td>
+                      <td className="py-2 pr-4 text-[var(--sg-navy)]/60 text-xs">
+                        {(pkg.benefits as Record<string, unknown>).unlock_all === true
+                          ? 'All zones'
+                          : `${(pkg.benefits as Record<string, unknown>).zone_count ?? '?'} zone(s)`}
+                      </td>
+                      <td className="py-2 pr-4">
+                        {pkg.stripe_price_id ? (
+                          <span className="text-xs text-green-600 font-medium">Linked</span>
+                        ) : (
+                          <span className="text-xs text-orange-500 font-medium">Not linked</span>
+                        )}
+                      </td>
+                      <td className="py-2 pr-4">
+                        <span className={`text-xs font-medium ${pkg.active ? 'text-green-600' : 'text-[var(--sg-navy)]/40'}`}>
+                          {pkg.active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="py-2 text-right">
+                        <button
+                          onClick={() => openPkgEdit(pkg)}
+                          className="p-1 rounded-lg text-[var(--sg-navy)]/40 hover:text-[var(--sg-navy)] hover:bg-[var(--sg-border)] cursor-pointer"
+                          title="Edit"
+                        >
+                          <Pencil size={14} />
+                        </button>
                       </td>
                     </tr>
                   ))}
