@@ -2,11 +2,11 @@ import { useCallback, useState, useEffect } from 'react';
 import type { MapRef } from 'react-map-gl/mapbox';
 import { Marker } from 'react-map-gl/mapbox';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Sparkles, X, MapPin } from 'lucide-react';
+import { Sparkles, MapPin } from 'lucide-react';
 import { InteractiveMap } from '../Map/InteractiveMap';
 import ZoneTeaser from '../Map/ZoneTeaser';
 import { PlacePreviewCard } from '../Map/PlacePreviewCard';
-import { ZoneFilterTabs } from '../Map/ZoneFilterTabs';
+import { MapToolbar } from '../Map/MapToolbar';
 import { ZoneSidePanel } from '../Map/ZoneSidePanel';
 import { ZoneLockIcon } from '../Map/ZoneLockIcon';
 import { EditorPanel } from '../Editor/EditorPanel';
@@ -202,49 +202,19 @@ export function HeroMapSection({
   if (isFullscreen) {
     return (
       <div className="fixed inset-0 z-[100] bg-[var(--sg-offwhite)] flex flex-col">
-        {/* Top bar */}
-        {mapState === 'zoneDetail' && activeZone && !isEditorMode ? (
-          <ZoneFilterTabs
-            zoneId={activeZone}
-            places={zonePlaces}
-            activeCategory={activeCategory}
-            onCategoryChange={setActiveCategory}
-            onBack={handleBack}
-          />
-        ) : mapState === 'zoneDetail' && activeZone && isEditorMode ? (
-          <div className="bg-white border-b border-[var(--sg-border)] px-4 py-2.5 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[var(--sg-crimson)]/10 text-[var(--sg-crimson)]">
-                Editor
-              </span>
-              <span className="text-sm font-semibold text-[var(--sg-navy)]">
-                {activeZone ? (ZONE_MAP[activeZone]?.name ?? activeZone) : ''}
-              </span>
-            </div>
-            <button
-              onClick={handleBack}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl
-                text-[var(--sg-navy)] hover:bg-[var(--sg-offwhite)] transition-colors cursor-pointer"
-            >
-              <X size={15} />
-              <span className="text-xs font-semibold">Back</span>
-            </button>
-          </div>
-        ) : (
-          <div className="bg-white border-b border-[var(--sg-border)] px-4 py-2.5 flex items-center justify-between">
-            <span className="text-sm font-semibold text-[var(--sg-navy)]">
-              {isEditorMode ? 'Editor — Select a Zone' : 'Explore London'}
-            </span>
-            <button
-              onClick={onCollapse}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl
-                text-[var(--sg-navy)] hover:bg-[var(--sg-offwhite)] transition-colors cursor-pointer"
-            >
-              <X size={15} />
-              <span className="text-xs font-semibold">Close</span>
-            </button>
-          </div>
-        )}
+        {/* Map toolbar: search + filters */}
+        <MapToolbar
+          mapState={mapState}
+          activeZone={activeZone}
+          sidebarOpen={!!showSidebar}
+          onZoneSelect={onZoneClick}
+          places={zonePlaces}
+          activeCategory={activeCategory}
+          onCategoryChange={setActiveCategory}
+          onBack={handleBack}
+          onCollapse={onCollapse}
+          isEditorMode={isEditorMode}
+        />
 
         {/* Main area: map takes full width, sidebar overlays from left */}
         <div className="flex-1 relative overflow-hidden">
