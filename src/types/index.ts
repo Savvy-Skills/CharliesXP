@@ -30,7 +30,6 @@ export interface Place {
 export interface Zone {
   id: string;
   name: string;
-  station: string;
   postcode: string;
   description: string;
   color: string;
