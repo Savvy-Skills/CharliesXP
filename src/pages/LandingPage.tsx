@@ -42,10 +42,19 @@ export function LandingPage() {
 
   const activeCategory = activeCategories.length === 1 ? activeCategories[0] : null;
 
-  // Auto-expand map in editor mode
+  // Auto-expand map in editor mode, and zoom into zone if specified
   useEffect(() => {
-    if (isEditorMode && mapState === 'overview') {
+    if (!isEditorMode) return;
+
+    const zone = searchParams.get('zone');
+
+    if (mapState === 'overview') {
       expandMap();
+      if (zone) {
+        setTimeout(() => zoomIntoZone(zone), 500);
+      }
+    } else if (zone && mapState === 'expanded') {
+      zoomIntoZone(zone);
     }
   }, [isEditorMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
