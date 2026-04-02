@@ -10,7 +10,6 @@ import { useMapFlyTo } from '../hooks/useMapFlyTo';
 import { useMapZoom } from '../hooks/useMapZoom';
 import { useAuth } from '../hooks/useAuth';
 import { usePackages } from '../hooks/usePackages';
-import { supabase } from '../lib/supabase';
 import type { Place, Coordinates } from '../types';
 
 export function LandingPage() {
@@ -20,7 +19,7 @@ export function LandingPage() {
   // Preload packages so PaywallModal opens instantly
   usePackages();
 
-  const { places, getPlacesByZone, activeCategories, refetch } = usePlaces();
+  const { places, getPlacesByZone, activeCategories, refetch, optimisticAdd, optimisticUpdate, optimisticDelete } = usePlaces();
   const { mapRef, flyToPlace, flyToDefault } = useMapFlyTo();
   const { mapState, activeZone, expandMap, zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, handleZoomChange, handleMoveEnd } = useMapZoom(mapRef);
   const { unlockedZones: rawUnlockedZones, isZoneUnlocked, isAdmin, refreshAccess } = useAuth();
@@ -166,53 +165,21 @@ export function LandingPage() {
     setPendingCoordinates(null);
   }, []);
 
-  // Supabase-backed editor CRUD
-  const handleAddPlace = useCallback(async (place: Omit<Place, 'id'>) => {
-    const { error } = await supabase.from('places').insert({
-      name: place.name,
-      description: place.description,
-      category: place.category,
-      zone_id: place.zone ?? activeZone ?? '',
-      coordinates: place.coordinates,
-      address: place.address,
-      marker_icon: place.markerIcon,
-      marker_image: place.markerImage,
-      images: place.images,
-      rating: place.rating,
-      tags: place.tags,
-      visit_date: place.visitDate,
-      camera: { zoom: place.zoom, pitch: place.pitch, bearing: place.bearing },
-      placed: true,
-      active: true,
-    });
-    if (error) console.error('Add place error:', error);
-    else refetch();
-  }, [activeZone, refetch]);
+  // Editor CRUD — optimistic updates
+  const handleAddPlace = useCallback(
+    (place: Omit<Place, 'id'>) => optimisticAdd(place, activeZone ?? ''),
+    [activeZone, optimisticAdd],
+  );
 
-  const handleUpdatePlace = useCallback(async (id: string, updates: Partial<Place>) => {
-    const dbUpdates: Record<string, unknown> = {};
-    if (updates.name !== undefined) dbUpdates.name = updates.name;
-    if (updates.description !== undefined) dbUpdates.description = updates.description;
-    if (updates.category !== undefined) dbUpdates.category = updates.category;
-    if (updates.zone !== undefined) dbUpdates.zone_id = updates.zone;
-    if (updates.coordinates !== undefined) {
-      dbUpdates.coordinates = updates.coordinates;
-      dbUpdates.placed = true;
-    }
-    if (updates.address !== undefined) dbUpdates.address = updates.address;
-    if (updates.rating !== undefined) dbUpdates.rating = updates.rating;
-    if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
+  const handleUpdatePlace = useCallback(
+    (id: string, updates: Partial<Place>) => optimisticUpdate(id, updates),
+    [optimisticUpdate],
+  );
 
-    const { error } = await supabase.from('places').update(dbUpdates).eq('id', id);
-    if (error) console.error('Update place error:', error);
-    else refetch();
-  }, [refetch]);
-
-  const handleDeletePlace = useCallback(async (id: string) => {
-    const { error } = await supabase.from('places').delete().eq('id', id);
-    if (error) console.error('Delete place error:', error);
-    else refetch();
-  }, [refetch]);
+  const handleDeletePlace = useCallback(
+    (id: string) => optimisticDelete(id),
+    [optimisticDelete],
+  );
 
   const jsonLd = {
     '@context': 'https://schema.org',
