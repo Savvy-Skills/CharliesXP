@@ -24,6 +24,8 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
   const [rating, setRating] = useState(initial?.rating ?? 3);
   const [visitDate, setVisitDate] = useState(initial?.visitDate ?? '');
   const [tags, setTags] = useState(initial?.tags.join(', ') ?? '');
+  const [lng, setLng] = useState(String(initial?.coordinates?.lng ?? coordinates?.lng ?? 0));
+  const [lat, setLat] = useState(String(initial?.coordinates?.lat ?? coordinates?.lat ?? 0));
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -32,7 +34,7 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
       name,
       description,
       category,
-      coordinates: initial?.coordinates ?? coordinates ?? { lng: 0, lat: 0 },
+      coordinates: { lng: parseFloat(lng) || 0, lat: parseFloat(lat) || 0 },
       address,
       markerIcon: category,
       markerImage: `/markers/${category}.png`,
@@ -85,6 +87,29 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
           className={inputClass}
           placeholder="Full address"
         />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-semibold text-[var(--sg-navy)] mb-1.5">Latitude</label>
+          <input
+            type="text"
+            value={lat}
+            onChange={(e) => setLat(e.target.value)}
+            className={inputClass}
+            placeholder="51.5007"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-[var(--sg-navy)] mb-1.5">Longitude</label>
+          <input
+            type="text"
+            value={lng}
+            onChange={(e) => setLng(e.target.value)}
+            className={inputClass}
+            placeholder="-0.0962"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">

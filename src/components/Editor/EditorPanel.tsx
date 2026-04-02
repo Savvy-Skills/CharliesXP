@@ -131,6 +131,9 @@ export function EditorPanel({
                               {place.name}
                             </p>
                             <p className="text-xs text-[var(--sg-navy)]/40 truncate">{place.address}</p>
+                            <p className="text-[10px] text-[var(--sg-navy)]/30 font-mono mt-0.5">
+                              {place.coordinates.lat.toFixed(4)}, {place.coordinates.lng.toFixed(4)}
+                            </p>
                           </div>
                         </button>
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
