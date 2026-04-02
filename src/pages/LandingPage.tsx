@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useSearchParams } from 'react-router';
+import { useSearchParams, useNavigate } from 'react-router';
 import { ZONE_MAP, MANAGED_ZONES } from '../utils/zoneMapping';
 import { PageShell } from '../components/Layout/PageShell';
 import { SEOHead } from '../components/SEOHead';
@@ -14,6 +14,7 @@ import type { Place, Coordinates } from '../types';
 
 export function LandingPage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const isEditorMode = searchParams.get('editor') === 'true';
 
   // Preload packages so PaywallModal opens instantly
@@ -181,6 +182,15 @@ export function LandingPage() {
     [optimisticDelete],
   );
 
+  const handleMoveToZone = useCallback(
+    (placeId: string, zoneId: string) => {
+      optimisticUpdate(placeId, { zone: zoneId });
+      // Navigate to the new zone so the place appears there
+      zoomIntoZone(zoneId);
+    },
+    [optimisticUpdate, zoomIntoZone],
+  );
+
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
@@ -240,8 +250,7 @@ export function LandingPage() {
         onCollapse={() => {
           zoomOutToOverview();
           if (isEditorMode) {
-            // Clear editor params and navigate to clean /
-            window.history.pushState(null, '', '/');
+            navigate('/', { replace: true });
           }
         }}
         onExpand={expandMap}
@@ -259,6 +268,7 @@ export function LandingPage() {
         onAddPlace={handleAddPlace}
         onUpdatePlace={handleUpdatePlace}
         onDeletePlace={handleDeletePlace}
+        onMoveToZone={handleMoveToZone}
       />
 
       {!isEditorMode && (

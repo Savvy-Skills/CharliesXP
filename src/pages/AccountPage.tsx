@@ -8,7 +8,7 @@ import { ZONE_MAP } from '../utils/zoneMapping';
 import type { Purchase } from '../types';
 
 export function AccountPage() {
-  const { isLoggedIn, loading: authLoading, profile, unlockedZones, zoneCredits, signOut } = useAuth();
+  const { isLoggedIn, loading: authLoading, profile, unlockedZones, zoneCredits, signOut, user } = useAuth();
   const navigate = useNavigate();
   const [purchases, setPurchases] = useState<(Purchase & { package_name?: string })[]>([]);
 
@@ -19,10 +19,11 @@ export function AccountPage() {
   }, [authLoading, isLoggedIn, navigate]);
 
   useEffect(() => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn || !user) return;
     supabase
       .from('purchases')
       .select('*, packages(name)')
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .then(({ data }) => {
         if (data) {
@@ -34,7 +35,7 @@ export function AccountPage() {
           );
         }
       });
-  }, [isLoggedIn]);
+  }, [isLoggedIn, user]);
 
   if (authLoading) return null;
   if (!isLoggedIn) return null;

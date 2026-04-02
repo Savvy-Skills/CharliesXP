@@ -30,6 +30,10 @@ interface InteractiveMapProps {
   /** Zone ID to highlight (from icon hover or external source) */
   hoveredZone?: string | null;
   editorMode?: boolean;
+  /** Only this place's marker is draggable (hold-to-drag) */
+  draggablePlaceId?: string | null;
+  onMarkerDragStart?: (place: Place) => void;
+  onMarkerDrag?: (place: Place, lngLat: { lng: number; lat: number }) => void;
   onMarkerDragEnd?: (place: Place, lngLat: { lng: number; lat: number }) => void;
 }
 
@@ -110,6 +114,9 @@ export function InteractiveMap({
   activeZone = null,
   hoveredZone = null,
   editorMode = false,
+  draggablePlaceId,
+  onMarkerDragStart,
+  onMarkerDrag,
   onMarkerDragEnd,
 }: InteractiveMapProps) {
   const isContained = mode === 'contained';
@@ -460,7 +467,9 @@ export function InteractiveMap({
               place={place}
               zoom={viewState.zoom}
               onClick={isContained ? () => { } : onPlaceClick}
-              draggable={editorMode}
+              draggable={editorMode && place.id === draggablePlaceId}
+              onDragStart={onMarkerDragStart}
+              onDrag={onMarkerDrag}
               onDragEnd={onMarkerDragEnd}
             />
           ))}

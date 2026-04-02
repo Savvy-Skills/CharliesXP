@@ -44,8 +44,8 @@ interface HeroMapSectionProps {
   onAddPlace?: (place: Omit<Place, 'id'>) => void;
   onUpdatePlace?: (id: string, updates: Partial<Place>) => void;
   onDeletePlace?: (id: string) => void;
-  onExportPlaces?: () => void;
   onCancelPending?: () => void;
+  onMoveToZone?: (placeId: string, zoneId: string) => void;
 }
 
 export function HeroMapSection({
@@ -75,12 +75,13 @@ export function HeroMapSection({
   onAddPlace,
   onUpdatePlace,
   onDeletePlace,
-  onExportPlaces,
   onCancelPending,
+  onMoveToZone,
 }: HeroMapSectionProps) {
   const [previewPlace, setPreviewPlace] = useState<Place | null>(null);
   const [activeCategory, setActiveCategory] = useState<PlaceCategory | null>(null);
   const [hoveredZoneId, setHoveredZoneId] = useState<string | null>(null);
+  const [editPlaceKey, setEditPlaceKey] = useState<string | null>(null);
   const { landmarks } = useLandmarks();
   const { teasers } = useZoneTeasers();
 
@@ -88,10 +89,14 @@ export function HeroMapSection({
 
   const handlePlaceClick = useCallback(
     (place: Place) => {
-      setPreviewPlace(place);
+      if (isEditorMode) {
+        setEditPlaceKey(`${place.id}::${Date.now()}`);
+      } else {
+        setPreviewPlace(place);
+      }
       onPlaceClick(place);
     },
-    [onPlaceClick],
+    [onPlaceClick, isEditorMode],
   );
 
   const handleClosePreview = useCallback(() => {
@@ -143,13 +148,62 @@ export function HeroMapSection({
     return () => { document.body.style.overflow = ''; };
   }, [isFullscreen]);
 
-  // Marker drag handler for editor mode
-  const handleMarkerDragEnd = useCallback(
-    (place: Place, lngLat: { lng: number; lat: number }) => {
-      onUpdatePlace?.(place.id, { coordinates: lngLat });
+  // Marker drag handlers for editor mode
+  // Coordinates are NOT saved on drag end — only when the form is submitted
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragCoordinates, setDragCoordinates] = useState<{ lng: number; lat: number } | null>(null);
+  const [draggedPlaceId, setDraggedPlaceId] = useState<string | null>(null);
+
+  const handleMarkerDragStart = useCallback((place: Place) => {
+    setIsDragging(true);
+    setDraggedPlaceId(place.id);
+    // Also open the edit form for this place
+    setEditPlaceKey(`${place.id}::${Date.now()}`);
+  }, []);
+
+  const handleMarkerDrag = useCallback(
+    (_place: Place, lngLat: { lng: number; lat: number }) => {
+      // Clip to active zone — don't allow dragging outside the zone boundary
+      const map = mapRef.current?.getMap();
+      if (map && activeZone) {
+        const point = map.project([lngLat.lng, lngLat.lat]);
+        const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
+        const inZone = features.some(f => f.properties?.zone === activeZone);
+        if (!inZone) return;
+      }
+      setDragCoordinates(lngLat);
     },
-    [onUpdatePlace],
+    [mapRef, activeZone],
   );
+
+  const handleMarkerDragEnd = useCallback(
+    (_place: Place, lngLat: { lng: number; lat: number }) => {
+      setIsDragging(false);
+      // Clip final position too
+      const map = mapRef.current?.getMap();
+      if (map && activeZone) {
+        const point = map.project([lngLat.lng, lngLat.lat]);
+        const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
+        const inZone = features.some(f => f.properties?.zone === activeZone);
+        if (!inZone) return; // Keep last valid dragCoordinates
+      }
+      // Keep dragCoordinates and draggedPlaceId — marker stays at new position
+      // Coordinates will be saved when user clicks "Update Place" in the form
+      setDragCoordinates(lngLat);
+    },
+    [],
+  );
+
+  // Clear drag override when form is submitted or cancelled
+  const clearDragOverride = useCallback(() => {
+    setDraggedPlaceId(null);
+    setDragCoordinates(null);
+  }, []);
+
+  // Override coordinates for a place being dragged (marker stays at new position until form save)
+  const displayPlaces = draggedPlaceId && dragCoordinates
+    ? filteredZonePlaces.map(p => p.id === draggedPlaceId ? { ...p, coordinates: dragCoordinates } : p)
+    : filteredZonePlaces;
 
   // Determine which sidebar to show
   const renderSidebar = () => {
@@ -157,15 +211,19 @@ export function HeroMapSection({
       if (mapState === 'zoneDetail' && activeZone) {
         return (
           <EditorPanel
-            places={filteredZonePlaces}
+            places={displayPlaces}
             pendingCoordinates={pendingCoordinates ?? null}
             currentView={currentView}
-            onAdd={onAddPlace ?? (() => {})}
-            onUpdate={onUpdatePlace ?? (() => {})}
-            onDelete={onDeletePlace ?? (() => {})}
-            onExport={onExportPlaces ?? (() => {})}
-            onCancelPending={onCancelPending ?? (() => {})}
+            onAdd={onAddPlace ?? (() => { })}
+            onUpdate={onUpdatePlace ?? (() => { })}
+            onDelete={onDeletePlace ?? (() => { })}
+            onCancelPending={() => { onCancelPending?.(); setEditPlaceKey(null); }}
             onPlaceClick={handlePlaceClick}
+            editPlaceKey={editPlaceKey}
+            isDragging={isDragging}
+            dragCoordinates={dragCoordinates}
+            onDragComplete={clearDragOverride}
+            onMoveToZone={onMoveToZone}
           />
         );
       }
@@ -264,7 +322,7 @@ export function HeroMapSection({
           {/* Map — always full width */}
           <div className="h-full w-full relative">
             {/* Search + filter toolbar overlaid on map */}
-            <div className="absolute top-0 left-0 right-0 z-30">
+            <div className="absolute top-0 left-0 right-0 z-30 pointer-events-none">
               <MapToolbar
                 mapState={mapState}
                 activeZone={activeZone}
@@ -279,7 +337,7 @@ export function HeroMapSection({
               />
             </div>
             <InteractiveMap
-              places={mapState === 'zoneDetail' && !isZoneLocked ? filteredZonePlaces : []}
+              places={mapState === 'zoneDetail' && !isZoneLocked ? displayPlaces : []}
               mapRef={mapRef}
               onPlaceClick={handlePlaceClick}
               onMapClick={onMapClick}
@@ -292,6 +350,9 @@ export function HeroMapSection({
               activeZone={mapState === 'zoneDetail' ? activeZone : null}
               hoveredZone={hoveredZoneId}
               editorMode={isEditorMode}
+              draggablePlaceId={isEditorMode && editPlaceKey ? editPlaceKey.split('::')[0] : null}
+              onMarkerDragStart={isEditorMode ? handleMarkerDragStart : undefined}
+              onMarkerDrag={isEditorMode ? handleMarkerDrag : undefined}
               onMarkerDragEnd={isEditorMode ? handleMarkerDragEnd : undefined}
               mapChildren={
                 <>
