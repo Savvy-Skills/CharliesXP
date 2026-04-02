@@ -12,9 +12,10 @@ interface ZoneSidePanelProps {
   locked?: boolean;
   onUnlock?: () => void;
   teaserCounts?: Record<string, number>;
+  hideHeader?: boolean;
 }
 
-export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked = false, onUnlock, teaserCounts }: ZoneSidePanelProps) {
+export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked = false, onUnlock, teaserCounts, hideHeader = false }: ZoneSidePanelProps) {
   const displayName = zoneName || zoneId;
   const navigate = useNavigate();
 
@@ -22,23 +23,25 @@ export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked =
     <div className="h-full w-full md:w-[380px] shrink-0 bg-white border-r border-[var(--sg-border)]
       flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-[var(--sg-border)]">
-        <h2 className="font-display text-xl font-bold text-[var(--sg-navy)]">
-          {locked ? (
-            <>
-              <Lock size={16} className="inline -mt-0.5 mr-1.5 text-[var(--sg-crimson)]" />
-              <span className="text-[var(--sg-crimson)]">{displayName}</span>
-            </>
-          ) : (
-            <>Places in <span className="text-[var(--sg-crimson)]">{displayName}</span></>
-          )}
-        </h2>
-        <p className="text-xs text-[var(--sg-navy)]/60 mt-1">
-          {locked
-            ? `${places.length} place${places.length !== 1 ? 's' : ''} waiting to be discovered`
-            : `${places.length} pick${places.length !== 1 ? 's' : ''}`}
-        </p>
-      </div>
+      {!hideHeader && (
+        <div className="px-5 py-4 border-b border-[var(--sg-border)]">
+          <h2 className="font-display text-xl font-bold text-[var(--sg-navy)]">
+            {locked ? (
+              <>
+                <Lock size={16} className="inline -mt-0.5 mr-1.5 text-[var(--sg-crimson)]" />
+                <span className="text-[var(--sg-crimson)]">{displayName}</span>
+              </>
+            ) : (
+              <>Places in <span className="text-[var(--sg-crimson)]">{displayName}</span></>
+            )}
+          </h2>
+          <p className="text-xs text-[var(--sg-navy)]/60 mt-1">
+            {locked
+              ? `${teaserCounts ? Object.values(teaserCounts).reduce((a, b) => a + b, 0) : 0} place${(teaserCounts ? Object.values(teaserCounts).reduce((a, b) => a + b, 0) : 0) !== 1 ? 's' : ''} waiting to be discovered`
+              : `${places.length} pick${places.length !== 1 ? 's' : ''}`}
+          </p>
+        </div>
+      )}
 
       {/* Locked state — inline paywall CTA */}
       {locked ? (
@@ -53,37 +56,6 @@ export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked =
             <p className="text-sm text-[var(--sg-navy)]/60 mb-5 leading-relaxed">
               Get full access to all recommendations, reviews, and insider tips in this zone.
             </p>
-
-            {/* Teaser counts — what's inside this zone */}
-            {teaserCounts && Object.keys(teaserCounts).length > 0 && (
-              <div className="w-full bg-[var(--sg-offwhite)] rounded-xl p-4 mb-5 text-left">
-                <div className="text-xs font-semibold text-[var(--sg-navy)]/50 uppercase tracking-wider mb-3">
-                  What's inside
-                </div>
-                <div className="space-y-2">
-                  {Object.entries(teaserCounts)
-                    .sort(([, a], [, b]) => b - a)
-                    .map(([category, count]) => {
-                      const cat = CATEGORIES.find((c) => c.value === category);
-                      return (
-                        <div key={category} className="flex items-center justify-between">
-                          <span className="flex items-center gap-2 text-sm text-[var(--sg-navy)]">
-                            <span>{CATEGORY_EMOJI[category] ?? '📍'}</span>
-                            <span className="capitalize">{cat?.label ?? category}{count > 1 ? 's' : ''}</span>
-                          </span>
-                          <span className="text-sm font-semibold text-[var(--sg-crimson)]">{count}</span>
-                        </div>
-                      );
-                    })}
-                </div>
-                <div className="mt-3 pt-3 border-t border-[var(--sg-border)] flex items-center justify-between">
-                  <span className="text-xs text-[var(--sg-navy)]/40">Total places</span>
-                  <span className="text-sm font-bold text-[var(--sg-navy)]">
-                    {Object.values(teaserCounts).reduce((a, b) => a + b, 0)}
-                  </span>
-                </div>
-              </div>
-            )}
 
             <ul className="space-y-2 mb-5">
               {[

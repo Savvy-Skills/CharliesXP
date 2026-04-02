@@ -10,8 +10,10 @@ import { MapToolbar } from '../Map/MapToolbar';
 import { ZoneSidePanel } from '../Map/ZoneSidePanel';
 import { ZoneLockIcon } from '../Map/ZoneLockIcon';
 import { EditorPanel } from '../Editor/EditorPanel';
+import { MobileDrawer } from '../ui/MobileDrawer';
 import type { Place, PlaceCategory, MapZoomState, Coordinates } from '../../types';
 import { ZONE_POLYGON_CENTERS, ZONE_MAP } from '../../utils/zoneMapping';
+import { CATEGORY_EMOJI } from '../../utils/mapStyles';
 import { useLandmarks } from '../../hooks/useLandmarks';
 import { useZoneTeasers } from '../../hooks/useZoneTeasers';
 
@@ -117,7 +119,10 @@ export function HeroMapSection({
     : allZonesWithCentroids.filter(([zoneId]) => unlockedZones.includes(zoneId));
 
   const isFullscreen = mapState === 'expanded' || mapState === 'zoneDetail';
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const isZoneDetail = mapState === 'zoneDetail' && activeZone;
+  const teaserTotal = activeZone && teasers[activeZone]
+    ? Object.values(teasers[activeZone]).reduce((a, b) => a + b, 0)
+    : 0;
   const showLockedIcons = !isEditorMode;
   const showUnlockedIcons = mapState === 'overview' || mapState === 'expanded';
 
@@ -209,9 +214,21 @@ export function HeroMapSection({
         {/* White header bar */}
         <div className="bg-white border-b border-[var(--sg-border)] px-4 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-[var(--sg-navy)]">
-              {isEditorMode ? 'Editor' : 'Explore London'}
-            </span>
+            {/* Mobile: show zone name in zoneDetail */}
+            {isZoneDetail ? (
+              <>
+                <span className="text-sm font-semibold text-[var(--sg-navy)] md:hidden">
+                  {ZONE_MAP[activeZone!]?.name ?? activeZone}
+                </span>
+                <span className="text-sm font-semibold text-[var(--sg-navy)] hidden md:inline">
+                  {isEditorMode ? 'Editor' : 'Explore London'}
+                </span>
+              </>
+            ) : (
+              <span className="text-sm font-semibold text-[var(--sg-navy)]">
+                {isEditorMode ? 'Editor' : 'Explore London'}
+              </span>
+            )}
             {isEditorMode && (
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[var(--sg-crimson)]/10 text-[var(--sg-crimson)]">
                 Edit Mode
@@ -333,41 +350,66 @@ export function HeroMapSection({
                 <ZoneTeaser
                   zoneId={activeZone}
                   zoneName={activeZone ? ZONE_MAP[activeZone]?.name : undefined}
+                  teaserCounts={activeZone ? teasers[activeZone] : undefined}
                   places={allUnlockedPlaces ?? []}
                   activeCategory={activeCategoryProp ?? null}
                 />
               </div>
             )}
 
-            {/* Mobile bottom peek bar — tap or drag up to open drawer */}
-            {mapState === 'zoneDetail' && activeZone && !isEditorMode && !mobileDrawerOpen && (
-              <motion.div
-                className="md:hidden absolute bottom-0 left-0 right-0 z-30 touch-none"
-                drag="y"
-                dragConstraints={{ top: 0, bottom: 0 }}
-                dragElastic={0.2}
-                onDragEnd={(_e, info) => {
-                  if (info.offset.y < -50) setMobileDrawerOpen(true);
-                }}
+            {/* Mobile bottom drawer — absolute inside map container, same as MapToolbar */}
+            <div className="md:hidden">
+              <MobileDrawer
+                isOpen={!!isZoneDetail && !isEditorMode}
+                onClose={handleBack}
+                containerHeight={typeof window !== 'undefined' ? window.innerHeight - 48 : 700}
+                peekContent={
+                  <p className="text-sm text-[var(--sg-navy)] text-center">
+                    {isZoneLocked
+                      ? <>This zone has <span className="font-bold text-[var(--sg-crimson)]">{teaserTotal}</span> place{teaserTotal !== 1 ? 's' : ''} waiting for you</>
+                      : <><span className="font-bold text-[var(--sg-thames)]">{filteredZonePlaces.length}</span> place{filteredZonePlaces.length !== 1 ? 's' : ''} to explore</>
+                    }
+                  </p>
+                }
               >
-                <button
-                  onClick={() => setMobileDrawerOpen(true)}
-                  className="w-full bg-white/95 backdrop-blur-sm border-t border-[var(--sg-border)] px-5 py-3 cursor-pointer"
-                >
-                  <div className="w-8 h-1 rounded-full bg-[var(--sg-border)] mx-auto mb-2" />
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-[var(--sg-navy)]">
+                {/* Render sidebar with header hidden (already in map header + peek) */}
+                {mapState === 'zoneDetail' && activeZone && !isEditorMode && (
+                  <ZoneSidePanel
+                    zoneId={activeZone}
+                    zoneName={ZONE_MAP[activeZone]?.name}
+                    places={filteredZonePlaces}
+                    onPlaceClick={handlePlaceClick}
+                    locked={!unlockedZones.includes(activeZone)}
+                    onUnlock={() => onUnlockZone(activeZone)}
+                    teaserCounts={teasers[activeZone]}
+                    hideHeader
+                  />
+                )}
+                {/* Zone teaser inside drawer for mobile */}
+                {mapState === 'zoneDetail' && activeZone && teasers[activeZone] && (
+                  <div className="px-5 py-4 border-t border-[var(--sg-border)]">
+                    <div className="text-xs font-bold text-[#7c2d36] uppercase tracking-wider mb-2">
                       {ZONE_MAP[activeZone]?.name ?? activeZone}
-                    </span>
-                    <span className="text-xs text-[var(--sg-navy)]/40">
-                      {isZoneLocked ? 'Swipe up to unlock' : `${filteredZonePlaces.length} places`}
-                    </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {Object.entries(teasers[activeZone])
+                        .sort(([, a], [, b]) => b - a)
+                        .map(([category, count]) => (
+                          <div key={category} className="flex items-center justify-between text-sm">
+                            <span className="flex items-center gap-2 text-[#2d1f1a]">
+                              <span className="text-base">{CATEGORY_EMOJI[category] ?? '📍'}</span>
+                              <span className="capitalize">{category}s</span>
+                            </span>
+                            <span className="font-medium text-[#7c2d36]">{count}</span>
+                          </div>
+                        ))}
+                    </div>
                   </div>
-                </button>
-              </motion.div>
-            )}
+                )}
+              </MobileDrawer>
+            </div>
 
-            {/* Bottom bar — not in editor, not in zoneDetail on mobile */}
+            {/* Bottom bar — not in editor, not in zoneDetail */}
             {!isEditorMode && !(mapState === 'zoneDetail' && activeZone) && (
               <div className="absolute bottom-0 left-0 right-0 z-30">
                 <div className="bg-gradient-to-t from-[var(--sg-navy)]/80 to-transparent
@@ -382,64 +424,6 @@ export function HeroMapSection({
           </div>
         </div>
 
-        {/* Mobile bottom drawer */}
-        <AnimatePresence>
-          {mobileDrawerOpen && mapState === 'zoneDetail' && activeZone && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/30 z-40 md:hidden"
-                onClick={() => setMobileDrawerOpen(false)}
-              />
-              <motion.div
-                initial={{ y: '100%' }}
-                animate={{ y: 0 }}
-                exit={{ y: '100%' }}
-                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                drag="y"
-                dragConstraints={{ top: 0, bottom: 0 }}
-                dragElastic={{ top: 0, bottom: 0.4 }}
-                onDragEnd={(_e, info) => {
-                  if (info.offset.y > 100 || info.velocity.y > 500) {
-                    setMobileDrawerOpen(false);
-                  }
-                }}
-                className="fixed bottom-0 left-0 right-0 z-50 md:hidden
-                  bg-white rounded-t-2xl shadow-2xl max-h-[75vh] overflow-y-auto touch-none"
-              >
-                {/* Drag handle */}
-                <div className="flex justify-center pt-3 pb-1 sticky top-0 bg-white rounded-t-2xl cursor-grab active:cursor-grabbing">
-                  <div className="w-10 h-1 rounded-full bg-[var(--sg-border)]" />
-                </div>
-
-                {/* Teaser header */}
-                <div className="px-5 pb-3 border-b border-[var(--sg-border)]">
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-lg font-display font-bold text-[var(--sg-navy)]">
-                      {ZONE_MAP[activeZone]?.name ?? activeZone}
-                    </h3>
-                    <button
-                      onClick={() => setMobileDrawerOpen(false)}
-                      className="p-1.5 rounded-full hover:bg-[var(--sg-offwhite)] cursor-pointer"
-                    >
-                      <X size={18} className="text-[var(--sg-navy)]/40" />
-                    </button>
-                  </div>
-                  <p className="text-xs text-[var(--sg-navy)]/50">
-                    {ZONE_MAP[activeZone]?.description}
-                  </p>
-                </div>
-
-                {/* Sidebar content */}
-                <div className="min-h-[200px]">
-                  {renderSidebar()}
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
       </div>
     );
   }
