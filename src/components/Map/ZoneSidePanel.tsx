@@ -18,6 +18,7 @@ interface ZoneSidePanelProps {
 export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked = false, onUnlock, teaserCounts, hideHeader = false }: ZoneSidePanelProps) {
   const displayName = zoneName || zoneId;
   const navigate = useNavigate();
+  const lockedCount = teaserCounts ? Object.values(teaserCounts).reduce((a, b) => a + b, 0) : 0;
 
   return (
     <div className="h-full w-full md:w-[380px] shrink-0 bg-white border-r border-[var(--sg-border)]
@@ -37,7 +38,7 @@ export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked =
           </h2>
           <p className="text-xs text-[var(--sg-navy)]/60 mt-1">
             {locked
-              ? `${teaserCounts ? Object.values(teaserCounts).reduce((a, b) => a + b, 0) : 0} place${(teaserCounts ? Object.values(teaserCounts).reduce((a, b) => a + b, 0) : 0) !== 1 ? 's' : ''} waiting to be discovered`
+              ? `${lockedCount} place${lockedCount !== 1 ? 's' : ''} waiting to be discovered`
               : `${places.length} pick${places.length !== 1 ? 's' : ''}`}
           </p>
         </div>
