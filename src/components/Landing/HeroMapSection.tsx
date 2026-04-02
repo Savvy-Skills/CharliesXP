@@ -13,6 +13,7 @@ import { EditorPanel } from '../Editor/EditorPanel';
 import type { Place, PlaceCategory, MapZoomState, Coordinates } from '../../types';
 import { ZONE_POLYGON_CENTERS, ZONE_MAP } from '../../utils/zoneMapping';
 import { useLandmarks } from '../../hooks/useLandmarks';
+import { useZoneTeasers } from '../../hooks/useZoneTeasers';
 
 interface HeroMapSectionProps {
   places: Place[];
@@ -79,6 +80,7 @@ export function HeroMapSection({
   const [activeCategory, setActiveCategory] = useState<PlaceCategory | null>(null);
   const [hoveredZoneId, setHoveredZoneId] = useState<string | null>(null);
   const { landmarks } = useLandmarks();
+  const { teasers } = useZoneTeasers();
 
   const showLandmarks = mapState === 'expanded' || mapState === 'zoneDetail';
 
@@ -115,6 +117,7 @@ export function HeroMapSection({
     : allZonesWithCentroids.filter(([zoneId]) => unlockedZones.includes(zoneId));
 
   const isFullscreen = mapState === 'expanded' || mapState === 'zoneDetail';
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const showLockedIcons = !isEditorMode;
   const showUnlockedIcons = mapState === 'overview' || mapState === 'expanded';
 
@@ -187,6 +190,7 @@ export function HeroMapSection({
           onPlaceClick={handlePlaceClick}
           locked={!unlockedZones.includes(activeZone)}
           onUnlock={() => onUnlockZone(activeZone)}
+          teaserCounts={teasers[activeZone]}
         />
       );
     }
@@ -323,18 +327,48 @@ export function HeroMapSection({
               <PlacePreviewCard place={previewPlace} onClose={handleClosePreview} />
             )}
 
-            {/* Zone teaser summary panel — not in editor mode */}
+            {/* Zone teaser summary panel — desktop only */}
             {mapState === 'zoneDetail' && !isEditorMode && (
-              <ZoneTeaser
-                zoneId={activeZone}
-                zoneName={activeZone ? ZONE_MAP[activeZone]?.name : undefined}
-                places={allUnlockedPlaces ?? []}
-                activeCategory={activeCategoryProp ?? null}
-              />
+              <div className="hidden md:block">
+                <ZoneTeaser
+                  zoneId={activeZone}
+                  zoneName={activeZone ? ZONE_MAP[activeZone]?.name : undefined}
+                  places={allUnlockedPlaces ?? []}
+                  activeCategory={activeCategoryProp ?? null}
+                />
+              </div>
             )}
 
-            {/* Bottom bar — not in editor mode */}
-            {!isEditorMode && (
+            {/* Mobile bottom peek bar — tap or drag up to open drawer */}
+            {mapState === 'zoneDetail' && activeZone && !isEditorMode && !mobileDrawerOpen && (
+              <motion.div
+                className="md:hidden absolute bottom-0 left-0 right-0 z-30 touch-none"
+                drag="y"
+                dragConstraints={{ top: 0, bottom: 0 }}
+                dragElastic={0.2}
+                onDragEnd={(_e, info) => {
+                  if (info.offset.y < -50) setMobileDrawerOpen(true);
+                }}
+              >
+                <button
+                  onClick={() => setMobileDrawerOpen(true)}
+                  className="w-full bg-white/95 backdrop-blur-sm border-t border-[var(--sg-border)] px-5 py-3 cursor-pointer"
+                >
+                  <div className="w-8 h-1 rounded-full bg-[var(--sg-border)] mx-auto mb-2" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-[var(--sg-navy)]">
+                      {ZONE_MAP[activeZone]?.name ?? activeZone}
+                    </span>
+                    <span className="text-xs text-[var(--sg-navy)]/40">
+                      {isZoneLocked ? 'Swipe up to unlock' : `${filteredZonePlaces.length} places`}
+                    </span>
+                  </div>
+                </button>
+              </motion.div>
+            )}
+
+            {/* Bottom bar — not in editor, not in zoneDetail on mobile */}
+            {!isEditorMode && !(mapState === 'zoneDetail' && activeZone) && (
               <div className="absolute bottom-0 left-0 right-0 z-30">
                 <div className="bg-gradient-to-t from-[var(--sg-navy)]/80 to-transparent
                   px-6 py-3 flex items-center justify-center">
@@ -347,6 +381,65 @@ export function HeroMapSection({
             )}
           </div>
         </div>
+
+        {/* Mobile bottom drawer */}
+        <AnimatePresence>
+          {mobileDrawerOpen && mapState === 'zoneDetail' && activeZone && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/30 z-40 md:hidden"
+                onClick={() => setMobileDrawerOpen(false)}
+              />
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                drag="y"
+                dragConstraints={{ top: 0, bottom: 0 }}
+                dragElastic={{ top: 0, bottom: 0.4 }}
+                onDragEnd={(_e, info) => {
+                  if (info.offset.y > 100 || info.velocity.y > 500) {
+                    setMobileDrawerOpen(false);
+                  }
+                }}
+                className="fixed bottom-0 left-0 right-0 z-50 md:hidden
+                  bg-white rounded-t-2xl shadow-2xl max-h-[75vh] overflow-y-auto touch-none"
+              >
+                {/* Drag handle */}
+                <div className="flex justify-center pt-3 pb-1 sticky top-0 bg-white rounded-t-2xl cursor-grab active:cursor-grabbing">
+                  <div className="w-10 h-1 rounded-full bg-[var(--sg-border)]" />
+                </div>
+
+                {/* Teaser header */}
+                <div className="px-5 pb-3 border-b border-[var(--sg-border)]">
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-lg font-display font-bold text-[var(--sg-navy)]">
+                      {ZONE_MAP[activeZone]?.name ?? activeZone}
+                    </h3>
+                    <button
+                      onClick={() => setMobileDrawerOpen(false)}
+                      className="p-1.5 rounded-full hover:bg-[var(--sg-offwhite)] cursor-pointer"
+                    >
+                      <X size={18} className="text-[var(--sg-navy)]/40" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-[var(--sg-navy)]/50">
+                    {ZONE_MAP[activeZone]?.description}
+                  </p>
+                </div>
+
+                {/* Sidebar content */}
+                <div className="min-h-[200px]">
+                  {renderSidebar()}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
