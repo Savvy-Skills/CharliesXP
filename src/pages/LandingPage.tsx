@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router';
-import { ZONE_MAP, MANAGED_ZONES } from '../utils/zoneMapping';
+import { ZONE_MAP } from '../utils/zoneMapping';
 import { PageShell } from '../components/Layout/PageShell';
 import { SEOHead } from '../components/SEOHead';
 import { HeroMapSection } from '../components/Landing/HeroMapSection';
@@ -25,7 +25,7 @@ export function LandingPage() {
   const { mapRef, flyToPlace, flyToDefault } = useMapFlyTo();
   const { mapState, activeZone, expandMap, zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, handleZoomChange, handleMoveEnd } = useMapZoom(mapRef);
   const { unlockedZones: rawUnlockedZones, isZoneUnlocked, isAdmin, refreshAccess } = useAuth();
-  const { enabledZoneIds, isZoneEnabled, toggleZone, loading: zoneSettingsLoading } = useZoneSettings();
+  const { enabledZoneIds, isZoneEnabled, toggleZone } = useZoneSettings();
 
   // Admins see all enabled zones as unlocked; regular users only see zones that are both unlocked AND enabled
   const unlockedZones = isAdmin ? enabledZoneIds : rawUnlockedZones.filter(z => enabledZoneIds.includes(z));

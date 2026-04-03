@@ -82,7 +82,7 @@ export function HeroMapSection({
   onCancelPending,
   onMoveToZone,
   enabledZoneIds = [],
-  isZoneEnabled,
+  isZoneEnabled: _isZoneEnabled,
   onToggleZone,
 }: HeroMapSectionProps) {
   const [previewPlace, setPreviewPlace] = useState<Place | null>(null);
@@ -129,7 +129,9 @@ export function HeroMapSection({
   const placeCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const place of _places) {
-      counts[place.zone] = (counts[place.zone] ?? 0) + 1;
+      if (place.zone) {
+        counts[place.zone] = (counts[place.zone] ?? 0) + 1;
+      }
     }
     return counts;
   }, [_places]);
