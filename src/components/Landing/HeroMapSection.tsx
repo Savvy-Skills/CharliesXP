@@ -575,6 +575,7 @@ export function HeroMapSection({
           mode="full"
           interactive={false}
           hoveredZone={hoveredZoneId}
+          enabledZoneIds={enabledZoneIds}
           mapChildren={
             lockedZonesWithCentroids.map(([zoneId, coords]) => (
               <ZoneLockIcon

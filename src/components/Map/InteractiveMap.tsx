@@ -503,7 +503,8 @@ export function InteractiveMap({
   // Filter zone layers to only show enabled zones
   useEffect(() => {
     const map = mapRef.current?.getMap();
-    if (!map || !map.isStyleLoaded() || !enabledZoneIds) return;
+    if (!map || !map.isStyleLoaded()) return;
+    if (!enabledZoneIds) return;
 
     const enabledFilter = ['in', ['get', 'zone'], ['literal', enabledZoneIds]] as any;
     const disabledFilter = ['!', ['in', ['get', 'zone'], ['literal', enabledZoneIds]]] as any;
@@ -523,7 +524,7 @@ export function InteractiveMap({
         map.setLayoutProperty(layerId, 'visibility', disabledVisibility);
       }
     }
-  }, [enabledZoneIds, showDisabledZones, mapRef]);
+  }, [enabledZoneIds, showDisabledZones, mapRef, mapReady]);
 
   if (!MAPBOX_TOKEN) {
     return (
