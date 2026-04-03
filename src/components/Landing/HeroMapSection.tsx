@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useMemo } from 'react';
 import type { MapRef } from 'react-map-gl/mapbox';
 import { Marker } from 'react-map-gl/mapbox';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -10,6 +10,7 @@ import { MapToolbar } from '../Map/MapToolbar';
 import { ZoneSidePanel } from '../Map/ZoneSidePanel';
 import { ZoneLockIcon } from '../Map/ZoneLockIcon';
 import { EditorPanel } from '../Editor/EditorPanel';
+import { ZoneListPanel } from '../Editor/ZoneListPanel';
 import { MobileDrawer } from '../ui/MobileDrawer';
 import type { Place, PlaceCategory, MapZoomState, Coordinates } from '../../types';
 import { ZONE_POLYGON_CENTERS, ZONE_MAP } from '../../utils/zoneMapping';
@@ -46,6 +47,9 @@ interface HeroMapSectionProps {
   onDeletePlace?: (id: string) => void;
   onCancelPending?: () => void;
   onMoveToZone?: (placeId: string, zoneId: string) => void;
+  enabledZoneIds?: string[];
+  isZoneEnabled?: (zoneId: string) => boolean;
+  onToggleZone?: (zoneId: string, enabled: boolean) => void;
 }
 
 export function HeroMapSection({
@@ -77,11 +81,16 @@ export function HeroMapSection({
   onDeletePlace,
   onCancelPending,
   onMoveToZone,
+  enabledZoneIds = [],
+  isZoneEnabled,
+  onToggleZone,
 }: HeroMapSectionProps) {
   const [previewPlace, setPreviewPlace] = useState<Place | null>(null);
   const [activeCategory, setActiveCategory] = useState<PlaceCategory | null>(null);
   const [hoveredZoneId, setHoveredZoneId] = useState<string | null>(null);
   const [editPlaceKey, setEditPlaceKey] = useState<string | null>(null);
+  const [showDisabledZones, setShowDisabledZones] = useState(false);
+  const [editorTab, setEditorTab] = useState<'places' | 'zones'>('places');
   const { landmarks } = useLandmarks();
   const { teasers } = useZoneTeasers();
 
@@ -115,7 +124,16 @@ export function HeroMapSection({
     zonePlaces.filter((p) => !activeCategory || p.category === activeCategory);
 
   // Use polygon centers for icon placement (center of zone boundary, not station location)
-  const allZonesWithCentroids = Object.entries(ZONE_POLYGON_CENTERS);
+  const allZonesWithCentroids = Object.entries(ZONE_POLYGON_CENTERS)
+    .filter(([zoneId]) => enabledZoneIds.includes(zoneId));
+  const placeCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const place of _places) {
+      counts[place.zone] = (counts[place.zone] ?? 0) + 1;
+    }
+    return counts;
+  }, [_places]);
+
   const lockedZonesWithCentroids = isEditorMode
     ? []
     : allZonesWithCentroids.filter(([zoneId]) => !unlockedZones.includes(zoneId));
@@ -208,15 +226,28 @@ export function HeroMapSection({
   // Determine which sidebar to show
   const renderSidebar = () => {
     if (isEditorMode) {
+      if (editorTab === 'zones') {
+        return (
+          <ZoneListPanel
+            enabledZoneIds={enabledZoneIds}
+            onToggleZone={onToggleZone ?? (() => {})}
+            placeCounts={placeCounts}
+            onZoneClick={(zoneId) => {
+              setEditorTab('places');
+              onZoneClick(zoneId);
+            }}
+          />
+        );
+      }
       if (mapState === 'zoneDetail' && activeZone) {
         return (
           <EditorPanel
             places={displayPlaces}
             pendingCoordinates={pendingCoordinates ?? null}
             currentView={currentView}
-            onAdd={onAddPlace ?? (() => { })}
-            onUpdate={onUpdatePlace ?? (() => { })}
-            onDelete={onDeletePlace ?? (() => { })}
+            onAdd={onAddPlace ?? (() => {})}
+            onUpdate={onUpdatePlace ?? (() => {})}
+            onDelete={onDeletePlace ?? (() => {})}
             onCancelPending={() => { onCancelPending?.(); setEditPlaceKey(null); }}
             onPlaceClick={handlePlaceClick}
             editPlaceKey={editPlaceKey}
@@ -227,7 +258,6 @@ export function HeroMapSection({
           />
         );
       }
-      // "Select a zone" prompt when not in zoneDetail
       return (
         <div className="h-full w-full bg-white border-r border-[var(--sg-border)] flex flex-col items-center justify-center p-8">
           <div className="w-14 h-14 rounded-full bg-[var(--sg-crimson)]/10 flex items-center justify-center mb-4">
@@ -262,7 +292,7 @@ export function HeroMapSection({
 
   // Should the sidebar be visible?
   const showSidebar = isEditorMode
-    ? (mapState === 'expanded' || mapState === 'zoneDetail')
+    ? (mapState === 'expanded' || mapState === 'zoneDetail' || editorTab === 'zones')
     : (mapState === 'zoneDetail' && activeZone);
 
   // ── Fullscreen mode ──
@@ -288,9 +318,48 @@ export function HeroMapSection({
               </span>
             )}
             {isEditorMode && (
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[var(--sg-crimson)]/10 text-[var(--sg-crimson)]">
-                Edit Mode
-              </span>
+              <>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[var(--sg-crimson)]/10 text-[var(--sg-crimson)]">
+                  Edit Mode
+                </span>
+                <div className="flex gap-1 ml-2">
+                  <button
+                    onClick={() => setEditorTab('places')}
+                    className={`text-xs px-2 py-1 rounded-md cursor-pointer transition-colors ${
+                      editorTab === 'places'
+                        ? 'bg-[var(--sg-navy)] text-white'
+                        : 'text-[var(--sg-navy)]/50 hover:bg-[var(--sg-offwhite)]'
+                    }`}
+                  >
+                    Places
+                  </button>
+                  <button
+                    onClick={() => setEditorTab('zones')}
+                    className={`text-xs px-2 py-1 rounded-md cursor-pointer transition-colors ${
+                      editorTab === 'zones'
+                        ? 'bg-[var(--sg-navy)] text-white'
+                        : 'text-[var(--sg-navy)]/50 hover:bg-[var(--sg-offwhite)]'
+                    }`}
+                  >
+                    Zones
+                  </button>
+                </div>
+                <label className="flex items-center gap-1.5 ml-3 cursor-pointer">
+                  <span className="text-[10px] text-[var(--sg-navy)]/50">Available</span>
+                  <button
+                    onClick={() => setShowDisabledZones(!showDisabledZones)}
+                    className={`relative w-7 h-4 rounded-full transition-colors cursor-pointer ${
+                      showDisabledZones ? 'bg-[var(--sg-thames)]' : 'bg-gray-300'
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-[2px] w-3 h-3 rounded-full bg-white shadow-sm transition-transform ${
+                        showDisabledZones ? 'translate-x-[14px]' : 'translate-x-[2px]'
+                      }`}
+                    />
+                  </button>
+                </label>
+              </>
             )}
           </div>
           <button
@@ -350,6 +419,8 @@ export function HeroMapSection({
               activeZone={mapState === 'zoneDetail' ? activeZone : null}
               hoveredZone={hoveredZoneId}
               editorMode={isEditorMode}
+              enabledZoneIds={enabledZoneIds}
+              showDisabledZones={isEditorMode && showDisabledZones}
               draggablePlaceId={isEditorMode && editPlaceKey ? editPlaceKey.split('::')[0] : null}
               onMarkerDragStart={isEditorMode ? handleMarkerDragStart : undefined}
               onMarkerDrag={isEditorMode ? handleMarkerDrag : undefined}
