@@ -10,6 +10,7 @@ import { useMapFlyTo } from '../hooks/useMapFlyTo';
 import { useMapZoom } from '../hooks/useMapZoom';
 import { useAuth } from '../hooks/useAuth';
 import { usePackages } from '../hooks/usePackages';
+import { useZoneSettings } from '../hooks/useZoneSettings';
 import type { Place, Coordinates } from '../types';
 
 export function LandingPage() {
@@ -24,9 +25,10 @@ export function LandingPage() {
   const { mapRef, flyToPlace, flyToDefault } = useMapFlyTo();
   const { mapState, activeZone, expandMap, zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, handleZoomChange, handleMoveEnd } = useMapZoom(mapRef);
   const { unlockedZones: rawUnlockedZones, isZoneUnlocked, isAdmin, refreshAccess } = useAuth();
+  const { enabledZoneIds, isZoneEnabled, toggleZone, loading: zoneSettingsLoading } = useZoneSettings();
 
-  // Admins have all zones unlocked
-  const unlockedZones = isAdmin ? MANAGED_ZONES : rawUnlockedZones;
+  // Admins see all enabled zones as unlocked; regular users only see zones that are both unlocked AND enabled
+  const unlockedZones = isAdmin ? enabledZoneIds : rawUnlockedZones.filter(z => enabledZoneIds.includes(z));
   const [paywallZone, setPaywallZone] = useState<string | null>(null);
   const [paymentToast, setPaymentToast] = useState<'success' | 'cancelled' | null>(null);
   // Handle payment return params
@@ -123,6 +125,10 @@ export function LandingPage() {
         if (features.length > 0) {
           const zoneName = features[0].properties?.zone as string;
           if (zoneName) {
+            if (!isEditorMode && !isZoneEnabled(zoneName)) {
+              expandMap();
+              return;
+            }
             expandMap();
             if (isEditorMode || isZoneUnlocked(zoneName)) {
               setTimeout(() => zoomIntoZone(zoneName), 450);
@@ -144,6 +150,7 @@ export function LandingPage() {
       if (features.length > 0) {
         const zoneName = features[0].properties?.zone as string;
         if (!zoneName) return;
+        if (!isEditorMode && !isZoneEnabled(zoneName)) return;
         if (isEditorMode || isZoneUnlocked(zoneName)) {
           zoomIntoZone(zoneName);
         } else {
@@ -151,7 +158,7 @@ export function LandingPage() {
         }
       }
     },
-    [mapState, mapRef, isZoneUnlocked, zoomIntoZone, expandMap, isEditorMode, activeZone],
+    [mapState, mapRef, isZoneUnlocked, isZoneEnabled, zoomIntoZone, expandMap, isEditorMode, activeZone],
   );
 
   const handleZoneClick = useCallback(
@@ -247,6 +254,9 @@ export function LandingPage() {
         onUnlockZone={(zoneId) => setPaywallZone(zoneId)}
         onZoneClick={handleZoneClick}
         onZoomOut={zoomOutToExpanded}
+        enabledZoneIds={enabledZoneIds}
+        isZoneEnabled={isZoneEnabled}
+        onToggleZone={toggleZone}
         onCollapse={() => {
           zoomOutToOverview();
           if (isEditorMode) {
