@@ -30,6 +30,10 @@ interface InteractiveMapProps {
   /** Zone ID to highlight (from icon hover or external source) */
   hoveredZone?: string | null;
   editorMode?: boolean;
+  /** IDs of enabled zones — used to filter layers */
+  enabledZoneIds?: string[];
+  /** Whether to show disabled zones (editor toggle) */
+  showDisabledZones?: boolean;
   /** Only this place's marker is draggable (hold-to-drag) */
   draggablePlaceId?: string | null;
   onMarkerDragStart?: (place: Place) => void;
@@ -114,6 +118,8 @@ export function InteractiveMap({
   activeZone = null,
   hoveredZone = null,
   editorMode = false,
+  enabledZoneIds,
+  showDisabledZones = false,
   draggablePlaceId,
   onMarkerDragStart,
   onMarkerDrag,
@@ -133,6 +139,8 @@ export function InteractiveMap({
   const [mapStyle] = useState<MapStyleKey>('streets');
   const [mapReady, setMapReady] = useState(false);
   const hoveredZoneRef = useRef<string | null>(null);
+  const showDisabledZonesRef = useRef(showDisabledZones);
+  useEffect(() => { showDisabledZonesRef.current = showDisabledZones; }, [showDisabledZones]);
 
   // Persist viewport to sessionStorage so it can be restored on /map
   useEffect(() => {
@@ -294,6 +302,53 @@ export function InteractiveMap({
         },
       });
     }
+
+    // Disabled zone fill — grey, low opacity, hidden by default
+    if (!map.getLayer('zones-disabled-fill')) {
+      map.addLayer({
+        id: 'zones-disabled-fill',
+        type: 'fill',
+        source: 'zones',
+        filter: ['==', ['get', 'zone'], ''],
+        paint: {
+          'fill-color': '#6b7280',
+          'fill-opacity': 0.08,
+        },
+        layout: { visibility: 'none' },
+      }, 'zones-fill'); // Insert BELOW zones-fill
+    }
+
+    // Disabled zone border — grey, dashed, hidden by default
+    if (!map.getLayer('zones-disabled-border')) {
+      map.addLayer({
+        id: 'zones-disabled-border',
+        type: 'line',
+        source: 'zones',
+        filter: ['==', ['get', 'zone'], ''],
+        paint: {
+          'line-color': '#9ca3af',
+          'line-width': 1.5,
+          'line-opacity': 0.5,
+          'line-dasharray': [4, 4],
+        },
+        layout: { visibility: 'none' },
+      }, 'zones-fill');
+    }
+
+    // Disabled zone hover fill
+    if (!map.getLayer('zones-disabled-hover')) {
+      map.addLayer({
+        id: 'zones-disabled-hover',
+        type: 'fill',
+        source: 'zones',
+        filter: ['==', ['get', 'zone'], ''],
+        paint: {
+          'fill-color': '#9ca3af',
+          'fill-opacity': 0.15,
+        },
+        layout: { visibility: 'none' },
+      });
+    }
   }, []);
 
   const add3DModels = useCallback((map: MapboxMap, modelPlaces: Place[]) => {
@@ -338,6 +393,9 @@ export function InteractiveMap({
       const zoom = map.getZoom();
       if (zoom >= ZONE_ENTER_THRESHOLD) {
         clearHover();
+        if (map.getLayer('zones-disabled-hover')) {
+          map.setFilter('zones-disabled-hover', ['==', ['get', 'zone'], '']);
+        }
         return;
       }
 
@@ -347,7 +405,30 @@ export function InteractiveMap({
         if (zone && zone !== hoveredZoneRef.current) {
           setHover(zone);
         }
+        // Clear disabled hover when over an enabled zone
+        if (map.getLayer('zones-disabled-hover')) {
+          map.setFilter('zones-disabled-hover', ['==', ['get', 'zone'], '']);
+        }
       } else {
+        // Also check disabled zones if visible
+        if (zoneFeatures.length === 0 && showDisabledZonesRef.current) {
+          const disabledFeatures = map.queryRenderedFeatures(e.point, { layers: ['zones-disabled-fill'] });
+          if (disabledFeatures.length > 0) {
+            const zone = disabledFeatures[0].properties?.zone as string;
+            if (zone) {
+              clearHover();
+              if (map.getLayer('zones-disabled-hover')) {
+                map.setFilter('zones-disabled-hover', ['==', ['get', 'zone'], zone]);
+              }
+              map.getCanvas().style.cursor = 'pointer';
+              return;
+            }
+          }
+        }
+        // Clear disabled hover
+        if (map.getLayer('zones-disabled-hover')) {
+          map.setFilter('zones-disabled-hover', ['==', ['get', 'zone'], '']);
+        }
         clearHover();
       }
     });
@@ -418,6 +499,31 @@ export function InteractiveMap({
       hoveredZoneRef.current = null;
     }
   }, [hoveredZone, mapRef]);
+
+  // Filter zone layers to only show enabled zones
+  useEffect(() => {
+    const map = mapRef.current?.getMap();
+    if (!map || !map.isStyleLoaded() || !enabledZoneIds) return;
+
+    const enabledFilter = ['in', ['get', 'zone'], ['literal', enabledZoneIds]] as any;
+    const disabledFilter = ['!', ['in', ['get', 'zone'], ['literal', enabledZoneIds]]] as any;
+
+    // Enabled zone layers
+    for (const layerId of ['zones-fill', 'zones-border']) {
+      if (map.getLayer(layerId)) {
+        map.setFilter(layerId, enabledFilter);
+      }
+    }
+
+    // Disabled zone layers
+    const disabledVisibility = showDisabledZones ? 'visible' : 'none';
+    for (const layerId of ['zones-disabled-fill', 'zones-disabled-border', 'zones-disabled-hover']) {
+      if (map.getLayer(layerId)) {
+        map.setFilter(layerId, disabledFilter);
+        map.setLayoutProperty(layerId, 'visibility', disabledVisibility);
+      }
+    }
+  }, [enabledZoneIds, showDisabledZones, mapRef]);
 
   if (!MAPBOX_TOKEN) {
     return (
