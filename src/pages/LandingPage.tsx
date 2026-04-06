@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router';
-import { ZONE_MAP } from '../utils/zoneMapping';
+import { ZONE_MAP, ZONE_POLYGON_CENTERS, ZONE_CENTROIDS } from '../utils/zoneMapping';
 import { PageShell } from '../components/Layout/PageShell';
 import { SEOHead } from '../components/SEOHead';
 import { HeroMapSection } from '../components/Landing/HeroMapSection';
@@ -205,8 +205,13 @@ export function LandingPage() {
 
   const handleMoveToZone = useCallback(
     (placeId: string, zoneId: string) => {
-      optimisticUpdate(placeId, { zone: zoneId });
-      // Navigate to the new zone so the place appears there
+      // Move the place to the target zone's center so it lands inside the boundary
+      const center = ZONE_POLYGON_CENTERS[zoneId] ?? ZONE_CENTROIDS[zoneId];
+      const updates: Partial<Place> = { zone: zoneId };
+      if (center) {
+        updates.coordinates = { lng: center.lng, lat: center.lat };
+      }
+      optimisticUpdate(placeId, updates);
       zoomIntoZone(zoneId);
     },
     [optimisticUpdate, zoomIntoZone],
