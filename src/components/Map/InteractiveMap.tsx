@@ -30,6 +30,14 @@ interface InteractiveMapProps {
   /** Zone ID to highlight (from icon hover or external source) */
   hoveredZone?: string | null;
   editorMode?: boolean;
+  /** IDs of enabled zones — used to filter layers */
+  enabledZoneIds?: string[];
+  /** Whether to show disabled zones (editor toggle) */
+  showDisabledZones?: boolean;
+  /** Only this place's marker is draggable (hold-to-drag) */
+  draggablePlaceId?: string | null;
+  onMarkerDragStart?: (place: Place) => void;
+  onMarkerDrag?: (place: Place, lngLat: { lng: number; lat: number }) => void;
   onMarkerDragEnd?: (place: Place, lngLat: { lng: number; lat: number }) => void;
 }
 
@@ -110,6 +118,11 @@ export function InteractiveMap({
   activeZone = null,
   hoveredZone = null,
   editorMode = false,
+  enabledZoneIds,
+  showDisabledZones = false,
+  draggablePlaceId,
+  onMarkerDragStart,
+  onMarkerDrag,
   onMarkerDragEnd,
 }: InteractiveMapProps) {
   const isContained = mode === 'contained';
@@ -125,7 +138,12 @@ export function InteractiveMap({
   });
   const [mapStyle] = useState<MapStyleKey>('streets');
   const [mapReady, setMapReady] = useState(false);
+  const [layerVersion, setLayerVersion] = useState(0);
   const hoveredZoneRef = useRef<string | null>(null);
+  const showDisabledZonesRef = useRef(showDisabledZones);
+  useEffect(() => { showDisabledZonesRef.current = showDisabledZones; }, [showDisabledZones]);
+  const enabledZoneIdsRef = useRef(enabledZoneIds);
+  useEffect(() => { enabledZoneIdsRef.current = enabledZoneIds; }, [enabledZoneIds]);
 
   // Persist viewport to sessionStorage so it can be restored on /map
   useEffect(() => {
@@ -232,12 +250,22 @@ export function InteractiveMap({
       });
     }
 
+    // Build initial filter from ref — prevents disabled zones from ever rendering
+    const ids = enabledZoneIdsRef.current;
+    const zoneFilter: any =
+      ids === undefined
+        ? undefined                                           // no filtering (backward compat)
+        : ids.length > 0
+          ? ['in', ['get', 'zone'], ['literal', ids]]         // only enabled zones
+          : ['==', ['get', 'zone'], ''];                      // match nothing (loading or empty)
+
     // Zone fill — semi-transparent, per-zone color
     if (!map.getLayer('zones-fill')) {
       map.addLayer({
         id: 'zones-fill',
         type: 'fill',
         source: 'zones',
+        ...(zoneFilter && { filter: zoneFilter }),
         paint: {
           'fill-color': ['get', 'color'],
           'fill-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.12, 14, 0.06, 16, 0.03],
@@ -251,6 +279,7 @@ export function InteractiveMap({
         id: 'zones-border',
         type: 'line',
         source: 'zones',
+        ...(zoneFilter && { filter: zoneFilter }),
         paint: {
           'line-color': ['get', 'color'],
           'line-width': ['interpolate', ['linear'], ['zoom'], 10, 2.5, 13, 2, 15, 1, 17, 0.3],
@@ -285,6 +314,53 @@ export function InteractiveMap({
           'line-width': 3.5,
           'line-opacity': 0.9,
         },
+      });
+    }
+
+    // Disabled zone fill — grey, low opacity, hidden by default
+    if (!map.getLayer('zones-disabled-fill')) {
+      map.addLayer({
+        id: 'zones-disabled-fill',
+        type: 'fill',
+        source: 'zones',
+        filter: ['==', ['get', 'zone'], ''],
+        paint: {
+          'fill-color': '#6b7280',
+          'fill-opacity': 0.08,
+        },
+        layout: { visibility: 'none' },
+      }, 'zones-fill'); // Insert BELOW zones-fill
+    }
+
+    // Disabled zone border — grey, dashed, hidden by default
+    if (!map.getLayer('zones-disabled-border')) {
+      map.addLayer({
+        id: 'zones-disabled-border',
+        type: 'line',
+        source: 'zones',
+        filter: ['==', ['get', 'zone'], ''],
+        paint: {
+          'line-color': '#9ca3af',
+          'line-width': 1.5,
+          'line-opacity': 0.5,
+          'line-dasharray': [4, 4],
+        },
+        layout: { visibility: 'none' },
+      }, 'zones-fill');
+    }
+
+    // Disabled zone hover fill
+    if (!map.getLayer('zones-disabled-hover')) {
+      map.addLayer({
+        id: 'zones-disabled-hover',
+        type: 'fill',
+        source: 'zones',
+        filter: ['==', ['get', 'zone'], ''],
+        paint: {
+          'fill-color': '#9ca3af',
+          'fill-opacity': 0.15,
+        },
+        layout: { visibility: 'none' },
       });
     }
   }, []);
@@ -331,6 +407,9 @@ export function InteractiveMap({
       const zoom = map.getZoom();
       if (zoom >= ZONE_ENTER_THRESHOLD) {
         clearHover();
+        if (map.getLayer('zones-disabled-hover')) {
+          map.setFilter('zones-disabled-hover', ['==', ['get', 'zone'], '']);
+        }
         return;
       }
 
@@ -340,7 +419,30 @@ export function InteractiveMap({
         if (zone && zone !== hoveredZoneRef.current) {
           setHover(zone);
         }
+        // Clear disabled hover when over an enabled zone
+        if (map.getLayer('zones-disabled-hover')) {
+          map.setFilter('zones-disabled-hover', ['==', ['get', 'zone'], '']);
+        }
       } else {
+        // Also check disabled zones if visible
+        if (zoneFeatures.length === 0 && showDisabledZonesRef.current) {
+          const disabledFeatures = map.queryRenderedFeatures(e.point, { layers: ['zones-disabled-fill'] });
+          if (disabledFeatures.length > 0) {
+            const zone = disabledFeatures[0].properties?.zone as string;
+            if (zone) {
+              clearHover();
+              if (map.getLayer('zones-disabled-hover')) {
+                map.setFilter('zones-disabled-hover', ['==', ['get', 'zone'], zone]);
+              }
+              map.getCanvas().style.cursor = 'pointer';
+              return;
+            }
+          }
+        }
+        // Clear disabled hover
+        if (map.getLayer('zones-disabled-hover')) {
+          map.setFilter('zones-disabled-hover', ['==', ['get', 'zone'], '']);
+        }
         clearHover();
       }
     });
@@ -348,6 +450,31 @@ export function InteractiveMap({
     map.on('mouseleave', 'zones-fill', () => {
       clearHover();
     });
+  }, []);
+
+  // Apply zone filters directly to map layers — reads from refs so it's always current
+  const applyZoneFilters = useCallback((map: MapboxMap) => {
+    const ids = enabledZoneIdsRef.current;
+    if (ids === undefined) return; // prop not provided, no filtering
+
+    const enabledFilter: any = ids.length > 0
+      ? ['in', ['get', 'zone'], ['literal', ids]]
+      : ['==', ['get', 'zone'], ''];
+    const disabledFilter: any = ids.length > 0
+      ? ['!', ['in', ['get', 'zone'], ['literal', ids]]]
+      : ['!=', ['get', 'zone'], ''];
+
+    for (const layerId of ['zones-fill', 'zones-border']) {
+      if (map.getLayer(layerId)) map.setFilter(layerId, enabledFilter);
+    }
+
+    const disabledVisibility = showDisabledZonesRef.current ? 'visible' : 'none';
+    for (const layerId of ['zones-disabled-fill', 'zones-disabled-border', 'zones-disabled-hover']) {
+      if (map.getLayer(layerId)) {
+        map.setFilter(layerId, disabledFilter);
+        map.setLayoutProperty(layerId, 'visibility', disabledVisibility);
+      }
+    }
   }, []);
 
   const handleLoad = useCallback(() => {
@@ -360,6 +487,7 @@ export function InteractiveMap({
     addPostcodeLayers(map);
     registerHoverHandlers(map);
     if (modelPlaces.length > 0) add3DModels(map, modelPlaces);
+    applyZoneFilters(map);
     setMapReady(true);
 
     map.on('style.load', () => {
@@ -367,8 +495,11 @@ export function InteractiveMap({
       hideTransitLayers(map);
       addPostcodeLayers(map);
       if (modelPlaces.length > 0) add3DModels(map, modelPlaces);
+      applyZoneFilters(map);
+      // Force filter effect to re-run after layers are recreated
+      setLayerVersion(v => v + 1);
     });
-  }, [mapRef, places, hideClutterLabels, hideTransitLayers, addPostcodeLayers, registerHoverHandlers, add3DModels]);
+  }, [mapRef, places, hideClutterLabels, hideTransitLayers, addPostcodeLayers, registerHoverHandlers, add3DModels, applyZoneFilters]);
 
   // Toggle dim overlay when activeZone changes — dims ENTIRE map except active zone
   useEffect(() => {
@@ -411,6 +542,13 @@ export function InteractiveMap({
       hoveredZoneRef.current = null;
     }
   }, [hoveredZone, mapRef]);
+
+  // Filter zone layers to only show enabled zones (reactive — runs when props change)
+  useEffect(() => {
+    const map = mapRef.current?.getMap();
+    if (!map || !map.isStyleLoaded()) return;
+    applyZoneFilters(map);
+  }, [enabledZoneIds, showDisabledZones, mapRef, mapReady, layerVersion, applyZoneFilters]);
 
   if (!MAPBOX_TOKEN) {
     return (
@@ -460,7 +598,9 @@ export function InteractiveMap({
               place={place}
               zoom={viewState.zoom}
               onClick={isContained ? () => { } : onPlaceClick}
-              draggable={editorMode}
+              draggable={editorMode && place.id === draggablePlaceId}
+              onDragStart={onMarkerDragStart}
+              onDrag={onMarkerDrag}
               onDragEnd={onMarkerDragEnd}
             />
           ))}

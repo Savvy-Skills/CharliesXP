@@ -43,6 +43,42 @@ function rowToPlace(row: SupabasePlaceRow): Place {
   };
 }
 
+function placeToRow(place: Omit<Place, 'id'>, activeZone: string): Record<string, unknown> {
+  return {
+    name: place.name,
+    description: place.description,
+    category: place.category,
+    zone_id: place.zone ?? activeZone,
+    coordinates: place.coordinates,
+    address: place.address,
+    marker_icon: place.markerIcon,
+    marker_image: place.markerImage,
+    images: place.images,
+    rating: place.rating,
+    tags: place.tags,
+    visit_date: place.visitDate,
+    camera: { zoom: place.zoom, pitch: place.pitch, bearing: place.bearing },
+    placed: true,
+    active: true,
+  };
+}
+
+function partialPlaceToDbUpdates(updates: Partial<Place>): Record<string, unknown> {
+  const dbUpdates: Record<string, unknown> = {};
+  if (updates.name !== undefined) dbUpdates.name = updates.name;
+  if (updates.description !== undefined) dbUpdates.description = updates.description;
+  if (updates.category !== undefined) dbUpdates.category = updates.category;
+  if (updates.zone !== undefined) dbUpdates.zone_id = updates.zone;
+  if (updates.coordinates !== undefined) {
+    dbUpdates.coordinates = updates.coordinates;
+    dbUpdates.placed = true;
+  }
+  if (updates.address !== undefined) dbUpdates.address = updates.address;
+  if (updates.rating !== undefined) dbUpdates.rating = updates.rating;
+  if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
+  return dbUpdates;
+}
+
 export function useSupabasePlaces() {
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,5 +105,85 @@ export function useSupabasePlaces() {
     fetchPlaces();
   }, [fetchPlaces]);
 
-  return { places, loading, error, refetch: fetchPlaces };
+  // ── Optimistic Add ──
+  const optimisticAdd = useCallback(async (place: Omit<Place, 'id'>, activeZone: string) => {
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const optimisticPlace: Place = { ...place, id: tempId, zone: place.zone ?? activeZone };
+
+    // Immediately add to local state
+    setPlaces(prev => [...prev, optimisticPlace]);
+
+    const { data, error: err } = await supabase
+      .from('places')
+      .insert(placeToRow(place, activeZone))
+      .select()
+      .single();
+
+    if (err) {
+      console.error('Add place error:', err);
+      // Revert: remove the temp place
+      setPlaces(prev => prev.filter(p => p.id !== tempId));
+    } else {
+      // Replace temp with real DB record
+      const realPlace = rowToPlace(data as SupabasePlaceRow);
+      setPlaces(prev => prev.map(p => p.id === tempId ? realPlace : p));
+    }
+  }, []);
+
+  // ── Optimistic Update ──
+  const optimisticUpdate = useCallback(async (id: string, updates: Partial<Place>) => {
+    // Snapshot for rollback
+    let snapshot: Place | undefined;
+    setPlaces(prev => {
+      snapshot = prev.find(p => p.id === id);
+      return prev.map(p => p.id === id ? { ...p, ...updates } : p);
+    });
+
+    const dbUpdates = partialPlaceToDbUpdates(updates);
+    if (Object.keys(dbUpdates).length === 0) return;
+
+    const { error: err } = await supabase.from('places').update(dbUpdates).eq('id', id);
+    if (err) {
+      console.error('Update place error:', err);
+      // Revert to snapshot
+      if (snapshot) {
+        setPlaces(prev => prev.map(p => p.id === id ? snapshot! : p));
+      }
+    }
+  }, []);
+
+  // ── Optimistic Delete ──
+  const optimisticDelete = useCallback(async (id: string) => {
+    // Snapshot for rollback
+    let snapshot: Place | undefined;
+    let snapshotIndex = -1;
+    setPlaces(prev => {
+      snapshotIndex = prev.findIndex(p => p.id === id);
+      snapshot = prev[snapshotIndex];
+      return prev.filter(p => p.id !== id);
+    });
+
+    const { error: err } = await supabase.from('places').delete().eq('id', id);
+    if (err) {
+      console.error('Delete place error:', err);
+      // Revert: re-insert at original position
+      if (snapshot) {
+        setPlaces(prev => {
+          const next = [...prev];
+          next.splice(snapshotIndex, 0, snapshot!);
+          return next;
+        });
+      }
+    }
+  }, []);
+
+  return {
+    places,
+    loading,
+    error,
+    refetch: fetchPlaces,
+    optimisticAdd,
+    optimisticUpdate,
+    optimisticDelete,
+  };
 }

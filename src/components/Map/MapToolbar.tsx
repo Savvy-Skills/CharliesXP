@@ -79,8 +79,8 @@ export function MapToolbar({
 
   return (
     <div
-      className={`pointer-events-auto transition-[padding] duration-300 ease-in-out ${
-        sidebarOpen ? 'md:pl-[380px]' : ''
+      className={`pointer-events-auto transition-[margin] duration-300 ease-in-out ${
+        sidebarOpen ? 'md:ml-[380px]' : ''
       }`}
     >
       <div className="m-3 space-y-2">

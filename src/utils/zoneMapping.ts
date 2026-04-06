@@ -2,7 +2,7 @@ import zonesData from '../data/zones.json';
 import zoneCentersData from '../data/zone-centers.json';
 import type { Zone } from '../types';
 
-/** All 28 zones loaded from config */
+/** All zones loaded from config */
 export const ZONES: Zone[] = zonesData as Zone[];
 
 /** O(1) lookup by zone slug */

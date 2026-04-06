@@ -8,7 +8,7 @@ import { ZONES } from '../utils/zoneMapping';
 import type { Profile, Purchase } from '../types';
 import { CATEGORIES } from '../types';
 
-type Tab = 'places' | 'users' | 'purchases' | 'packages';
+type Tab = 'places' | 'zones' | 'users' | 'purchases' | 'packages';
 
 interface AdminPackage {
   id: string;
@@ -70,6 +70,11 @@ export function AdminPage() {
   const [showPkgForm, setShowPkgForm] = useState<null | 'create' | string>(null);
   const [pkgForm, setPkgForm] = useState<PackageForm>(EMPTY_PKG_FORM);
   const [pkgSaving, setPkgSaving] = useState(false);
+
+  // Zones state
+  const [enabledZoneIds, setEnabledZoneIds] = useState<Set<string>>(new Set());
+  const [zoneTogglingId, setZoneTogglingId] = useState<string | null>(null);
+  const [zonePlaceCounts, setZonePlaceCounts] = useState<Record<string, number>>({});
 
   // User management state
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
@@ -141,6 +146,26 @@ export function AdminPage() {
         .then(({ data }) => {
           if (data) setUsers(data as Profile[]);
         });
+    } else if (tab === 'zones') {
+      supabase
+        .from('zone_settings')
+        .select('zone_id')
+        .eq('enabled', true)
+        .then(({ data }) => {
+          if (data) setEnabledZoneIds(new Set(data.map((r: { zone_id: string }) => r.zone_id)));
+        });
+      supabase
+        .from('places')
+        .select('zone_id')
+        .then(({ data }) => {
+          if (data) {
+            const counts: Record<string, number> = {};
+            for (const p of data as { zone_id: string }[]) {
+              if (p.zone_id) counts[p.zone_id] = (counts[p.zone_id] ?? 0) + 1;
+            }
+            setZonePlaceCounts(counts);
+          }
+        });
     } else if (tab === 'packages') {
       supabase
         .from('packages')
@@ -166,6 +191,29 @@ export function AdminPage() {
         });
     }
   }, [isAdmin, tab]);
+
+  const toggleZoneEnabled = async (zoneId: string, enabled: boolean) => {
+    setZoneTogglingId(zoneId);
+    setEnabledZoneIds(prev => {
+      const next = new Set(prev);
+      enabled ? next.add(zoneId) : next.delete(zoneId);
+      return next;
+    });
+    const { error } = await supabase
+      .from('zone_settings')
+      .update({ enabled })
+      .eq('zone_id', zoneId);
+    if (error) {
+      console.error('Toggle zone error:', error);
+      // rollback
+      setEnabledZoneIds(prev => {
+        const next = new Set(prev);
+        enabled ? next.delete(zoneId) : next.add(zoneId);
+        return next;
+      });
+    }
+    setZoneTogglingId(null);
+  };
 
   const openCreate = () => {
     setForm(EMPTY_FORM);
@@ -310,6 +358,7 @@ export function AdminPage() {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'places', label: 'Places' },
+    { key: 'zones', label: 'Zones' },
     { key: 'packages', label: 'Packages' },
     { key: 'users', label: 'Users' },
     { key: 'purchases', label: 'Purchases' },
@@ -497,7 +546,7 @@ export function AdminPage() {
                               <span className="inline-flex items-center gap-1.5">
                                 <button
                                   onClick={() =>
-                                    window.location.href = `/map?editor=true&placeId=${p.id}&zone=${p.zone_id}`
+                                    navigate(`/map?editor=true&placeId=${p.id}&zone=${p.zone_id}`)
                                   }
                                   className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-[var(--sg-thames)] text-white text-xs font-medium hover:opacity-90 cursor-pointer"
                                   title="Place on Map"
@@ -583,7 +632,7 @@ export function AdminPage() {
                           ) : (
                             <span className="inline-flex items-center gap-1.5">
                               <button
-                                onClick={() => window.location.href = `/map?editor=true&placeId=${p.id}&zone=${p.zone_id}`}
+                                onClick={() => navigate(`/map?editor=true&placeId=${p.id}&zone=${p.zone_id}`)}
                                 className="p-1 rounded-lg text-[var(--sg-navy)]/40 hover:text-[var(--sg-thames)] hover:bg-[var(--sg-thames)]/10 cursor-pointer"
                                 title="View on Map"
                               >
@@ -611,6 +660,87 @@ export function AdminPage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        )}
+
+        {tab === 'zones' && (
+          <div className="space-y-4">
+            <p className="text-sm text-[var(--sg-navy)]/60">
+              <span className="font-semibold text-[var(--sg-navy)]">{enabledZoneIds.size} enabled</span> / {ZONES.length} total zones
+            </p>
+            <div className="overflow-x-auto rounded-xl border border-[var(--sg-border)] bg-white">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-[var(--sg-navy)]/60 border-b border-[var(--sg-border)]">
+                  <tr>
+                    <th className="py-2 pl-4 pr-4 w-40">Zone</th>
+                    <th className="py-2 pr-4 w-20">Places</th>
+                    <th className="py-2 pr-4 w-16">Status</th>
+                    <th className="py-2 pr-4 w-16 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...ZONES]
+                    .sort((a, b) => {
+                      const aE = enabledZoneIds.has(a.id);
+                      const bE = enabledZoneIds.has(b.id);
+                      if (aE !== bE) return aE ? -1 : 1;
+                      return 0;
+                    })
+                    .map((zone) => {
+                      const isEnabled = enabledZoneIds.has(zone.id);
+                      const count = zonePlaceCounts[zone.id] ?? 0;
+                      return (
+                        <tr key={zone.id} className="border-b border-[var(--sg-border)]/50">
+                          <td className="py-2.5 pl-4 pr-4">
+                            <span className="inline-flex items-center gap-2">
+                              <span
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: isEnabled ? zone.color : '#d1d5db' }}
+                              />
+                              <span className={`font-medium ${isEnabled ? 'text-[var(--sg-navy)]' : 'text-[var(--sg-navy)]/40'}`}>
+                                {zone.name}
+                              </span>
+                            </span>
+                          </td>
+                          <td className="py-2.5 pr-4 text-[var(--sg-navy)]/60">
+                            {count > 0 ? count : '—'}
+                          </td>
+                          <td className="py-2.5 pr-4">
+                            <button
+                              onClick={() => toggleZoneEnabled(zone.id, !isEnabled)}
+                              disabled={zoneTogglingId === zone.id}
+                              className="shrink-0 cursor-pointer focus:outline-none disabled:opacity-50"
+                            >
+                              <div
+                                className="relative rounded-full transition-colors duration-200"
+                                style={{
+                                  width: 32,
+                                  height: 18,
+                                  backgroundColor: isEnabled ? 'var(--sg-thames)' : '#d1d5db',
+                                }}
+                              >
+                                <div
+                                  className="absolute top-[2px] w-[14px] h-[14px] bg-white rounded-full shadow-sm transition-transform duration-200"
+                                  style={{ transform: isEnabled ? 'translateX(16px)' : 'translateX(2px)' }}
+                                />
+                              </div>
+                            </button>
+                          </td>
+                          <td className="py-2.5 pr-4 text-right">
+                            <button
+                              onClick={() => navigate(`/map?editor=true&zone=${zone.id}`)}
+                              className="p-1 rounded-lg text-[var(--sg-navy)]/40 hover:text-[var(--sg-thames)] hover:bg-[var(--sg-thames)]/10 cursor-pointer"
+                              title="View on Map"
+                            >
+                              <MapPin size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
             </div>
           </div>
         )}

@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useMemo } from 'react';
 import type { MapRef } from 'react-map-gl/mapbox';
 import { Marker } from 'react-map-gl/mapbox';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -10,8 +10,11 @@ import { MapToolbar } from '../Map/MapToolbar';
 import { ZoneSidePanel } from '../Map/ZoneSidePanel';
 import { ZoneLockIcon } from '../Map/ZoneLockIcon';
 import { EditorPanel } from '../Editor/EditorPanel';
+import { ZoneListPanel } from '../Editor/ZoneListPanel';
+import { MobileDrawer } from '../ui/MobileDrawer';
 import type { Place, PlaceCategory, MapZoomState, Coordinates } from '../../types';
 import { ZONE_POLYGON_CENTERS, ZONE_MAP } from '../../utils/zoneMapping';
+import { CATEGORY_EMOJI } from '../../utils/mapStyles';
 import { useLandmarks } from '../../hooks/useLandmarks';
 import { useZoneTeasers } from '../../hooks/useZoneTeasers';
 
@@ -42,8 +45,11 @@ interface HeroMapSectionProps {
   onAddPlace?: (place: Omit<Place, 'id'>) => void;
   onUpdatePlace?: (id: string, updates: Partial<Place>) => void;
   onDeletePlace?: (id: string) => void;
-  onExportPlaces?: () => void;
   onCancelPending?: () => void;
+  onMoveToZone?: (placeId: string, zoneId: string) => void;
+  enabledZoneIds?: string[];
+  isZoneEnabled?: (zoneId: string) => boolean;
+  onToggleZone?: (zoneId: string, enabled: boolean) => void;
 }
 
 export function HeroMapSection({
@@ -73,12 +79,18 @@ export function HeroMapSection({
   onAddPlace,
   onUpdatePlace,
   onDeletePlace,
-  onExportPlaces,
   onCancelPending,
+  onMoveToZone,
+  enabledZoneIds = [],
+  isZoneEnabled: _isZoneEnabled,
+  onToggleZone,
 }: HeroMapSectionProps) {
   const [previewPlace, setPreviewPlace] = useState<Place | null>(null);
   const [activeCategory, setActiveCategory] = useState<PlaceCategory | null>(null);
   const [hoveredZoneId, setHoveredZoneId] = useState<string | null>(null);
+  const [editPlaceKey, setEditPlaceKey] = useState<string | null>(null);
+  const [showDisabledZones, setShowDisabledZones] = useState(false);
+  const [editorTab, setEditorTab] = useState<'places' | 'zones'>('places');
   const { landmarks } = useLandmarks();
   const { teasers } = useZoneTeasers();
 
@@ -86,10 +98,14 @@ export function HeroMapSection({
 
   const handlePlaceClick = useCallback(
     (place: Place) => {
-      setPreviewPlace(place);
+      if (isEditorMode) {
+        setEditPlaceKey(`${place.id}::${Date.now()}`);
+      } else {
+        setPreviewPlace(place);
+      }
       onPlaceClick(place);
     },
-    [onPlaceClick],
+    [onPlaceClick, isEditorMode],
   );
 
   const handleClosePreview = useCallback(() => {
@@ -108,7 +124,18 @@ export function HeroMapSection({
     zonePlaces.filter((p) => !activeCategory || p.category === activeCategory);
 
   // Use polygon centers for icon placement (center of zone boundary, not station location)
-  const allZonesWithCentroids = Object.entries(ZONE_POLYGON_CENTERS);
+  const allZonesWithCentroids = Object.entries(ZONE_POLYGON_CENTERS)
+    .filter(([zoneId]) => enabledZoneIds.includes(zoneId));
+  const placeCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const place of _places) {
+      if (place.zone) {
+        counts[place.zone] = (counts[place.zone] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }, [_places]);
+
   const lockedZonesWithCentroids = isEditorMode
     ? []
     : allZonesWithCentroids.filter(([zoneId]) => !unlockedZones.includes(zoneId));
@@ -117,7 +144,10 @@ export function HeroMapSection({
     : allZonesWithCentroids.filter(([zoneId]) => unlockedZones.includes(zoneId));
 
   const isFullscreen = mapState === 'expanded' || mapState === 'zoneDetail';
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const isZoneDetail = mapState === 'zoneDetail' && activeZone;
+  const teaserTotal = activeZone && teasers[activeZone]
+    ? Object.values(teasers[activeZone]).reduce((a, b) => a + b, 0)
+    : 0;
   const showLockedIcons = !isEditorMode;
   const showUnlockedIcons = mapState === 'overview' || mapState === 'expanded';
 
@@ -138,33 +168,118 @@ export function HeroMapSection({
     return () => { document.body.style.overflow = ''; };
   }, [isFullscreen]);
 
-  // Marker drag handler for editor mode
-  const handleMarkerDragEnd = useCallback(
-    (place: Place, lngLat: { lng: number; lat: number }) => {
-      onUpdatePlace?.(place.id, { coordinates: lngLat });
+  // Marker drag handlers for editor mode
+  // Coordinates are NOT saved on drag end — only when the form is submitted
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragCoordinates, setDragCoordinates] = useState<{ lng: number; lat: number } | null>(null);
+  const [draggedPlaceId, setDraggedPlaceId] = useState<string | null>(null);
+
+  const handleMarkerDragStart = useCallback((place: Place) => {
+    setIsDragging(true);
+    setDraggedPlaceId(place.id);
+    // Also open the edit form for this place
+    setEditPlaceKey(`${place.id}::${Date.now()}`);
+  }, []);
+
+  const handleMarkerDrag = useCallback(
+    (_place: Place, lngLat: { lng: number; lat: number }) => {
+      // Clip to active zone — don't allow dragging outside the zone boundary
+      const map = mapRef.current?.getMap();
+      if (map && activeZone) {
+        const point = map.project([lngLat.lng, lngLat.lat]);
+        const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
+        const inZone = features.some(f => f.properties?.zone === activeZone);
+        if (!inZone) return;
+      }
+      setDragCoordinates(lngLat);
     },
-    [onUpdatePlace],
+    [mapRef, activeZone],
   );
+
+  const handleMarkerDragEnd = useCallback(
+    (_place: Place, lngLat: { lng: number; lat: number }) => {
+      setIsDragging(false);
+      // Clip final position too
+      const map = mapRef.current?.getMap();
+      if (map && activeZone) {
+        const point = map.project([lngLat.lng, lngLat.lat]);
+        const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
+        const inZone = features.some(f => f.properties?.zone === activeZone);
+        if (!inZone) return; // Keep last valid dragCoordinates
+      }
+      // Keep dragCoordinates and draggedPlaceId — marker stays at new position
+      // Coordinates will be saved when user clicks "Update Place" in the form
+      setDragCoordinates(lngLat);
+    },
+    [],
+  );
+
+  // Clear drag override when form is submitted or cancelled
+  const clearDragOverride = useCallback(() => {
+    setDraggedPlaceId(null);
+    setDragCoordinates(null);
+  }, []);
+
+  // Override coordinates for a place being dragged (marker stays at new position until form save)
+  const displayPlaces = draggedPlaceId && dragCoordinates
+    ? filteredZonePlaces.map(p => p.id === draggedPlaceId ? { ...p, coordinates: dragCoordinates } : p)
+    : filteredZonePlaces;
 
   // Determine which sidebar to show
   const renderSidebar = () => {
     if (isEditorMode) {
-      if (mapState === 'zoneDetail' && activeZone) {
+      if (editorTab === 'zones') {
         return (
-          <EditorPanel
-            places={filteredZonePlaces}
-            pendingCoordinates={pendingCoordinates ?? null}
-            currentView={currentView}
-            onAdd={onAddPlace ?? (() => {})}
-            onUpdate={onUpdatePlace ?? (() => {})}
-            onDelete={onDeletePlace ?? (() => {})}
-            onExport={onExportPlaces ?? (() => {})}
-            onCancelPending={onCancelPending ?? (() => {})}
-            onPlaceClick={handlePlaceClick}
+          <ZoneListPanel
+            enabledZoneIds={enabledZoneIds}
+            onToggleZone={onToggleZone ?? (() => {})}
+            placeCounts={placeCounts}
+            activeZone={activeZone}
+            showDisabledOnMap={showDisabledZones}
+            onToggleShowDisabledOnMap={() => setShowDisabledZones(!showDisabledZones)}
+            onZoneClick={(zoneId) => {
+              setEditorTab('places');
+              onZoneClick(zoneId);
+            }}
           />
         );
       }
-      // "Select a zone" prompt when not in zoneDetail
+      if (mapState === 'zoneDetail' && activeZone) {
+        const zone = ZONE_MAP[activeZone];
+        return (
+          <div className="h-full w-full bg-white border-r border-[var(--sg-border)] flex flex-col overflow-hidden">
+            <div className="px-4 py-3 border-b border-[var(--sg-border)] flex items-center gap-2 shrink-0">
+              <span
+                className="w-3 h-3 rounded-full shrink-0"
+                style={{ backgroundColor: zone?.color ?? '#6b7280' }}
+              />
+              <span className="font-display text-sm font-bold text-[var(--sg-navy)]">
+                {zone?.name ?? activeZone}
+              </span>
+              <span className="text-xs text-[var(--sg-navy)]/40 ml-auto">
+                {displayPlaces.length} place{displayPlaces.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <EditorPanel
+                places={displayPlaces}
+                pendingCoordinates={pendingCoordinates ?? null}
+                currentView={currentView}
+                onAdd={onAddPlace ?? (() => {})}
+                onUpdate={onUpdatePlace ?? (() => {})}
+                onDelete={onDeletePlace ?? (() => {})}
+                onCancelPending={() => { onCancelPending?.(); setEditPlaceKey(null); }}
+                onPlaceClick={handlePlaceClick}
+                editPlaceKey={editPlaceKey}
+                isDragging={isDragging}
+                dragCoordinates={dragCoordinates}
+                onDragComplete={clearDragOverride}
+                onMoveToZone={onMoveToZone}
+              />
+            </div>
+          </div>
+        );
+      }
       return (
         <div className="h-full w-full bg-white border-r border-[var(--sg-border)] flex flex-col items-center justify-center p-8">
           <div className="w-14 h-14 rounded-full bg-[var(--sg-crimson)]/10 flex items-center justify-center mb-4">
@@ -199,7 +314,7 @@ export function HeroMapSection({
 
   // Should the sidebar be visible?
   const showSidebar = isEditorMode
-    ? (mapState === 'expanded' || mapState === 'zoneDetail')
+    ? (mapState === 'expanded' || mapState === 'zoneDetail' || editorTab === 'zones')
     : (mapState === 'zoneDetail' && activeZone);
 
   // ── Fullscreen mode ──
@@ -209,13 +324,49 @@ export function HeroMapSection({
         {/* White header bar */}
         <div className="bg-white border-b border-[var(--sg-border)] px-4 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-[var(--sg-navy)]">
-              {isEditorMode ? 'Editor' : 'Explore London'}
-            </span>
-            {isEditorMode && (
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[var(--sg-crimson)]/10 text-[var(--sg-crimson)]">
-                Edit Mode
+            {/* Mobile: show zone name in zoneDetail */}
+            {isZoneDetail ? (
+              <>
+                <span className="text-sm font-semibold text-[var(--sg-navy)] md:hidden">
+                  {ZONE_MAP[activeZone!]?.name ?? activeZone}
+                </span>
+                <span className="text-sm font-semibold text-[var(--sg-navy)] hidden md:inline">
+                  {isEditorMode ? 'Editor' : 'Explore London'}
+                </span>
+              </>
+            ) : (
+              <span className="text-sm font-semibold text-[var(--sg-navy)]">
+                {isEditorMode ? 'Editor' : 'Explore London'}
               </span>
+            )}
+            {isEditorMode && (
+              <>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[var(--sg-crimson)]/10 text-[var(--sg-crimson)]">
+                  Edit Mode
+                </span>
+                <div className="flex gap-1 ml-2">
+                  <button
+                    onClick={() => setEditorTab('places')}
+                    className={`text-xs px-2 py-1 rounded-md cursor-pointer transition-colors ${
+                      editorTab === 'places'
+                        ? 'bg-[var(--sg-navy)] text-white'
+                        : 'text-[var(--sg-navy)]/50 hover:bg-[var(--sg-offwhite)]'
+                    }`}
+                  >
+                    Places
+                  </button>
+                  <button
+                    onClick={() => setEditorTab('zones')}
+                    className={`text-xs px-2 py-1 rounded-md cursor-pointer transition-colors ${
+                      editorTab === 'zones'
+                        ? 'bg-[var(--sg-navy)] text-white'
+                        : 'text-[var(--sg-navy)]/50 hover:bg-[var(--sg-offwhite)]'
+                    }`}
+                  >
+                    Zones
+                  </button>
+                </div>
+              </>
             )}
           </div>
           <button
@@ -247,7 +398,7 @@ export function HeroMapSection({
           {/* Map — always full width */}
           <div className="h-full w-full relative">
             {/* Search + filter toolbar overlaid on map */}
-            <div className="absolute top-0 left-0 right-0 z-30">
+            <div className="absolute top-0 left-0 right-0 z-30 pointer-events-none">
               <MapToolbar
                 mapState={mapState}
                 activeZone={activeZone}
@@ -262,7 +413,7 @@ export function HeroMapSection({
               />
             </div>
             <InteractiveMap
-              places={mapState === 'zoneDetail' && !isZoneLocked ? filteredZonePlaces : []}
+              places={mapState === 'zoneDetail' && !isZoneLocked ? displayPlaces : []}
               mapRef={mapRef}
               onPlaceClick={handlePlaceClick}
               onMapClick={onMapClick}
@@ -275,6 +426,11 @@ export function HeroMapSection({
               activeZone={mapState === 'zoneDetail' ? activeZone : null}
               hoveredZone={hoveredZoneId}
               editorMode={isEditorMode}
+              enabledZoneIds={enabledZoneIds}
+              showDisabledZones={isEditorMode && showDisabledZones}
+              draggablePlaceId={isEditorMode && editPlaceKey ? editPlaceKey.split('::')[0] : null}
+              onMarkerDragStart={isEditorMode ? handleMarkerDragStart : undefined}
+              onMarkerDrag={isEditorMode ? handleMarkerDrag : undefined}
               onMarkerDragEnd={isEditorMode ? handleMarkerDragEnd : undefined}
               mapChildren={
                 <>
@@ -333,41 +489,66 @@ export function HeroMapSection({
                 <ZoneTeaser
                   zoneId={activeZone}
                   zoneName={activeZone ? ZONE_MAP[activeZone]?.name : undefined}
+                  teaserCounts={activeZone ? teasers[activeZone] : undefined}
                   places={allUnlockedPlaces ?? []}
                   activeCategory={activeCategoryProp ?? null}
                 />
               </div>
             )}
 
-            {/* Mobile bottom peek bar — tap or drag up to open drawer */}
-            {mapState === 'zoneDetail' && activeZone && !isEditorMode && !mobileDrawerOpen && (
-              <motion.div
-                className="md:hidden absolute bottom-0 left-0 right-0 z-30 touch-none"
-                drag="y"
-                dragConstraints={{ top: 0, bottom: 0 }}
-                dragElastic={0.2}
-                onDragEnd={(_e, info) => {
-                  if (info.offset.y < -50) setMobileDrawerOpen(true);
-                }}
+            {/* Mobile bottom drawer — absolute inside map container, same as MapToolbar */}
+            <div className="md:hidden">
+              <MobileDrawer
+                isOpen={!!isZoneDetail && !isEditorMode}
+                onClose={handleBack}
+                containerHeight={typeof window !== 'undefined' ? window.innerHeight - 48 : 700}
+                peekContent={
+                  <p className="text-sm text-[var(--sg-navy)] text-center">
+                    {isZoneLocked
+                      ? <>This zone has <span className="font-bold text-[var(--sg-crimson)]">{teaserTotal}</span> place{teaserTotal !== 1 ? 's' : ''} waiting for you</>
+                      : <><span className="font-bold text-[var(--sg-thames)]">{filteredZonePlaces.length}</span> place{filteredZonePlaces.length !== 1 ? 's' : ''} to explore</>
+                    }
+                  </p>
+                }
               >
-                <button
-                  onClick={() => setMobileDrawerOpen(true)}
-                  className="w-full bg-white/95 backdrop-blur-sm border-t border-[var(--sg-border)] px-5 py-3 cursor-pointer"
-                >
-                  <div className="w-8 h-1 rounded-full bg-[var(--sg-border)] mx-auto mb-2" />
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-[var(--sg-navy)]">
+                {/* Render sidebar with header hidden (already in map header + peek) */}
+                {mapState === 'zoneDetail' && activeZone && !isEditorMode && (
+                  <ZoneSidePanel
+                    zoneId={activeZone}
+                    zoneName={ZONE_MAP[activeZone]?.name}
+                    places={filteredZonePlaces}
+                    onPlaceClick={handlePlaceClick}
+                    locked={!unlockedZones.includes(activeZone)}
+                    onUnlock={() => onUnlockZone(activeZone)}
+                    teaserCounts={teasers[activeZone]}
+                    hideHeader
+                  />
+                )}
+                {/* Zone teaser inside drawer for mobile */}
+                {mapState === 'zoneDetail' && activeZone && teasers[activeZone] && (
+                  <div className="px-5 py-4 border-t border-[var(--sg-border)]">
+                    <div className="text-xs font-bold text-[#7c2d36] uppercase tracking-wider mb-2">
                       {ZONE_MAP[activeZone]?.name ?? activeZone}
-                    </span>
-                    <span className="text-xs text-[var(--sg-navy)]/40">
-                      {isZoneLocked ? 'Swipe up to unlock' : `${filteredZonePlaces.length} places`}
-                    </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {Object.entries(teasers[activeZone])
+                        .sort(([, a], [, b]) => b - a)
+                        .map(([category, count]) => (
+                          <div key={category} className="flex items-center justify-between text-sm">
+                            <span className="flex items-center gap-2 text-[#2d1f1a]">
+                              <span className="text-base">{CATEGORY_EMOJI[category] ?? '📍'}</span>
+                              <span className="capitalize">{category}s</span>
+                            </span>
+                            <span className="font-medium text-[#7c2d36]">{count}</span>
+                          </div>
+                        ))}
+                    </div>
                   </div>
-                </button>
-              </motion.div>
-            )}
+                )}
+              </MobileDrawer>
+            </div>
 
-            {/* Bottom bar — not in editor, not in zoneDetail on mobile */}
+            {/* Bottom bar — not in editor, not in zoneDetail */}
             {!isEditorMode && !(mapState === 'zoneDetail' && activeZone) && (
               <div className="absolute bottom-0 left-0 right-0 z-30">
                 <div className="bg-gradient-to-t from-[var(--sg-navy)]/80 to-transparent
@@ -382,64 +563,6 @@ export function HeroMapSection({
           </div>
         </div>
 
-        {/* Mobile bottom drawer */}
-        <AnimatePresence>
-          {mobileDrawerOpen && mapState === 'zoneDetail' && activeZone && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/30 z-40 md:hidden"
-                onClick={() => setMobileDrawerOpen(false)}
-              />
-              <motion.div
-                initial={{ y: '100%' }}
-                animate={{ y: 0 }}
-                exit={{ y: '100%' }}
-                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                drag="y"
-                dragConstraints={{ top: 0, bottom: 0 }}
-                dragElastic={{ top: 0, bottom: 0.4 }}
-                onDragEnd={(_e, info) => {
-                  if (info.offset.y > 100 || info.velocity.y > 500) {
-                    setMobileDrawerOpen(false);
-                  }
-                }}
-                className="fixed bottom-0 left-0 right-0 z-50 md:hidden
-                  bg-white rounded-t-2xl shadow-2xl max-h-[75vh] overflow-y-auto touch-none"
-              >
-                {/* Drag handle */}
-                <div className="flex justify-center pt-3 pb-1 sticky top-0 bg-white rounded-t-2xl cursor-grab active:cursor-grabbing">
-                  <div className="w-10 h-1 rounded-full bg-[var(--sg-border)]" />
-                </div>
-
-                {/* Teaser header */}
-                <div className="px-5 pb-3 border-b border-[var(--sg-border)]">
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-lg font-display font-bold text-[var(--sg-navy)]">
-                      {ZONE_MAP[activeZone]?.name ?? activeZone}
-                    </h3>
-                    <button
-                      onClick={() => setMobileDrawerOpen(false)}
-                      className="p-1.5 rounded-full hover:bg-[var(--sg-offwhite)] cursor-pointer"
-                    >
-                      <X size={18} className="text-[var(--sg-navy)]/40" />
-                    </button>
-                  </div>
-                  <p className="text-xs text-[var(--sg-navy)]/50">
-                    {ZONE_MAP[activeZone]?.description}
-                  </p>
-                </div>
-
-                {/* Sidebar content */}
-                <div className="min-h-[200px]">
-                  {renderSidebar()}
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
       </div>
     );
   }
@@ -457,6 +580,7 @@ export function HeroMapSection({
           mode="full"
           interactive={false}
           hoveredZone={hoveredZoneId}
+          enabledZoneIds={enabledZoneIds}
           mapChildren={
             lockedZonesWithCentroids.map(([zoneId, coords]) => (
               <ZoneLockIcon

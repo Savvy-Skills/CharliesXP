@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useSearchParams } from 'react-router';
-import { ZONE_MAP, MANAGED_ZONES } from '../utils/zoneMapping';
+import { useSearchParams, useNavigate } from 'react-router';
+import { ZONE_MAP, ZONE_POLYGON_CENTERS, ZONE_CENTROIDS } from '../utils/zoneMapping';
 import { PageShell } from '../components/Layout/PageShell';
 import { SEOHead } from '../components/SEOHead';
 import { HeroMapSection } from '../components/Landing/HeroMapSection';
@@ -10,23 +10,25 @@ import { useMapFlyTo } from '../hooks/useMapFlyTo';
 import { useMapZoom } from '../hooks/useMapZoom';
 import { useAuth } from '../hooks/useAuth';
 import { usePackages } from '../hooks/usePackages';
-import { supabase } from '../lib/supabase';
+import { useZoneSettings } from '../hooks/useZoneSettings';
 import type { Place, Coordinates } from '../types';
 
 export function LandingPage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const isEditorMode = searchParams.get('editor') === 'true';
 
   // Preload packages so PaywallModal opens instantly
   usePackages();
 
-  const { places, getPlacesByZone, activeCategories, refetch } = usePlaces();
+  const { places, getPlacesByZone, activeCategories, refetch, optimisticAdd, optimisticUpdate, optimisticDelete } = usePlaces();
   const { mapRef, flyToPlace, flyToDefault } = useMapFlyTo();
   const { mapState, activeZone, expandMap, zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, handleZoomChange, handleMoveEnd } = useMapZoom(mapRef);
   const { unlockedZones: rawUnlockedZones, isZoneUnlocked, isAdmin, refreshAccess } = useAuth();
+  const { enabledZoneIds, isZoneEnabled, toggleZone } = useZoneSettings();
 
-  // Admins have all zones unlocked
-  const unlockedZones = isAdmin ? MANAGED_ZONES : rawUnlockedZones;
+  // Admins see all enabled zones as unlocked; regular users only see zones that are both unlocked AND enabled
+  const unlockedZones = isAdmin ? enabledZoneIds : rawUnlockedZones.filter(z => enabledZoneIds.includes(z));
   const [paywallZone, setPaywallZone] = useState<string | null>(null);
   const [paymentToast, setPaymentToast] = useState<'success' | 'cancelled' | null>(null);
   // Handle payment return params
@@ -75,7 +77,8 @@ export function LandingPage() {
         setTimeout(() => zoomIntoZone(zone), 500);
       }
     } else if (zone && mapState === 'expanded') {
-      zoomIntoZone(zone);
+      // Delay to let the map mount when navigating from another page
+      setTimeout(() => zoomIntoZone(zone), 500);
     }
   }, [isEditorMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -123,6 +126,10 @@ export function LandingPage() {
         if (features.length > 0) {
           const zoneName = features[0].properties?.zone as string;
           if (zoneName) {
+            if (!isEditorMode && !isZoneEnabled(zoneName)) {
+              expandMap();
+              return;
+            }
             expandMap();
             if (isEditorMode || isZoneUnlocked(zoneName)) {
               setTimeout(() => zoomIntoZone(zoneName), 450);
@@ -140,10 +147,24 @@ export function LandingPage() {
       const map = mapRef.current?.getMap();
       if (!map) return;
       const point = map.project([e.lngLat.lng, e.lngLat.lat]);
+
+      // Editor mode: clicking a disabled zone zooms into it
+      if (isEditorMode && map.getLayer('zones-disabled-fill')) {
+        const disabledFeatures = map.queryRenderedFeatures(point, { layers: ['zones-disabled-fill'] });
+        if (disabledFeatures.length > 0) {
+          const zoneName = disabledFeatures[0].properties?.zone as string;
+          if (zoneName) {
+            zoomIntoZone(zoneName);
+            return;
+          }
+        }
+      }
+
       const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
       if (features.length > 0) {
         const zoneName = features[0].properties?.zone as string;
         if (!zoneName) return;
+        if (!isEditorMode && !isZoneEnabled(zoneName)) return;
         if (isEditorMode || isZoneUnlocked(zoneName)) {
           zoomIntoZone(zoneName);
         } else {
@@ -151,7 +172,7 @@ export function LandingPage() {
         }
       }
     },
-    [mapState, mapRef, isZoneUnlocked, zoomIntoZone, expandMap, isEditorMode, activeZone],
+    [mapState, mapRef, isZoneUnlocked, isZoneEnabled, zoomIntoZone, expandMap, isEditorMode, activeZone],
   );
 
   const handleZoneClick = useCallback(
@@ -166,53 +187,35 @@ export function LandingPage() {
     setPendingCoordinates(null);
   }, []);
 
-  // Supabase-backed editor CRUD
-  const handleAddPlace = useCallback(async (place: Omit<Place, 'id'>) => {
-    const { error } = await supabase.from('places').insert({
-      name: place.name,
-      description: place.description,
-      category: place.category,
-      zone_id: place.zone ?? activeZone ?? '',
-      coordinates: place.coordinates,
-      address: place.address,
-      marker_icon: place.markerIcon,
-      marker_image: place.markerImage,
-      images: place.images,
-      rating: place.rating,
-      tags: place.tags,
-      visit_date: place.visitDate,
-      camera: { zoom: place.zoom, pitch: place.pitch, bearing: place.bearing },
-      placed: true,
-      active: true,
-    });
-    if (error) console.error('Add place error:', error);
-    else refetch();
-  }, [activeZone, refetch]);
+  // Editor CRUD — optimistic updates
+  const handleAddPlace = useCallback(
+    (place: Omit<Place, 'id'>) => optimisticAdd(place, activeZone ?? ''),
+    [activeZone, optimisticAdd],
+  );
 
-  const handleUpdatePlace = useCallback(async (id: string, updates: Partial<Place>) => {
-    const dbUpdates: Record<string, unknown> = {};
-    if (updates.name !== undefined) dbUpdates.name = updates.name;
-    if (updates.description !== undefined) dbUpdates.description = updates.description;
-    if (updates.category !== undefined) dbUpdates.category = updates.category;
-    if (updates.zone !== undefined) dbUpdates.zone_id = updates.zone;
-    if (updates.coordinates !== undefined) {
-      dbUpdates.coordinates = updates.coordinates;
-      dbUpdates.placed = true;
-    }
-    if (updates.address !== undefined) dbUpdates.address = updates.address;
-    if (updates.rating !== undefined) dbUpdates.rating = updates.rating;
-    if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
+  const handleUpdatePlace = useCallback(
+    (id: string, updates: Partial<Place>) => optimisticUpdate(id, updates),
+    [optimisticUpdate],
+  );
 
-    const { error } = await supabase.from('places').update(dbUpdates).eq('id', id);
-    if (error) console.error('Update place error:', error);
-    else refetch();
-  }, [refetch]);
+  const handleDeletePlace = useCallback(
+    (id: string) => optimisticDelete(id),
+    [optimisticDelete],
+  );
 
-  const handleDeletePlace = useCallback(async (id: string) => {
-    const { error } = await supabase.from('places').delete().eq('id', id);
-    if (error) console.error('Delete place error:', error);
-    else refetch();
-  }, [refetch]);
+  const handleMoveToZone = useCallback(
+    (placeId: string, zoneId: string) => {
+      // Move the place to the target zone's center so it lands inside the boundary
+      const center = ZONE_POLYGON_CENTERS[zoneId] ?? ZONE_CENTROIDS[zoneId];
+      const updates: Partial<Place> = { zone: zoneId };
+      if (center) {
+        updates.coordinates = { lng: center.lng, lat: center.lat };
+      }
+      optimisticUpdate(placeId, updates);
+      zoomIntoZone(zoneId);
+    },
+    [optimisticUpdate, zoomIntoZone],
+  );
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -270,11 +273,13 @@ export function LandingPage() {
         onUnlockZone={(zoneId) => setPaywallZone(zoneId)}
         onZoneClick={handleZoneClick}
         onZoomOut={zoomOutToExpanded}
+        enabledZoneIds={enabledZoneIds}
+        isZoneEnabled={isZoneEnabled}
+        onToggleZone={toggleZone}
         onCollapse={() => {
           zoomOutToOverview();
           if (isEditorMode) {
-            // Clear editor params and navigate to clean /
-            window.history.pushState(null, '', '/');
+            navigate('/', { replace: true });
           }
         }}
         onExpand={expandMap}
@@ -292,6 +297,7 @@ export function LandingPage() {
         onAddPlace={handleAddPlace}
         onUpdatePlace={handleUpdatePlace}
         onDeletePlace={handleDeletePlace}
+        onMoveToZone={handleMoveToZone}
       />
 
       {!isEditorMode && (

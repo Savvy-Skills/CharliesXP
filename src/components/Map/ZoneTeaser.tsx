@@ -5,19 +5,27 @@ import { CATEGORY_EMOJI } from '../../utils/mapStyles';
 interface ZoneTeaserProps {
   zoneId?: string | null;
   zoneName?: string;
-  places: Place[];
-  activeCategory: PlaceCategory | null;
+  places?: Place[];
+  teaserCounts?: Record<string, number>;
+  activeCategory?: PlaceCategory | null;
 }
 
-function getCategoryEmoji(category: PlaceCategory): string {
+function getCategoryEmoji(category: string): string {
   return CATEGORY_EMOJI[category] ?? '📍';
 }
 
-export default function ZoneTeaser({ zoneId, zoneName, places, activeCategory }: ZoneTeaserProps) {
+export default function ZoneTeaser({ zoneId, zoneName, places, teaserCounts, activeCategory }: ZoneTeaserProps) {
   const categoryCounts = useMemo(() => {
+    // If teaserCounts provided (from RPC), use directly
+    if (teaserCounts) {
+      return Object.entries(teaserCounts)
+        .sort(([, a], [, b]) => b - a) as [string, number][];
+    }
+
+    // Otherwise derive from places array
     const filtered = activeCategory
-      ? places.filter(p => p.category === activeCategory)
-      : places;
+      ? (places ?? []).filter(p => p.category === activeCategory)
+      : (places ?? []);
 
     const counts: Partial<Record<PlaceCategory, number>> = {};
     for (const place of filtered) {
@@ -25,8 +33,8 @@ export default function ZoneTeaser({ zoneId, zoneName, places, activeCategory }:
     }
 
     return Object.entries(counts)
-      .sort(([, a], [, b]) => b - a) as [PlaceCategory, number][];
-  }, [places, activeCategory]);
+      .sort(([, a], [, b]) => b - a) as [string, number][];
+  }, [places, teaserCounts, activeCategory]);
 
   if (categoryCounts.length === 0) return null;
 
