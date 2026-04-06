@@ -30,6 +30,14 @@ export function useZoneSettings(): ZoneSettingsReturn {
     }
 
     fetchEnabledZones();
+
+    // Re-fetch when auth state changes (login/logout) so the query
+    // runs with the correct session token
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      fetchEnabledZones();
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const isZoneEnabled = useCallback(

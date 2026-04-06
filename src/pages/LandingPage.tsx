@@ -77,7 +77,8 @@ export function LandingPage() {
         setTimeout(() => zoomIntoZone(zone), 500);
       }
     } else if (zone && mapState === 'expanded') {
-      zoomIntoZone(zone);
+      // Delay to let the map mount when navigating from another page
+      setTimeout(() => zoomIntoZone(zone), 500);
     }
   }, [isEditorMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -147,13 +148,13 @@ export function LandingPage() {
       if (!map) return;
       const point = map.project([e.lngLat.lng, e.lngLat.lat]);
 
-      // Editor mode: check for disabled zone clicks (enable on click)
+      // Editor mode: clicking a disabled zone zooms into it
       if (isEditorMode && map.getLayer('zones-disabled-fill')) {
         const disabledFeatures = map.queryRenderedFeatures(point, { layers: ['zones-disabled-fill'] });
         if (disabledFeatures.length > 0) {
           const zoneName = disabledFeatures[0].properties?.zone as string;
           if (zoneName) {
-            toggleZone(zoneName, true);
+            zoomIntoZone(zoneName);
             return;
           }
         }
@@ -171,7 +172,7 @@ export function LandingPage() {
         }
       }
     },
-    [mapState, mapRef, isZoneUnlocked, isZoneEnabled, toggleZone, zoomIntoZone, expandMap, isEditorMode, activeZone],
+    [mapState, mapRef, isZoneUnlocked, isZoneEnabled, zoomIntoZone, expandMap, isEditorMode, activeZone],
   );
 
   const handleZoneClick = useCallback(

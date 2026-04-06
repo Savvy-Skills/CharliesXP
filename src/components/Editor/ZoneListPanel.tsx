@@ -7,6 +7,9 @@ interface ZoneListPanelProps {
   onToggleZone: (zoneId: string, enabled: boolean) => void;
   placeCounts: Record<string, number>;
   onZoneClick: (zoneId: string) => void;
+  activeZone?: string | null;
+  showDisabledOnMap?: boolean;
+  onToggleShowDisabledOnMap?: () => void;
 }
 
 interface ConfirmDialog {
@@ -19,20 +22,35 @@ export function ZoneListPanel({
   onToggleZone,
   placeCounts,
   onZoneClick,
+  activeZone,
+  showDisabledOnMap,
+  onToggleShowDisabledOnMap,
 }: ZoneListPanelProps) {
   const [search, setSearch] = useState('');
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialog | null>(null);
 
   const filteredZones = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return ZONES;
-    return ZONES.filter(
-      (z) =>
-        z.id.toLowerCase().includes(q) ||
-        z.name.toLowerCase().includes(q) ||
-        z.postcode.toLowerCase().includes(q),
-    );
-  }, [search]);
+    const base = q
+      ? ZONES.filter(
+          (z) =>
+            z.id.toLowerCase().includes(q) ||
+            z.name.toLowerCase().includes(q) ||
+            z.postcode.toLowerCase().includes(q),
+        )
+      : ZONES;
+    const enabledSet = new Set(enabledZoneIds);
+    return [...base].sort((a, b) => {
+      // Active zone first
+      if (a.id === activeZone) return -1;
+      if (b.id === activeZone) return 1;
+      // Enabled before disabled
+      const aEnabled = enabledSet.has(a.id);
+      const bEnabled = enabledSet.has(b.id);
+      if (aEnabled !== bEnabled) return aEnabled ? -1 : 1;
+      return 0;
+    });
+  }, [search, activeZone, enabledZoneIds]);
 
   const enabledCount = enabledZoneIds.length;
   const totalCount = ZONES.length;
@@ -76,12 +94,31 @@ export function ZoneListPanel({
           />
         </div>
 
-        {/* Summary */}
-        <p className="text-xs text-[var(--sg-navy)]/50">
-          <span className="font-semibold text-[var(--sg-navy)]/70">{enabledCount} enabled</span>
-          {' / '}
-          {totalCount} total
-        </p>
+        {/* Summary + map toggle */}
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-[var(--sg-navy)]/50">
+            <span className="font-semibold text-[var(--sg-navy)]/70">{enabledCount} enabled</span>
+            {' / '}
+            {totalCount} total
+          </p>
+          {onToggleShowDisabledOnMap && (
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <span className="text-[10px] text-[var(--sg-navy)]/50">Show disabled on map</span>
+              <button
+                onClick={onToggleShowDisabledOnMap}
+                className={`relative w-7 h-4 rounded-full transition-colors cursor-pointer ${
+                  showDisabledOnMap ? 'bg-[var(--sg-thames)]' : 'bg-gray-300'
+                }`}
+              >
+                <div
+                  className={`absolute top-[2px] w-3 h-3 rounded-full bg-white shadow-sm transition-transform ${
+                    showDisabledOnMap ? 'translate-x-[14px]' : 'translate-x-[2px]'
+                  }`}
+                />
+              </button>
+            </label>
+          )}
+        </div>
       </div>
 
       {/* Zone list */}
@@ -94,13 +131,18 @@ export function ZoneListPanel({
           <div className="space-y-0.5 px-2">
             {filteredZones.map((zone) => {
               const isEnabled = enabledZoneIds.includes(zone.id);
+              const isCurrent = zone.id === activeZone;
               const count = placeCounts[zone.id] ?? 0;
               const dotColor = isEnabled ? zone.color : '#d1d5db';
 
               return (
                 <div
                   key={zone.id}
-                  className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-[var(--sg-offwhite)] transition-colors group"
+                  className={`flex items-center gap-3 px-2 py-2.5 rounded-xl transition-colors group ${
+                    isCurrent
+                      ? 'bg-[var(--sg-thames)]/8 ring-1 ring-[var(--sg-thames)]/20'
+                      : 'hover:bg-[var(--sg-offwhite)]'
+                  }`}
                 >
                   {/* Color dot */}
                   <div

@@ -234,6 +234,9 @@ export function HeroMapSection({
             enabledZoneIds={enabledZoneIds}
             onToggleZone={onToggleZone ?? (() => {})}
             placeCounts={placeCounts}
+            activeZone={activeZone}
+            showDisabledOnMap={showDisabledZones}
+            onToggleShowDisabledOnMap={() => setShowDisabledZones(!showDisabledZones)}
             onZoneClick={(zoneId) => {
               setEditorTab('places');
               onZoneClick(zoneId);
@@ -242,22 +245,39 @@ export function HeroMapSection({
         );
       }
       if (mapState === 'zoneDetail' && activeZone) {
+        const zone = ZONE_MAP[activeZone];
         return (
-          <EditorPanel
-            places={displayPlaces}
-            pendingCoordinates={pendingCoordinates ?? null}
-            currentView={currentView}
-            onAdd={onAddPlace ?? (() => {})}
-            onUpdate={onUpdatePlace ?? (() => {})}
-            onDelete={onDeletePlace ?? (() => {})}
-            onCancelPending={() => { onCancelPending?.(); setEditPlaceKey(null); }}
-            onPlaceClick={handlePlaceClick}
-            editPlaceKey={editPlaceKey}
-            isDragging={isDragging}
-            dragCoordinates={dragCoordinates}
-            onDragComplete={clearDragOverride}
-            onMoveToZone={onMoveToZone}
-          />
+          <div className="h-full w-full bg-white border-r border-[var(--sg-border)] flex flex-col overflow-hidden">
+            <div className="px-4 py-3 border-b border-[var(--sg-border)] flex items-center gap-2 shrink-0">
+              <span
+                className="w-3 h-3 rounded-full shrink-0"
+                style={{ backgroundColor: zone?.color ?? '#6b7280' }}
+              />
+              <span className="font-display text-sm font-bold text-[var(--sg-navy)]">
+                {zone?.name ?? activeZone}
+              </span>
+              <span className="text-xs text-[var(--sg-navy)]/40 ml-auto">
+                {displayPlaces.length} place{displayPlaces.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <EditorPanel
+                places={displayPlaces}
+                pendingCoordinates={pendingCoordinates ?? null}
+                currentView={currentView}
+                onAdd={onAddPlace ?? (() => {})}
+                onUpdate={onUpdatePlace ?? (() => {})}
+                onDelete={onDeletePlace ?? (() => {})}
+                onCancelPending={() => { onCancelPending?.(); setEditPlaceKey(null); }}
+                onPlaceClick={handlePlaceClick}
+                editPlaceKey={editPlaceKey}
+                isDragging={isDragging}
+                dragCoordinates={dragCoordinates}
+                onDragComplete={clearDragOverride}
+                onMoveToZone={onMoveToZone}
+              />
+            </div>
+          </div>
         );
       }
       return (
@@ -346,21 +366,6 @@ export function HeroMapSection({
                     Zones
                   </button>
                 </div>
-                <label className="flex items-center gap-1.5 ml-3 cursor-pointer">
-                  <span className="text-[10px] text-[var(--sg-navy)]/50">Available</span>
-                  <button
-                    onClick={() => setShowDisabledZones(!showDisabledZones)}
-                    className={`relative w-7 h-4 rounded-full transition-colors cursor-pointer ${
-                      showDisabledZones ? 'bg-[var(--sg-thames)]' : 'bg-gray-300'
-                    }`}
-                  >
-                    <div
-                      className={`absolute top-[2px] w-3 h-3 rounded-full bg-white shadow-sm transition-transform ${
-                        showDisabledZones ? 'translate-x-[14px]' : 'translate-x-[2px]'
-                      }`}
-                    />
-                  </button>
-                </label>
               </>
             )}
           </div>
