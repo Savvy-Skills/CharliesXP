@@ -164,12 +164,25 @@ export function LandingPage() {
         return;
       }
 
-      // Already in zone detail — ignore background clicks
-      if (mapState === 'zoneDetail') return;
-
       const map = mapRef.current?.getMap();
       if (!map) return;
       const point = map.project([e.lngLat.lng, e.lngLat.lat]);
+
+      // In zone detail: allow switching to a different zone, ignore background clicks
+      if (mapState === 'zoneDetail') {
+        const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
+        if (features.length > 0) {
+          const zoneName = features[0].properties?.zone as string;
+          if (zoneName && zoneName !== activeZone && (isEditorMode || isZoneEnabled(zoneName))) {
+            if (isEditorMode || isZoneUnlocked(zoneName)) {
+              navigateToZone(zoneName);
+            } else {
+              setPaywallZone(zoneName);
+            }
+          }
+        }
+        return;
+      }
 
       if (mapState === 'overview') {
         const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
