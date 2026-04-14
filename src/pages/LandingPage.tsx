@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, useParams, useLocation } from 'react-router';
-import { ZONE_MAP, ZONE_POLYGON_CENTERS, ZONE_CENTROIDS } from '../utils/zoneMapping';
+import { ZONE_MAP, ZONE_POLYGON_CENTERS, ZONE_CENTROIDS, ZONE_EXIT_THRESHOLD } from '../utils/zoneMapping';
 import { PageShell } from '../components/Layout/PageShell';
 import { SEOHead } from '../components/SEOHead';
 import { HeroMapSection } from '../components/Landing/HeroMapSection';
@@ -139,7 +139,7 @@ export function LandingPage() {
   const handleZoomChange = useCallback(
     (zoom: number) => {
       if (mapState !== 'zoneDetail' || isAnimating.current) return;
-      if (zoom < 12.5) {
+      if (zoom < ZONE_EXIT_THRESHOLD) {
         const qs = searchParams.toString();
         navigate(`/map${qs ? '?' + qs : ''}`);
       }
@@ -168,21 +168,8 @@ export function LandingPage() {
       if (!map) return;
       const point = map.project([e.lngLat.lng, e.lngLat.lat]);
 
-      // In zone detail: allow switching to a different zone, ignore background clicks
-      if (mapState === 'zoneDetail') {
-        const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
-        if (features.length > 0) {
-          const zoneName = features[0].properties?.zone as string;
-          if (zoneName && zoneName !== activeZone && (isEditorMode || isZoneEnabled(zoneName))) {
-            if (isEditorMode || isZoneUnlocked(zoneName)) {
-              navigateToZone(zoneName);
-            } else {
-              setPaywallZone(zoneName);
-            }
-          }
-        }
-        return;
-      }
+      // Already in zone detail — ignore background clicks
+      if (mapState === 'zoneDetail') return;
 
       if (mapState === 'overview') {
         const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
