@@ -8,9 +8,9 @@ import { useAuth } from '../hooks/useAuth';
 import { CATEGORY_EMOJI } from '../utils/mapStyles';
 
 export function PlaceDetailPage() {
-  const { slug } = useParams<{ slug: string }>();
+  const { slug, placeSlug } = useParams<{ slug?: string; placeSlug?: string }>();
   const { getPlaceBySlug, getPlacesByZone } = usePlaces();
-  const place = slug ? getPlaceBySlug(slug) : null;
+  const place = getPlaceBySlug(placeSlug ?? slug ?? '');
   const { isZoneUnlocked } = useAuth();
 
   if (!place) {
@@ -48,7 +48,7 @@ export function PlaceDetailPage() {
       <SEOHead
         title={place.name}
         description={`${place.name} — ${place.category} in ${place.zone ?? 'London'}. ${place.description.slice(0, 120)}…`}
-        path={`/place/${place.slug}`}
+        path={place.zone ? `/map/${place.zone}/${place.slug}` : `/place/${place.slug}`}
         type="article"
       />
       <div className="max-w-2xl mx-auto px-4 py-8">
@@ -82,7 +82,7 @@ export function PlaceDetailPage() {
               {siblingPlaces.map((p) => (
                 <Link
                   key={p.id}
-                  to={`/place/${p.slug}`}
+                  to={p.zone ? `/map/${p.zone}/${p.slug}` : `/place/${p.slug}`}
                   className="flex items-center gap-3 p-3 rounded-xl bg-white
                     border border-[var(--sg-border)] hover:bg-[var(--sg-offwhite)] transition-colors"
                 >

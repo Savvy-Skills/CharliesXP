@@ -184,7 +184,7 @@ export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked =
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/place/${place.slug}`);
+                          navigate(place.zone ? `/map/${place.zone}/${place.slug}` : `/place/${place.slug}`);
                         }}
                         className="flex items-center gap-1 mt-2 text-[10px] font-semibold
                           text-[var(--sg-crimson)] hover:text-[var(--sg-crimson-hover)] transition-colors cursor-pointer"
