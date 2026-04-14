@@ -168,8 +168,19 @@ export function LandingPage() {
       if (!map) return;
       const point = map.project([e.lngLat.lng, e.lngLat.lat]);
 
-      // Already in zone detail — ignore background clicks
-      if (mapState === 'zoneDetail') return;
+      // In zone detail: allow clicking a different zone, ignore everything else
+      if (mapState === 'zoneDetail') {
+        const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
+        const zoneName = features[0]?.properties?.zone as string | undefined;
+        if (zoneName && zoneName !== activeZone && (isEditorMode || isZoneEnabled(zoneName))) {
+          if (isEditorMode || isZoneUnlocked(zoneName)) {
+            navigateToZone(zoneName);
+          } else {
+            setPaywallZone(zoneName);
+          }
+        }
+        return;
+      }
 
       if (mapState === 'overview') {
         const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
