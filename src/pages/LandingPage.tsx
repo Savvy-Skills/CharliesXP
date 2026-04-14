@@ -34,7 +34,7 @@ export function LandingPage() {
 
   const { places, getPlacesByZone, activeCategories, refetch, optimisticAdd, optimisticUpdate, optimisticDelete } = usePlaces();
   const { mapRef, flyToPlace, flyToDefault } = useMapFlyTo();
-  const { zoomIntoZone, zoomOutToExpanded, zoomOutToOverview } = useMapZoom(mapRef);
+  const { zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, isAnimating } = useMapZoom(mapRef);
   const { unlockedZones: rawUnlockedZones, isZoneUnlocked, isAdmin, refreshAccess } = useAuth();
   const { enabledZoneIds, isZoneEnabled, toggleZone } = useZoneSettings();
 
@@ -134,6 +134,18 @@ export function LandingPage() {
   }, [pendingPlaceId, places, flyToPlace]);
 
   // ── Event handlers ────────────────────────────────────────────────────────
+
+  // When the user manually zooms out of a zone, clear the zone from the URL
+  const handleZoomChange = useCallback(
+    (zoom: number) => {
+      if (mapState !== 'zoneDetail' || isAnimating.current) return;
+      if (zoom < 12.5) {
+        const qs = searchParams.toString();
+        navigate(`/map${qs ? '?' + qs : ''}`);
+      }
+    },
+    [mapState, isAnimating, navigate, searchParams],
+  );
 
   const handlePlaceClick = useCallback(
     (place: Place) => { flyToPlace(place); },
@@ -299,6 +311,7 @@ export function LandingPage() {
           onExpand={() => navigate('/map')}
           onResetView={flyToDefault}
           onMapClick={handleMapClick}
+          onZoomChange={handleZoomChange}
           allUnlockedPlaces={activeZonePlaces}
           activeCategory={activeCategory}
           isEditorMode={isEditorMode}

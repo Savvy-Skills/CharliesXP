@@ -80,5 +80,5 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
     }, 1200);
   }, [flyToWithGuard]);
 
-  return { zoomIntoZone, zoomOutToExpanded, zoomOutToOverview };
+  return { zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, isAnimating };
 }
