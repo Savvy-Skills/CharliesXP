@@ -27,3 +27,4 @@ dist-ssr
 # Personal / local
 docs/superpowers/
 .claude/
+docs/
