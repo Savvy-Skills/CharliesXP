@@ -69,7 +69,7 @@ export function PlacePreviewCard({ place, onClose }: PlacePreviewCardProps) {
             <p className="text-xs text-[var(--sg-navy)]/60 mt-2 line-clamp-2">{place.description}</p>
 
             <button
-              onClick={() => navigate(`/place/${place.id}`)}
+              onClick={() => navigate(`/place/${place.slug}`)}
               className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl
                 bg-[var(--sg-crimson)] hover:bg-[var(--sg-crimson-hover)] text-white text-sm font-semibold
                 transition-all cursor-pointer"

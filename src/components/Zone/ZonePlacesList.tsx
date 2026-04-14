@@ -20,7 +20,7 @@ export function ZonePlacesList({ places }: ZonePlacesListProps) {
         return (
           <Link
             key={place.id}
-            to={`/place/${place.id}`}
+            to={`/place/${place.slug}`}
             className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm
               border border-[var(--sg-border)] hover:shadow-md hover:-translate-y-0.5 transition-all"
           >

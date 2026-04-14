@@ -27,6 +27,11 @@ export function usePlaces() {
     [places],
   );
 
+  const getPlaceBySlug = useCallback(
+    (slug: string) => places.find((p) => p.slug === slug) ?? null,
+    [places],
+  );
+
   const getPlacesByZone = useCallback(
     (zone: string) => places.filter((p) => p.zone === zone),
     [places],
@@ -44,6 +49,7 @@ export function usePlaces() {
     activeCategories,
     toggleCategory,
     getPlaceById,
+    getPlaceBySlug,
     getPlacesByZone,
     getZoneById,
     loading,

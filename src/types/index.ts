@@ -5,6 +5,7 @@ export interface Coordinates {
 
 export interface Place {
   id: string;
+  slug: string;
   name: string;
   description: string;
   category: PlaceCategory;

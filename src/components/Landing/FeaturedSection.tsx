@@ -38,7 +38,7 @@ export function FeaturedSection({ places }: FeaturedSectionProps) {
               viewport={{ once: true, margin: '-50px' }}
               transition={{ delay: i * 0.15, duration: 0.6, ease: 'easeOut' }}
             >
-              <Link to={`/place/${place.id}`} className="im-card block p-7 group">
+              <Link to={`/place/${place.slug}`} className="im-card block p-7 group">
                 {/* Icon + meta */}
                 <div className="flex items-start gap-4 mb-5">
                   <div

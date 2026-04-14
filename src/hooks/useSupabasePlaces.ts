@@ -4,6 +4,7 @@ import type { Place, PlaceCategory } from '../types';
 
 interface SupabasePlaceRow {
   id: string;
+  slug: string;
   name: string;
   description: string;
   category: PlaceCategory;
@@ -21,9 +22,18 @@ interface SupabasePlaceRow {
   active: boolean;
 }
 
+export function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/[\s-]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
 function rowToPlace(row: SupabasePlaceRow): Place {
   return {
     id: row.id,
+    slug: row.slug ?? generateSlug(row.name),
     name: row.name,
     description: row.description,
     category: row.category,
@@ -43,9 +53,10 @@ function rowToPlace(row: SupabasePlaceRow): Place {
   };
 }
 
-function placeToRow(place: Omit<Place, 'id'>, activeZone: string): Record<string, unknown> {
+function placeToRow(place: Omit<Place, 'id' | 'slug'>, activeZone: string): Record<string, unknown> {
   return {
     name: place.name,
+    slug: generateSlug(place.name),
     description: place.description,
     category: place.category,
     zone_id: place.zone ?? activeZone,
