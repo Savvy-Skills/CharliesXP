@@ -295,7 +295,7 @@ export function HeroMapSection({
       );
     }
 
-    // Normal mode: ZoneSidePanel
+    // Normal mode: ZoneSidePanel when a zone is selected
     if (mapState === 'zoneDetail' && activeZone) {
       return (
         <ZoneSidePanel
@@ -309,13 +309,72 @@ export function HeroMapSection({
         />
       );
     }
+
+    // Normal mode: zones overview panel when no zone is selected
+    if (mapState === 'expanded') {
+      const enabledZones = enabledZoneIds
+        .map((id) => ZONE_MAP[id])
+        .filter(Boolean);
+
+      return (
+        <div className="h-full w-full bg-white border-r border-[var(--sg-border)] flex flex-col overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--sg-border)] shrink-0">
+            <h2 className="font-display text-sm font-bold text-[var(--sg-navy)]">Zones</h2>
+            <p className="text-xs text-[var(--sg-navy)]/50 mt-0.5">
+              {unlockedZones.length} of {enabledZones.length} unlocked — tap a zone to explore
+            </p>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {enabledZones.map((zone) => {
+              const isUnlocked = unlockedZones.includes(zone.id);
+              const count = placeCounts[zone.id] ?? 0;
+              const teaser = teasers[zone.id];
+              const teaserCount = teaser ? Object.values(teaser).reduce((a, b) => a + b, 0) : 0;
+              const displayCount = isUnlocked ? count : teaserCount;
+
+              return (
+                <button
+                  key={zone.id}
+                  onClick={() => onZoneClick(zone.id)}
+                  onMouseEnter={() => setHoveredZoneId(zone.id)}
+                  onMouseLeave={() => setHoveredZoneId(null)}
+                  className="w-full text-left px-4 py-3 border-b border-[var(--sg-border)]/60 hover:bg-[var(--sg-offwhite)] transition-colors cursor-pointer flex items-start gap-3"
+                >
+                  <span
+                    className="w-3 h-3 rounded-full shrink-0 mt-1"
+                    style={{ backgroundColor: zone.color }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-display text-sm font-bold text-[var(--sg-navy)] truncate">
+                        {zone.name}
+                      </span>
+                      <span className={`text-xs font-medium shrink-0 ${isUnlocked ? 'text-[var(--sg-thames)]' : 'text-[var(--sg-navy)]/40'}`}>
+                        {displayCount > 0 ? `${displayCount} place${displayCount !== 1 ? 's' : ''}` : ''}
+                        {!isUnlocked && <span className="ml-1">🔒</span>}
+                      </span>
+                    </div>
+                    {zone.description && (
+                      <p className="text-xs text-[var(--sg-navy)]/50 mt-0.5 line-clamp-2 leading-relaxed">
+                        {zone.description}
+                      </p>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
     return null;
   };
 
   // Should the sidebar be visible?
   const showSidebar = isEditorMode
     ? (mapState === 'expanded' || mapState === 'zoneDetail' || editorTab === 'zones')
-    : (mapState === 'zoneDetail' && activeZone);
+    : (mapState === 'expanded' || (mapState === 'zoneDetail' && !!activeZone));
 
   // ── Fullscreen mode ──
   if (isFullscreen) {

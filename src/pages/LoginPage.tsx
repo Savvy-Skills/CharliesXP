@@ -14,7 +14,7 @@ export function LoginPage() {
   const [signupSuccess, setSignupSuccess] = useState(false);
 
   if (isLoggedIn) {
-    navigate('/account', { replace: true });
+    navigate('/map', { replace: true });
     return null;
   }
 
@@ -29,7 +29,7 @@ export function LoginPage() {
         setError(err.message);
         setLoading(false);
       } else {
-        navigate('/account', { replace: true });
+        navigate('/map', { replace: true });
       }
     } else {
       const { error: err } = await signUpWithEmail(email, password);

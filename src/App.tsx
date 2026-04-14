@@ -44,9 +44,10 @@ export default function App() {
     <AuthProvider>
       <Suspense fallback={<PageFallback />}>
         <AnimatePresence mode="wait">
-          <Routes location={location} key={location.pathname === '/map' ? '/' : location.pathname}>
+          <Routes location={location} key={location.pathname === '/' || location.pathname.startsWith('/map') ? '_landing' : location.pathname}>
             <Route path="/" element={<AnimatedPage><LandingPage /></AnimatedPage>} />
             <Route path="/map" element={<AnimatedPage><LandingPage /></AnimatedPage>} />
+            <Route path="/map/:zoneId" element={<AnimatedPage><LandingPage /></AnimatedPage>} />
             <Route path="/place/:id" element={<AnimatedPage><PlaceDetailPage /></AnimatedPage>} />
             <Route path="/zone/:name" element={<AnimatedPage><ZoneDetailPage /></AnimatedPage>} />
             <Route path="/style-guide" element={<StyleGuidePage />} />
