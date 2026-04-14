@@ -1,7 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router';
 import { Menu, X, User, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useMapHeader } from '../../hooks/useMapHeader';
 import { SECTIONS } from '../../pages/TheLondonILoveData';
 
 const SIMPLE_NAV = [
@@ -15,7 +16,28 @@ export function Header() {
   const [londonOpen, setLondonOpen] = useState(false);
   const [mobileEditorialOpen, setMobileEditorialOpen] = useState(false);
   const { isLoggedIn, signOut, isAdmin } = useAuth();
+  const mapHeader = useMapHeader();
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isMapMode = mapHeader?.isMapMode ?? false;
+  const isEditorMode = mapHeader?.isEditorMode ?? false;
+  const editorTab = mapHeader?.editorTab ?? 'places';
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef<HTMLDivElement | null>(null);
+
+  const toggleAccount = () => setAccountOpen((o) => !o);
+  const closeAccount = () => setAccountOpen(false);
+
+  useEffect(() => {
+    if (!accountOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (accountRef.current && !accountRef.current.contains(e.target as Node)) {
+        setAccountOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [accountOpen]);
 
   const openDropdown = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
@@ -31,10 +53,10 @@ export function Header() {
       className="sticky top-0 z-50 bg-[var(--sg-offwhite)]/97 backdrop-blur-lg"
       style={{ boxShadow: '0 1px 0 var(--sg-border), 0 4px 16px rgba(53,60,79,0.04)' }}
     >
-      <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
+      <div className={`${isMapMode ? 'w-full' : 'max-w-7xl mx-auto'} px-5 md:px-8 h-16 flex items-center justify-between`}>
 
         {/* Logo */}
-        <Link to="/" className="flex items-center group" aria-label="Charlies XP — home">
+        <Link to="/" className="flex items-center group shrink-0" aria-label="Charlies XP — home">
           <img
             src="/logo.jpg"
             alt="Charlies XP — Experience London Like a Londoner"
@@ -42,7 +64,38 @@ export function Header() {
           />
         </Link>
 
-        {/* Desktop nav */}
+        {/* Editor tabs — only in editor map mode, desktop */}
+        {isMapMode && isEditorMode && (
+          <div className="hidden md:flex items-center gap-2 ml-4">
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[var(--sg-crimson)]/10 text-[var(--sg-crimson)]">
+              Edit Mode
+            </span>
+            <div className="flex gap-1">
+              <button
+                onClick={() => mapHeader?.onEditorTabChange('places')}
+                className={`text-xs px-2 py-1 rounded-md cursor-pointer transition-colors ${
+                  editorTab === 'places'
+                    ? 'bg-[var(--sg-navy)] text-white'
+                    : 'text-[var(--sg-navy)]/50 hover:bg-[var(--sg-offwhite)]'
+                }`}
+              >
+                Places
+              </button>
+              <button
+                onClick={() => mapHeader?.onEditorTabChange('zones')}
+                className={`text-xs px-2 py-1 rounded-md cursor-pointer transition-colors ${
+                  editorTab === 'zones'
+                    ? 'bg-[var(--sg-navy)] text-white'
+                    : 'text-[var(--sg-navy)]/50 hover:bg-[var(--sg-offwhite)]'
+                }`}
+              >
+                Zones
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Desktop nav — always visible */}
         <div className="hidden md:flex items-center gap-8">
           <nav aria-label="Main navigation" className="flex items-center gap-6">
 
@@ -56,7 +109,7 @@ export function Header() {
                 to="/the-london-i-love"
                 aria-haspopup="true"
                 aria-expanded={londonOpen}
-                className="flex items-center gap-1 relative text-sm font-medium text-[var(--sg-navy)]/60 hover:text-[var(--sg-navy)] transition-colors
+                className="flex items-center gap-1 relative text-sm font-medium text-[var(--sg-navy)]/80 hover:text-[var(--sg-navy)] transition-colors
                   after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[2px]
                   after:bg-[var(--sg-thames)] after:transition-all after:duration-300
                   hover:after:w-full"
@@ -95,7 +148,7 @@ export function Header() {
               <Link
                 key={link.to}
                 to={link.to}
-                className="relative text-sm font-medium text-[var(--sg-navy)]/60 hover:text-[var(--sg-navy)] transition-colors
+                className="relative text-sm font-medium text-[var(--sg-navy)]/80 hover:text-[var(--sg-navy)] transition-colors
                   after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[2px]
                   after:bg-[var(--sg-thames)] after:transition-all after:duration-300
                   hover:after:w-full"
@@ -105,36 +158,67 @@ export function Header() {
             ))}
           </nav>
 
-          <div className="w-px h-6 bg-[var(--sg-border)]" aria-hidden="true" />
 
+          {/* Account icon */}
           {isLoggedIn ? (
-            <div className="flex items-center gap-2">
-              {isAdmin && (
-                <Link to="/admin" className="px-4 py-2 rounded-xl text-sm font-medium text-[var(--sg-navy)]/60 hover:text-[var(--sg-navy)] hover:bg-[var(--sg-border)] transition-colors">
-                  Admin
-                </Link>
-              )}
-              <Link to="/account" className="px-4 py-2 rounded-xl text-sm font-medium text-[var(--sg-navy)]/60 hover:text-[var(--sg-navy)] hover:bg-[var(--sg-border)] transition-colors">
-                Account
-              </Link>
+            <div className="relative" ref={accountRef}>
               <button
-                onClick={() => signOut()}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold bg-[var(--sg-offwhite)] text-[var(--sg-navy)] hover:bg-[var(--sg-border)] transition-all cursor-pointer"
+                onClick={toggleAccount}
+                aria-label="Account menu"
+                aria-haspopup="true"
+                aria-expanded={accountOpen}
+                className="w-9 h-9 flex items-center justify-center rounded-xl text-[var(--sg-navy)]/80 hover:text-[var(--sg-navy)] hover:bg-[var(--sg-border)] transition-colors cursor-pointer"
               >
-                <User size={14} /> Logout
+                <User size={18} />
               </button>
+
+              {accountOpen && (
+                <div
+                  role="menu"
+                  className="absolute top-full right-0 mt-2 w-44 bg-white rounded-xl border border-[var(--sg-border)] shadow-lg overflow-hidden z-50"
+                >
+                  <div className="p-1.5">
+                    <Link
+                      to="/account"
+                      role="menuitem"
+                      onClick={() => setAccountOpen(false)}
+                      className="block px-4 py-2.5 rounded-lg text-sm font-medium text-[var(--sg-navy)]/70 hover:text-[var(--sg-navy)] hover:bg-[var(--sg-offwhite)] transition-colors"
+                    >
+                      Account
+                    </Link>
+                    {isAdmin && (
+                      <Link
+                        to="/admin"
+                        role="menuitem"
+                        onClick={() => setAccountOpen(false)}
+                        className="block px-4 py-2.5 rounded-lg text-sm font-medium text-[var(--sg-navy)]/70 hover:text-[var(--sg-navy)] hover:bg-[var(--sg-offwhite)] transition-colors"
+                      >
+                        Admin
+                      </Link>
+                    )}
+                    <button
+                      role="menuitem"
+                      onClick={() => { signOut(); setAccountOpen(false); }}
+                      className="w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium text-[var(--sg-navy)]/70 hover:text-[var(--sg-navy)] hover:bg-[var(--sg-offwhite)] transition-colors cursor-pointer"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <Link
               to="/login"
-              className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold bg-[var(--sg-thames)] text-white hover:bg-[var(--sg-thames-hover)] shadow-sm hover:shadow-md transition-all"
+              aria-label="Login or register"
+              className="w-9 h-9 flex items-center justify-center rounded-xl text-[var(--sg-navy)]/60 hover:text-[var(--sg-navy)] hover:bg-[var(--sg-border)] transition-colors"
             >
-              <User size={14} /> Login / Register
+              <User size={18} />
             </Link>
           )}
         </div>
 
-        {/* Mobile hamburger */}
+        {/* Mobile hamburger — always visible */}
         <button
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label={menuOpen ? 'Close menu' : 'Open menu'}

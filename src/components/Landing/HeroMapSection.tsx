@@ -2,7 +2,7 @@ import { useCallback, useState, useEffect, useMemo } from 'react';
 import type { MapRef } from 'react-map-gl/mapbox';
 import { Marker } from 'react-map-gl/mapbox';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Sparkles, X, MapPin } from 'lucide-react';
+import { Sparkles, MapPin } from 'lucide-react';
 import { InteractiveMap } from '../Map/InteractiveMap';
 import ZoneTeaser from '../Map/ZoneTeaser';
 import { PlacePreviewCard } from '../Map/PlacePreviewCard';
@@ -40,6 +40,8 @@ interface HeroMapSectionProps {
   activeCategory?: PlaceCategory | null;
   // Editor props
   isEditorMode?: boolean;
+  editorTab?: 'places' | 'zones';
+  onEditorTabChange?: (tab: 'places' | 'zones') => void;
   pendingCoordinates?: Coordinates | null;
   currentView?: { zoom: number; pitch: number; bearing: number };
   onAddPlace?: (place: Omit<Place, 'id'>) => void;
@@ -74,6 +76,8 @@ export function HeroMapSection({
   activeCategory: activeCategoryProp,
   // Editor
   isEditorMode = false,
+  editorTab = 'places',
+  onEditorTabChange,
   pendingCoordinates,
   currentView = { zoom: 16, pitch: 50, bearing: 0 },
   onAddPlace,
@@ -90,7 +94,6 @@ export function HeroMapSection({
   const [hoveredZoneId, setHoveredZoneId] = useState<string | null>(null);
   const [editPlaceKey, setEditPlaceKey] = useState<string | null>(null);
   const [showDisabledZones, setShowDisabledZones] = useState(false);
-  const [editorTab, setEditorTab] = useState<'places' | 'zones'>('places');
   const { landmarks } = useLandmarks();
   const { teasers } = useZoneTeasers();
 
@@ -238,7 +241,7 @@ export function HeroMapSection({
             showDisabledOnMap={showDisabledZones}
             onToggleShowDisabledOnMap={() => setShowDisabledZones(!showDisabledZones)}
             onZoneClick={(zoneId) => {
-              setEditorTab('places');
+              onEditorTabChange?.('places');
               onZoneClick(zoneId);
             }}
           />
@@ -379,63 +382,7 @@ export function HeroMapSection({
   // ── Fullscreen mode ──
   if (isFullscreen) {
     return (
-      <div className="fixed inset-0 z-[100] bg-[var(--sg-offwhite)] flex flex-col">
-        {/* White header bar */}
-        <div className="bg-white border-b border-[var(--sg-border)] px-4 py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {/* Mobile: show zone name in zoneDetail */}
-            {isZoneDetail ? (
-              <>
-                <span className="text-sm font-semibold text-[var(--sg-navy)] md:hidden">
-                  {ZONE_MAP[activeZone!]?.name ?? activeZone}
-                </span>
-                <span className="text-sm font-semibold text-[var(--sg-navy)] hidden md:inline">
-                  {isEditorMode ? 'Editor' : 'Explore London'}
-                </span>
-              </>
-            ) : (
-              <span className="text-sm font-semibold text-[var(--sg-navy)]">
-                {isEditorMode ? 'Editor' : 'Explore London'}
-              </span>
-            )}
-            {isEditorMode && (
-              <>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[var(--sg-crimson)]/10 text-[var(--sg-crimson)]">
-                  Edit Mode
-                </span>
-                <div className="flex gap-1 ml-2">
-                  <button
-                    onClick={() => setEditorTab('places')}
-                    className={`text-xs px-2 py-1 rounded-md cursor-pointer transition-colors ${
-                      editorTab === 'places'
-                        ? 'bg-[var(--sg-navy)] text-white'
-                        : 'text-[var(--sg-navy)]/50 hover:bg-[var(--sg-offwhite)]'
-                    }`}
-                  >
-                    Places
-                  </button>
-                  <button
-                    onClick={() => setEditorTab('zones')}
-                    className={`text-xs px-2 py-1 rounded-md cursor-pointer transition-colors ${
-                      editorTab === 'zones'
-                        ? 'bg-[var(--sg-navy)] text-white'
-                        : 'text-[var(--sg-navy)]/50 hover:bg-[var(--sg-offwhite)]'
-                    }`}
-                  >
-                    Zones
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-          <button
-            onClick={onCollapse}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[var(--sg-navy)] hover:bg-[var(--sg-offwhite)] transition-colors cursor-pointer"
-          >
-            <X size={15} />
-            <span className="text-xs font-semibold">Close</span>
-          </button>
-        </div>
+      <div className="fixed top-16 inset-x-0 bottom-0 z-40 bg-[var(--sg-offwhite)] flex flex-col">
 
         {/* Main area: map takes full width, sidebar overlays from left */}
         <div className="flex-1 relative overflow-hidden">

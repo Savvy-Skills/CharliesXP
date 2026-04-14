@@ -5,6 +5,7 @@ import { PageShell } from '../components/Layout/PageShell';
 import { SEOHead } from '../components/SEOHead';
 import { HeroMapSection } from '../components/Landing/HeroMapSection';
 import { PaywallModal } from '../components/ui/PaywallModal';
+import { MapHeaderProvider } from '../hooks/useMapHeader';
 import { usePlaces } from '../hooks/usePlaces';
 import { useMapFlyTo } from '../hooks/useMapFlyTo';
 import { useMapZoom } from '../hooks/useMapZoom';
@@ -40,6 +41,8 @@ export function LandingPage() {
   const unlockedZones = isAdmin ? enabledZoneIds : rawUnlockedZones.filter(z => enabledZoneIds.includes(z));
   const [paywallZone, setPaywallZone] = useState<string | null>(null);
   const [paymentToast, setPaymentToast] = useState<'success' | 'cancelled' | null>(null);
+  const [editorTab, setEditorTab] = useState<'places' | 'zones'>('places');
+  const isMapMode = mapState === 'expanded' || mapState === 'zoneDetail';
 
   // Handle payment return params (?payment=success|cancelled)
   useEffect(() => {
@@ -239,6 +242,14 @@ export function LandingPage() {
   };
 
   return (
+    <MapHeaderProvider value={{
+      isMapMode,
+      isEditorMode,
+      editorTab,
+      onEditorTabChange: setEditorTab,
+      onCollapse: () => { zoomOutToOverview(); navigate('/'); },
+      activeZone,
+    }}>
     <>
       {/* Payment toast — outside PageShell for z-index */}
       {paymentToast && (
@@ -291,6 +302,8 @@ export function LandingPage() {
           allUnlockedPlaces={activeZonePlaces}
           activeCategory={activeCategory}
           isEditorMode={isEditorMode}
+          editorTab={editorTab}
+          onEditorTabChange={setEditorTab}
           pendingCoordinates={pendingCoordinates}
           currentView={currentView}
           onCancelPending={handleCancelPending}
@@ -374,5 +387,6 @@ export function LandingPage() {
         />
       </PageShell>
     </>
+    </MapHeaderProvider>
   );
 }
