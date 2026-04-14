@@ -41,7 +41,7 @@ export function LandingPage() {
   const unlockedZones = isAdmin ? enabledZoneIds : rawUnlockedZones.filter(z => enabledZoneIds.includes(z));
   const [paywallZone, setPaywallZone] = useState<string | null>(null);
   const [paymentToast, setPaymentToast] = useState<'success' | 'cancelled' | null>(null);
-  const [editorTab, setEditorTab] = useState<'places' | 'zones'>('places');
+  const [editorTab, setEditorTab] = useState<'places' | 'zones' | 'landmarks'>('places');
   const isMapMode = mapState === 'expanded' || mapState === 'zoneDetail';
 
   // Handle payment return params (?payment=success|cancelled)

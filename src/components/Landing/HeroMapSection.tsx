@@ -40,8 +40,8 @@ interface HeroMapSectionProps {
   activeCategory?: PlaceCategory | null;
   // Editor props
   isEditorMode?: boolean;
-  editorTab?: 'places' | 'zones';
-  onEditorTabChange?: (tab: 'places' | 'zones') => void;
+  editorTab?: 'places' | 'zones' | 'landmarks';
+  onEditorTabChange?: (tab: 'places' | 'zones' | 'landmarks') => void;
   pendingCoordinates?: Coordinates | null;
   currentView?: { zoom: number; pitch: number; bearing: number };
   onAddPlace?: (place: Omit<Place, 'id'>) => void;
