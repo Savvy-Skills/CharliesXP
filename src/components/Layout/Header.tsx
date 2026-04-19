@@ -26,7 +26,6 @@ export function Header() {
   const accountRef = useRef<HTMLDivElement | null>(null);
 
   const toggleAccount = () => setAccountOpen((o) => !o);
-  const closeAccount = () => setAccountOpen(false);
 
   useEffect(() => {
     if (!accountOpen) return;
