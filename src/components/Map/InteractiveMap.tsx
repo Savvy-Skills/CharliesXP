@@ -7,7 +7,120 @@ import { MAP_STYLES, DEFAULT_VIEW_STATE, LONDON_BOUNDS, ALLOWED_LABEL_LAYERS, ty
 import { ZONE_ENTER_THRESHOLD } from '../../utils/zoneMapping';
 import { createModelLayer } from './ModelLayer';
 import { useAuth } from '../../hooks/useAuth';
+import { Modal } from '../ui/Modal';
 import type { Place, ViewState } from '../../types';
+
+type StyleOverride = object | string;
+type StyleConfig = Record<string, Record<string, unknown>>;
+type CameraDirective = { center?: [number, number]; zoom?: number; bearing?: number; pitch?: number };
+type ApplyDirective = {
+  style?: StyleOverride;
+  config?: StyleConfig;
+  camera?: CameraDirective;
+};
+
+/**
+ * Playground exports look like `{ style: "mapbox://...", config: {...}, center, zoom, ... }`.
+ * Raw style objects have `version` + `sources` + `layers`. Distinguish so we can route each
+ * piece (style URL, config props, camera) to the right API.
+ */
+function toApplyDirective(parsed: unknown): ApplyDirective | null {
+  if (typeof parsed === 'string') return { style: parsed };
+  if (!parsed || typeof parsed !== 'object') return null;
+  const obj = parsed as Record<string, unknown>;
+  const looksLikePlayground =
+    typeof obj.style === 'string' || obj.config !== undefined || (obj.center !== undefined && obj.sources === undefined);
+  if (looksLikePlayground) {
+    const dir: ApplyDirective = {};
+    if (typeof obj.style === 'string' || (obj.style && typeof obj.style === 'object')) {
+      dir.style = obj.style as StyleOverride;
+    }
+    if (obj.config && typeof obj.config === 'object') dir.config = obj.config as StyleConfig;
+    const camera: CameraDirective = {};
+    if (Array.isArray(obj.center) && obj.center.length === 2) camera.center = obj.center as [number, number];
+    if (typeof obj.zoom === 'number') camera.zoom = obj.zoom;
+    if (typeof obj.bearing === 'number') camera.bearing = obj.bearing;
+    if (typeof obj.pitch === 'number') camera.pitch = obj.pitch;
+    if (Object.keys(camera).length > 0) dir.camera = camera;
+    return dir;
+  }
+  return { style: obj };
+}
+
+/**
+ * Lenient JSON parser. Accepts the JS object-literal form the Mapbox Playground emits:
+ * comments, trailing commas, and unquoted object keys.
+ */
+function parseLenientJson(input: string): unknown {
+  const isIdStart = (c: string) => /[A-Za-z_$]/.test(c);
+  const isIdCont = (c: string) => /[\w$-]/.test(c);
+
+  let out = '';
+  let i = 0;
+  const n = input.length;
+
+  const lastNonSpace = () => {
+    for (let p = out.length - 1; p >= 0; p--) {
+      if (!/\s/.test(out[p])) return out[p];
+    }
+    return '';
+  };
+
+  while (i < n) {
+    const ch = input[i];
+    // String literal — copy verbatim (protects string contents from key-quoting etc).
+    if (ch === '"' || ch === "'") {
+      const quote = ch;
+      const start = i;
+      i++;
+      while (i < n) {
+        if (input[i] === '\\') { i += 2; continue; }
+        if (input[i] === quote) { i++; break; }
+        i++;
+      }
+      // Normalize single-quoted strings to double quotes.
+      if (quote === "'") {
+        const inner = input.slice(start + 1, i - 1).replace(/"/g, '\\"');
+        out += '"' + inner + '"';
+      } else {
+        out += input.slice(start, i);
+      }
+      continue;
+    }
+    // Line comment.
+    if (ch === '/' && input[i + 1] === '/') {
+      i += 2;
+      while (i < n && input[i] !== '\n') i++;
+      continue;
+    }
+    // Block comment.
+    if (ch === '/' && input[i + 1] === '*') {
+      i += 2;
+      while (i < n && !(input[i] === '*' && input[i + 1] === '/')) i++;
+      i += 2;
+      continue;
+    }
+    // Unquoted identifier — quote it iff it's in object-key position.
+    if (isIdStart(ch)) {
+      let j = i;
+      while (j < n && isIdCont(input[j])) j++;
+      const ident = input.slice(i, j);
+      let k = j;
+      while (k < n && /\s/.test(input[k])) k++;
+      const reservedValue = ident === 'true' || ident === 'false' || ident === 'null';
+      const prev = lastNonSpace();
+      const inKeyPosition = input[k] === ':' && !reservedValue && (prev === '{' || prev === ',' || prev === '');
+      out += inKeyPosition ? `"${ident}"` : ident;
+      i = j;
+      continue;
+    }
+    out += ch;
+    i++;
+  }
+  // Strip trailing commas before `}` or `]`.
+  out = out.replace(/,(\s*[}\]])/g, '$1');
+  return JSON.parse(out);
+}
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -41,7 +154,7 @@ interface InteractiveMapProps {
   onMarkerDragEnd?: (place: Place, lngLat: { lng: number; lat: number }) => void;
 }
 
-function DebugOverlay({ viewState, activeZone, editorMode, onResetCamera }: { viewState: ViewState; activeZone: string | null; editorMode?: boolean; onResetCamera?: () => void }) {
+function DebugOverlay({ viewState, activeZone, editorMode, onResetCamera, onOpenStyleModal, hasStyleOverride, onClearStyleOverride }: { viewState: ViewState; activeZone: string | null; editorMode?: boolean; onResetCamera?: () => void; onOpenStyleModal?: () => void; hasStyleOverride?: boolean; onClearStyleOverride?: () => void }) {
   const { profile, isAdmin } = useAuth();
   const searchParams = new URLSearchParams(window.location.search);
   const isEditor = editorMode || searchParams.get('editor') === 'true';
@@ -70,6 +183,22 @@ function DebugOverlay({ viewState, activeZone, editorMode, onResetCamera }: { vi
             <a href="/admin" className="block text-orange-400 hover:text-orange-300">
               Dashboard
             </a>
+            {onOpenStyleModal && (
+              <button
+                onClick={onOpenStyleModal}
+                className="block text-left text-yellow-400 hover:text-yellow-300 cursor-pointer"
+              >
+                Edit Style JSON{hasStyleOverride ? ' *' : ''}
+              </button>
+            )}
+            {hasStyleOverride && onClearStyleOverride && (
+              <button
+                onClick={onClearStyleOverride}
+                className="block text-left text-gray-300 hover:text-white cursor-pointer"
+              >
+                Reset Style
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -86,6 +215,83 @@ function DebugOverlay({ viewState, activeZone, editorMode, onResetCamera }: { vi
         </button>
       )}
     </div>
+  );
+}
+
+function StyleOverrideModal({ isOpen, onClose, onApply, initialValue }: { isOpen: boolean; onClose: () => void; onApply: (directive: ApplyDirective) => void; initialValue: string }) {
+  const [value, setValue] = useState(initialValue);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setValue(initialValue);
+      setError(null);
+    }
+  }, [isOpen, initialValue]);
+
+  const handleApply = () => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setError('Paste a JSON style object or a "mapbox://..." URL string.');
+      return;
+    }
+    try {
+      const parsed = parseLenientJson(trimmed);
+      const directive = toApplyDirective(parsed);
+      if (!directive || (!directive.style && !directive.config && !directive.camera)) {
+        setError('Nothing to apply. Expected a style JSON, a style URL, or a Playground object with style/config/camera.');
+        return;
+      }
+      onApply(directive);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? `Invalid JSON: ${err.message}` : 'Invalid JSON');
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose}>
+      <div className="p-6">
+        <h2 className="text-lg font-semibold text-[var(--sg-navy)] mb-1 font-display">
+          Override Map Style
+        </h2>
+        <p className="text-xs text-[var(--sg-navy)]/60 mb-4">
+          Accepts: a full Mapbox style JSON object, a JSON-quoted URL like{' '}
+          <code className="bg-[var(--sg-offwhite)] px-1 py-0.5 rounded">"mapbox://styles/mapbox/dark-v11"</code>,
+          or a Mapbox Playground export (the whole{' '}
+          <code className="bg-[var(--sg-offwhite)] px-1 py-0.5 rounded">{'{ style, config, center, zoom, ... }'}</code> object).
+          Comments and trailing commas are allowed.
+        </p>
+        <textarea
+          value={value}
+          onChange={(e) => { setValue(e.target.value); setError(null); }}
+          placeholder={'{\n  "version": 8,\n  "sources": { ... },\n  "layers": [ ... ]\n}'}
+          className="w-full h-72 px-3 py-2 rounded-lg border border-[var(--sg-border)]
+            bg-[var(--sg-offwhite)] font-mono text-xs text-[var(--sg-navy)]
+            focus:outline-none focus:ring-2 focus:ring-[var(--sg-navy)]/30 resize-none custom-scrollbar"
+          spellCheck={false}
+        />
+        {error && (
+          <p className="mt-2 text-xs text-red-600 whitespace-pre-wrap">{error}</p>
+        )}
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="px-4 py-1.5 rounded-lg text-sm text-[var(--sg-navy)]/70
+              hover:bg-[var(--sg-offwhite)] transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleApply}
+            className="px-4 py-1.5 rounded-lg text-sm bg-[var(--sg-navy)] text-white
+              hover:bg-[var(--sg-navy)]/90 transition-colors cursor-pointer"
+          >
+            Apply
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -137,6 +343,11 @@ export function InteractiveMap({
     return DEFAULT_VIEW_STATE;
   });
   const [mapStyle] = useState<MapStyleKey>('streets');
+  const [overrideStyle, setOverrideStyle] = useState<StyleOverride | null>(null);
+  const [styleConfig, setStyleConfig] = useState<StyleConfig | null>(null);
+  const styleConfigRef = useRef<StyleConfig | null>(null);
+  useEffect(() => { styleConfigRef.current = styleConfig; }, [styleConfig]);
+  const [styleModalOpen, setStyleModalOpen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [layerVersion, setLayerVersion] = useState(0);
   const hoveredZoneRef = useRef<string | null>(null);
@@ -149,6 +360,30 @@ export function InteractiveMap({
   useEffect(() => {
     sessionStorage.setItem('map-viewport', JSON.stringify(viewState));
   }, [viewState]);
+
+  // Apply Mapbox Standard-style config props (e.g. basemap.show3dBuildings).
+  // Re-applies on every style.load because swapping styles resets config.
+  useEffect(() => {
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+    const applyConfig = () => {
+      const cfg = styleConfigRef.current;
+      if (!cfg) return;
+      for (const [scope, props] of Object.entries(cfg)) {
+        for (const [key, value] of Object.entries(props)) {
+          try {
+            (map as unknown as { setConfigProperty: (s: string, k: string, v: unknown) => void })
+              .setConfigProperty(scope, key, value);
+          } catch {
+            // Non-Standard styles don't support setConfigProperty — ignore.
+          }
+        }
+      }
+    };
+    applyConfig();
+    map.on('style.load', applyConfig);
+    return () => { map.off('style.load', applyConfig); };
+  }, [mapRef, styleConfig]);
 
   const handleMove = useCallback((evt: ViewStateChangeEvent) => {
     const vs = evt.viewState as ViewState;
@@ -576,7 +811,7 @@ export function InteractiveMap({
         onMoveEnd={() => onMoveEnd?.()}
         onClick={isContained ? undefined : onMapClick}
         mapboxAccessToken={MAPBOX_TOKEN}
-        mapStyle={MAP_STYLES[mapStyle]}
+        mapStyle={(overrideStyle ?? MAP_STYLES[mapStyle]) as Parameters<typeof MapGL>[0]['mapStyle']}
         style={{ width: '100%', height: '100%' }}
         maxPitch={85}
         maxBounds={LONDON_BOUNDS}
@@ -617,6 +852,41 @@ export function InteractiveMap({
           if (!map) return;
           map.easeTo({ pitch: DEFAULT_VIEW_STATE.pitch, bearing: DEFAULT_VIEW_STATE.bearing, duration: 500 });
         }}
+        onOpenStyleModal={() => setStyleModalOpen(true)}
+        hasStyleOverride={overrideStyle !== null || styleConfig !== null}
+        onClearStyleOverride={() => { setOverrideStyle(null); setStyleConfig(null); }}
+      />
+
+      <StyleOverrideModal
+        isOpen={styleModalOpen}
+        onClose={() => setStyleModalOpen(false)}
+        onApply={(directive) => {
+          if (directive.style !== undefined) setOverrideStyle(directive.style);
+          if (directive.config !== undefined) setStyleConfig(directive.config);
+          if (directive.camera) {
+            const map = mapRef.current?.getMap();
+            if (map) {
+              map.jumpTo({
+                center: directive.camera.center,
+                zoom: directive.camera.zoom,
+                bearing: directive.camera.bearing,
+                pitch: directive.camera.pitch,
+              });
+            }
+          }
+        }}
+        initialValue={
+          overrideStyle || styleConfig
+            ? JSON.stringify(
+                {
+                  ...(overrideStyle !== null ? { style: overrideStyle } : {}),
+                  ...(styleConfig !== null ? { config: styleConfig } : {}),
+                },
+                null,
+                2,
+              )
+            : ''
+        }
       />
 
       {children}
