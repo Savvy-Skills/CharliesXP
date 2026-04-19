@@ -64,8 +64,14 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
+    const slug = initial?.slug ?? name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
     const place = {
       ...(initial ? { id: initial.id } : {}),
+      slug,
       name,
       description,
       category,

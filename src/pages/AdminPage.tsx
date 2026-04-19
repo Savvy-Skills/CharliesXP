@@ -8,7 +8,7 @@ import { ZONES } from '../utils/zoneMapping';
 import type { Profile, Purchase } from '../types';
 import { CATEGORIES } from '../types';
 
-type Tab = 'places' | 'zones' | 'users' | 'purchases' | 'packages';
+type Tab = 'places' | 'zones' | 'landmarks' | 'users' | 'purchases' | 'packages';
 
 interface AdminPackage {
   id: string;
@@ -53,6 +53,25 @@ interface PlaceForm {
 
 const EMPTY_FORM: PlaceForm = { name: '', description: '', category: 'restaurant', zone_id: '' };
 
+interface AdminLandmark {
+  id: string;
+  name: string;
+  zone_id: string;
+  coordinates: { lng: number; lat: number };
+  icon: string;
+  min_zoom: number;
+}
+
+interface LandmarkForm {
+  name: string;
+  zone_id: string;
+  min_zoom: number;
+  lng: string;
+  lat: string;
+}
+
+const EMPTY_LM_FORM: LandmarkForm = { name: '', zone_id: '', min_zoom: 14, lng: '', lat: '' };
+
 export function AdminPage() {
   const { isLoggedIn, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -75,6 +94,13 @@ export function AdminPage() {
   const [enabledZoneIds, setEnabledZoneIds] = useState<Set<string>>(new Set());
   const [zoneTogglingId, setZoneTogglingId] = useState<string | null>(null);
   const [zonePlaceCounts, setZonePlaceCounts] = useState<Record<string, number>>({});
+
+  // Landmarks state
+  const [adminLandmarks, setAdminLandmarks] = useState<AdminLandmark[]>([]);
+  const [showLmForm, setShowLmForm] = useState<null | 'create' | string>(null);
+  const [lmForm, setLmForm] = useState<LandmarkForm>(EMPTY_LM_FORM);
+  const [lmSaving, setLmSaving] = useState(false);
+  const [lmDeleting, setLmDeleting] = useState<string | null>(null);
 
   // User management state
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
@@ -188,6 +214,14 @@ export function AdminPage() {
               })),
             );
           }
+        });
+    } else if (tab === 'landmarks') {
+      supabase
+        .from('landmarks')
+        .select('*')
+        .order('name')
+        .then(({ data }) => {
+          if (data) setAdminLandmarks(data as AdminLandmark[]);
         });
     }
   }, [isAdmin, tab]);
@@ -351,6 +385,78 @@ export function AdminPage() {
     });
   };
 
+  // Landmark handlers
+  const fetchLandmarks = () => {
+    supabase.from('landmarks').select('*').order('name').then(({ data }) => {
+      if (data) setAdminLandmarks(data as AdminLandmark[]);
+    });
+  };
+
+  const openLmCreate = () => {
+    setLmForm(EMPTY_LM_FORM);
+    setShowLmForm('create');
+  };
+
+  const openLmEdit = (lm: AdminLandmark) => {
+    setLmForm({
+      name: lm.name,
+      zone_id: lm.zone_id,
+      min_zoom: lm.min_zoom,
+      lng: String(lm.coordinates.lng),
+      lat: String(lm.coordinates.lat),
+    });
+    setShowLmForm(lm.id);
+  };
+
+  const closeLmForm = () => {
+    setShowLmForm(null);
+    setLmForm(EMPTY_LM_FORM);
+  };
+
+  const handleLmSave = async () => {
+    if (!lmForm.name.trim() || !lmForm.lng || !lmForm.lat) {
+      alert('Name and coordinates are required');
+      return;
+    }
+    setLmSaving(true);
+
+    const payload = {
+      name: lmForm.name.trim(),
+      zone_id: lmForm.zone_id || null,
+      min_zoom: lmForm.min_zoom,
+      coordinates: { lng: parseFloat(lmForm.lng), lat: parseFloat(lmForm.lat) },
+      icon: '',
+    };
+
+    if (showLmForm === 'create') {
+      const { error } = await supabase.from('landmarks').insert(payload);
+      if (error) {
+        console.error('Insert landmark error:', error);
+        alert(`Failed to create landmark: ${error.message}`);
+        setLmSaving(false);
+        return;
+      }
+    } else if (showLmForm) {
+      const { error } = await supabase.from('landmarks').update(payload).eq('id', showLmForm);
+      if (error) {
+        console.error('Update landmark error:', error);
+        alert(`Failed to update landmark: ${error.message}`);
+        setLmSaving(false);
+        return;
+      }
+    }
+
+    setLmSaving(false);
+    closeLmForm();
+    fetchLandmarks();
+  };
+
+  const handleLmDelete = async (id: string) => {
+    await supabase.from('landmarks').delete().eq('id', id);
+    setLmDeleting(null);
+    fetchLandmarks();
+  };
+
   if (authLoading || !isAdmin) return null;
 
   const unplacedPlaces = places.filter((p) => !p.placed);
@@ -359,6 +465,7 @@ export function AdminPage() {
   const tabs: { key: Tab; label: string }[] = [
     { key: 'places', label: 'Places' },
     { key: 'zones', label: 'Zones' },
+    { key: 'landmarks', label: 'Landmarks' },
     { key: 'packages', label: 'Packages' },
     { key: 'users', label: 'Users' },
     { key: 'purchases', label: 'Purchases' },
@@ -739,6 +846,189 @@ export function AdminPage() {
                         </tr>
                       );
                     })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {tab === 'landmarks' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-[var(--sg-navy)]/60">{adminLandmarks.length} landmarks total</p>
+              <button
+                onClick={openLmCreate}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--sg-crimson)] text-white text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer"
+              >
+                <Plus size={16} /> Add Landmark
+              </button>
+            </div>
+
+            {showLmForm && (
+              <div className="rounded-xl border border-[var(--sg-border)] bg-white p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="font-display text-lg font-semibold text-[var(--sg-navy)]">
+                    {showLmForm === 'create' ? 'Add Landmark' : 'Edit Landmark'}
+                  </h2>
+                  <button
+                    onClick={closeLmForm}
+                    className="text-[var(--sg-navy)]/40 hover:text-[var(--sg-navy)] cursor-pointer"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-[var(--sg-navy)]/60 mb-1">
+                      Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={lmForm.name}
+                      onChange={(e) => setLmForm((f) => ({ ...f, name: e.target.value }))}
+                      className="w-full rounded-lg border border-[var(--sg-border)] px-3 py-2 text-sm text-[var(--sg-navy)] focus:outline-none focus:ring-2 focus:ring-[var(--sg-crimson)]/30"
+                      placeholder="Landmark name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--sg-navy)]/60 mb-1">
+                      Zone
+                    </label>
+                    <select
+                      value={lmForm.zone_id}
+                      onChange={(e) => setLmForm((f) => ({ ...f, zone_id: e.target.value }))}
+                      className="w-full rounded-lg border border-[var(--sg-border)] px-3 py-2 text-sm text-[var(--sg-navy)] focus:outline-none focus:ring-2 focus:ring-[var(--sg-crimson)]/30"
+                    >
+                      <option value="">— No zone —</option>
+                      {ZONES.map((z) => (
+                        <option key={z.id} value={z.id}>
+                          {z.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--sg-navy)]/60 mb-1">
+                      Min Zoom (10-20)
+                    </label>
+                    <input
+                      type="number"
+                      min={10}
+                      max={20}
+                      value={lmForm.min_zoom}
+                      onChange={(e) => setLmForm((f) => ({ ...f, min_zoom: Math.min(20, Math.max(10, parseInt(e.target.value) || 14)) }))}
+                      className="w-full rounded-lg border border-[var(--sg-border)] px-3 py-2 text-sm text-[var(--sg-navy)] focus:outline-none focus:ring-2 focus:ring-[var(--sg-crimson)]/30"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--sg-navy)]/60 mb-1">
+                      Longitude *
+                    </label>
+                    <input
+                      type="text"
+                      value={lmForm.lng}
+                      onChange={(e) => setLmForm((f) => ({ ...f, lng: e.target.value }))}
+                      className="w-full rounded-lg border border-[var(--sg-border)] px-3 py-2 text-sm text-[var(--sg-navy)] focus:outline-none focus:ring-2 focus:ring-[var(--sg-crimson)]/30"
+                      placeholder="-0.1246"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--sg-navy)]/60 mb-1">
+                      Latitude *
+                    </label>
+                    <input
+                      type="text"
+                      value={lmForm.lat}
+                      onChange={(e) => setLmForm((f) => ({ ...f, lat: e.target.value }))}
+                      className="w-full rounded-lg border border-[var(--sg-border)] px-3 py-2 text-sm text-[var(--sg-navy)] focus:outline-none focus:ring-2 focus:ring-[var(--sg-crimson)]/30"
+                      placeholder="51.4975"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={handleLmSave}
+                    disabled={lmSaving || !lmForm.name.trim() || !lmForm.lng || !lmForm.lat}
+                    className="px-4 py-2 rounded-xl bg-[var(--sg-crimson)] text-white text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {lmSaving ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    onClick={closeLmForm}
+                    className="px-4 py-2 rounded-xl bg-[var(--sg-offwhite)] text-[var(--sg-navy)] text-sm font-medium hover:bg-[var(--sg-border)] transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-[var(--sg-navy)]/60 border-b border-[var(--sg-border)]">
+                  <tr>
+                    <th className="py-2 pr-4">Name</th>
+                    <th className="py-2 pr-4">Zone</th>
+                    <th className="py-2 pr-4">Min Zoom</th>
+                    <th className="py-2 pr-4">Coordinates</th>
+                    <th className="py-2 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminLandmarks.map((lm) => (
+                    <tr key={lm.id} className="border-b border-[var(--sg-border)]/50">
+                      <td className="py-2 pr-4 font-medium text-[var(--sg-navy)]">{lm.name}</td>
+                      <td className="py-2 pr-4 text-[var(--sg-navy)]/60">
+                        {zoneName(lm.zone_id)}
+                      </td>
+                      <td className="py-2 pr-4 text-[var(--sg-navy)]/60">{lm.min_zoom}</td>
+                      <td className="py-2 pr-4 text-[var(--sg-navy)]/60 text-xs">
+                        {lm.coordinates.lng.toFixed(5)}, {lm.coordinates.lat.toFixed(5)}
+                      </td>
+                      <td className="py-2 text-right">
+                        {lmDeleting === lm.id ? (
+                          <span className="inline-flex items-center gap-2 text-xs">
+                            <span className="text-[var(--sg-crimson)]">Delete {lm.name}?</span>
+                            <button
+                              onClick={() => handleLmDelete(lm.id)}
+                              className="text-[var(--sg-crimson)] font-semibold hover:underline cursor-pointer"
+                            >
+                              Yes
+                            </button>
+                            <button
+                              onClick={() => setLmDeleting(null)}
+                              className="text-[var(--sg-navy)]/60 hover:underline cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5">
+                            <button
+                              onClick={() => openLmEdit(lm)}
+                              className="p-1 rounded-lg text-[var(--sg-navy)]/40 hover:text-[var(--sg-navy)] hover:bg-[var(--sg-border)] cursor-pointer"
+                              title="Edit"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              onClick={() => setLmDeleting(lm.id)}
+                              className="p-1 rounded-lg text-[var(--sg-navy)]/40 hover:text-[var(--sg-crimson)] hover:bg-[var(--sg-crimson)]/10 cursor-pointer"
+                              title="Delete"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

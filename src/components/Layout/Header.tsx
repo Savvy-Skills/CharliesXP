@@ -26,7 +26,6 @@ export function Header() {
   const accountRef = useRef<HTMLDivElement | null>(null);
 
   const toggleAccount = () => setAccountOpen((o) => !o);
-  const closeAccount = () => setAccountOpen(false);
 
   useEffect(() => {
     if (!accountOpen) return;
@@ -90,6 +89,16 @@ export function Header() {
                 }`}
               >
                 Zones
+              </button>
+              <button
+                onClick={() => mapHeader?.onEditorTabChange('landmarks')}
+                className={`text-xs px-2 py-1 rounded-md cursor-pointer transition-colors ${
+                  editorTab === 'landmarks'
+                    ? 'bg-[var(--sg-navy)] text-white'
+                    : 'text-[var(--sg-navy)]/50 hover:bg-[var(--sg-offwhite)]'
+                }`}
+              >
+                Landmarks
               </button>
             </div>
           </div>

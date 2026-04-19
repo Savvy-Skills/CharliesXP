@@ -2,7 +2,7 @@ import { useCallback, useRef } from 'react';
 import type { MapRef } from 'react-map-gl/mapbox';
 import type { ViewState } from '../types';
 import { DEFAULT_VIEW_STATE } from '../utils/mapStyles';
-import { ZONE_POLYGON_CENTERS, ZONE_CENTROIDS } from '../utils/zoneMapping';
+import { ZONE_POLYGON_CENTERS, ZONE_CENTROIDS, ZONE_EXIT_THRESHOLD } from '../utils/zoneMapping';
 
 /**
  * Pure camera-animation hook. Has no knowledge of URL or app state —
@@ -32,10 +32,12 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
       if (!centroid) return;
 
       const currentMap = map.getMap();
+      // Clamp saved zoom below exit threshold so zoomOutToExpanded never lands
+      // us at a zoom that would immediately re-trigger the zoom-in entry.
       previousView.current = {
         longitude: currentMap.getCenter().lng,
         latitude: currentMap.getCenter().lat,
-        zoom: currentMap.getZoom(),
+        zoom: Math.min(currentMap.getZoom(), ZONE_EXIT_THRESHOLD - 0.5),
         pitch: currentMap.getPitch(),
         bearing: currentMap.getBearing(),
       };

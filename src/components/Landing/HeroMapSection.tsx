@@ -11,11 +11,12 @@ import { ZoneSidePanel } from '../Map/ZoneSidePanel';
 import { ZoneLockIcon } from '../Map/ZoneLockIcon';
 import { EditorPanel } from '../Editor/EditorPanel';
 import { ZoneListPanel } from '../Editor/ZoneListPanel';
+import { LandmarkListPanel } from '../Editor/LandmarkListPanel';
 import { MobileDrawer } from '../ui/MobileDrawer';
 import type { Place, PlaceCategory, MapZoomState, Coordinates } from '../../types';
 import { ZONE_POLYGON_CENTERS, ZONE_MAP } from '../../utils/zoneMapping';
 import { CATEGORY_EMOJI } from '../../utils/mapStyles';
-import { useLandmarks } from '../../hooks/useLandmarks';
+import { useSupabaseLandmarks } from '../../hooks/useSupabaseLandmarks';
 import { useZoneTeasers } from '../../hooks/useZoneTeasers';
 
 interface HeroMapSectionProps {
@@ -40,8 +41,8 @@ interface HeroMapSectionProps {
   activeCategory?: PlaceCategory | null;
   // Editor props
   isEditorMode?: boolean;
-  editorTab?: 'places' | 'zones';
-  onEditorTabChange?: (tab: 'places' | 'zones') => void;
+  editorTab?: 'places' | 'zones' | 'landmarks';
+  onEditorTabChange?: (tab: 'places' | 'zones' | 'landmarks') => void;
   pendingCoordinates?: Coordinates | null;
   currentView?: { zoom: number; pitch: number; bearing: number };
   onAddPlace?: (place: Omit<Place, 'id'>) => void;
@@ -94,10 +95,20 @@ export function HeroMapSection({
   const [hoveredZoneId, setHoveredZoneId] = useState<string | null>(null);
   const [editPlaceKey, setEditPlaceKey] = useState<string | null>(null);
   const [showDisabledZones, setShowDisabledZones] = useState(false);
-  const { landmarks } = useLandmarks();
+  const [currentZoom, setCurrentZoom] = useState(12);
+  const [pendingLandmarkCoords, setPendingLandmarkCoords] = useState<{ lng: number; lat: number } | null>(null);
+  const [pendingLandmarkZoneId, setPendingLandmarkZoneId] = useState<string | null>(null);
+  const [editingLandmarkId, setEditingLandmarkId] = useState<string | null>(null);
+  const { landmarks, addLandmark, updateLandmark, deleteLandmark } = useSupabaseLandmarks();
   const { teasers } = useZoneTeasers();
 
   const showLandmarks = mapState === 'expanded' || mapState === 'zoneDetail';
+  const isLandmarkEditorActive = isEditorMode && editorTab === 'landmarks';
+
+  const handleZoomChangeLocal = useCallback((zoom: number) => {
+    setCurrentZoom(zoom);
+    onZoomChange?.(zoom);
+  }, [onZoomChange]);
 
   const handlePlaceClick = useCallback(
     (place: Place) => {
@@ -228,9 +239,55 @@ export function HeroMapSection({
     ? filteredZonePlaces.map(p => p.id === draggedPlaceId ? { ...p, coordinates: dragCoordinates } : p)
     : filteredZonePlaces;
 
+  const handleMapClickForLandmarks = useCallback(
+    (e: { lngLat: { lng: number; lat: number }; point?: { x: number; y: number } }) => {
+      if (isEditorMode && editorTab === 'landmarks') {
+        const map = mapRef.current?.getMap();
+        let detectedZone = '';
+        if (map && e.point) {
+          const features = map.queryRenderedFeatures([e.point.x, e.point.y], { layers: ['zones-fill'] });
+          if (features.length > 0) {
+            detectedZone = features[0].properties?.zone ?? '';
+          }
+        }
+        setPendingLandmarkCoords({ lng: e.lngLat.lng, lat: e.lngLat.lat });
+        setPendingLandmarkZoneId(detectedZone);
+        setEditingLandmarkId(null);
+        return;
+      }
+      onMapClick?.(e);
+    },
+    [isEditorMode, editorTab, mapRef, onMapClick],
+  );
+
   // Determine which sidebar to show
   const renderSidebar = () => {
     if (isEditorMode) {
+      if (editorTab === 'landmarks') {
+        return (
+          <LandmarkListPanel
+            landmarks={landmarks}
+            onAdd={addLandmark}
+            onUpdate={updateLandmark}
+            onDelete={deleteLandmark}
+            pendingCoordinates={pendingLandmarkCoords}
+            pendingZoneId={pendingLandmarkZoneId}
+            onCancelPending={() => {
+              setPendingLandmarkCoords(null);
+              setPendingLandmarkZoneId(null);
+            }}
+            editingLandmarkId={editingLandmarkId}
+            onEditLandmark={setEditingLandmarkId}
+            onFlyTo={(coords) => {
+              mapRef.current?.getMap()?.flyTo({
+                center: [coords.lng, coords.lat],
+                zoom: 16,
+                duration: 1000,
+              });
+            }}
+          />
+        );
+      }
       if (editorTab === 'zones') {
         return (
           <ZoneListPanel
@@ -376,7 +433,7 @@ export function HeroMapSection({
 
   // Should the sidebar be visible?
   const showSidebar = isEditorMode
-    ? (mapState === 'expanded' || mapState === 'zoneDetail' || editorTab === 'zones')
+    ? (mapState === 'expanded' || mapState === 'zoneDetail' || editorTab === 'zones' || editorTab === 'landmarks')
     : (mapState === 'expanded' || (mapState === 'zoneDetail' && !!activeZone));
 
   // ── Fullscreen mode ──
@@ -422,11 +479,11 @@ export function HeroMapSection({
               places={mapState === 'zoneDetail' && !isZoneLocked ? displayPlaces : []}
               mapRef={mapRef}
               onPlaceClick={handlePlaceClick}
-              onMapClick={onMapClick}
+              onMapClick={handleMapClickForLandmarks}
               onResetView={onResetView}
               mode="full"
               interactive
-              onZoomChange={onZoomChange}
+              onZoomChange={handleZoomChangeLocal}
               onMoveEnd={onMoveEnd}
               skip3DModels
               activeZone={mapState === 'zoneDetail' ? activeZone : null}
@@ -465,21 +522,47 @@ export function HeroMapSection({
                       onMouseLeave={() => setHoveredZoneId(null)}
                     />
                   ))}
-                  {showLandmarks && landmarks.map((lm) => (
+                  {showLandmarks && landmarks
+                    .filter((lm) => isLandmarkEditorActive || currentZoom >= lm.min_zoom)
+                    .map((lm) => (
+                      <Marker
+                        key={lm.id}
+                        longitude={lm.coordinates.lng}
+                        latitude={lm.coordinates.lat}
+                        anchor="center"
+                      >
+                        <div className="flex flex-col items-center pointer-events-none">
+                          <div className="w-3 h-3 rounded-full bg-[var(--sg-crimson)]/60 border border-white/80 shadow-sm" />
+                          <span className="text-[9px] font-medium text-[var(--sg-navy)]/50 mt-0.5 whitespace-nowrap max-w-[80px] truncate">
+                            {lm.name}
+                          </span>
+                        </div>
+                      </Marker>
+                    ))}
+                  {/* Pending landmark marker (click-to-place, draggable) */}
+                  {pendingLandmarkCoords && (
                     <Marker
-                      key={lm.id}
-                      longitude={lm.coordinates.lng}
-                      latitude={lm.coordinates.lat}
+                      longitude={pendingLandmarkCoords.lng}
+                      latitude={pendingLandmarkCoords.lat}
                       anchor="center"
+                      draggable
+                      onDragEnd={(e) => {
+                        setPendingLandmarkCoords({ lng: e.lngLat.lng, lat: e.lngLat.lat });
+                        const map = mapRef.current?.getMap();
+                        if (map) {
+                          const point = map.project([e.lngLat.lng, e.lngLat.lat]);
+                          const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
+                          if (features.length > 0) {
+                            setPendingLandmarkZoneId(features[0].properties?.zone ?? '');
+                          }
+                        }
+                      }}
                     >
-                      <div className="flex flex-col items-center pointer-events-none">
-                        <div className="w-3 h-3 rounded-full bg-[var(--sg-crimson)]/60 border border-white/80 shadow-sm" />
-                        <span className="text-[9px] font-medium text-[var(--sg-navy)]/50 mt-0.5 whitespace-nowrap max-w-[80px] truncate">
-                          {lm.name}
-                        </span>
+                      <div className="flex flex-col items-center">
+                        <div className="w-4 h-4 rounded-full bg-[var(--sg-thames)] border-2 border-white shadow-md animate-pulse" />
                       </div>
                     </Marker>
-                  ))}
+                  )}
                 </>
               }
             />
