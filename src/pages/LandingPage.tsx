@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, useParams, useLocation } from 'react-router';
-import { ZONE_MAP, ZONE_POLYGON_CENTERS, ZONE_CENTROIDS, ZONE_EXIT_THRESHOLD } from '../utils/zoneMapping';
+import { ZONE_MAP, ZONE_POLYGON_CENTERS, ZONE_CENTROIDS, ZONE_ENTER_THRESHOLD, ZONE_EXIT_THRESHOLD } from '../utils/zoneMapping';
 import { PageShell } from '../components/Layout/PageShell';
 import { SEOHead } from '../components/SEOHead';
 import { HeroMapSection } from '../components/Landing/HeroMapSection';
@@ -138,13 +138,30 @@ export function LandingPage() {
   // When the user manually zooms out of a zone, clear the zone from the URL
   const handleZoomChange = useCallback(
     (zoom: number) => {
-      if (mapState !== 'zoneDetail' || isAnimating.current) return;
-      if (zoom < ZONE_EXIT_THRESHOLD) {
+      if (isAnimating.current) return;
+
+      // Zoom out while inside a zone → clear zone from URL
+      if (mapState === 'zoneDetail' && zoom < ZONE_EXIT_THRESHOLD) {
         const qs = searchParams.toString();
         navigate(`/map${qs ? '?' + qs : ''}`);
+        return;
+      }
+
+      // Zoom in while on /map → enter the zone under the map center.
+      // Locked-zone paywall is shown in the sidebar by ZoneSidePanel once we land.
+      if (mapState === 'expanded' && zoom >= ZONE_ENTER_THRESHOLD) {
+        const map = mapRef.current?.getMap();
+        if (!map) return;
+        const center = map.getCenter();
+        const point = map.project([center.lng, center.lat]);
+        const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
+        const zoneName = features[0]?.properties?.zone as string | undefined;
+        if (!zoneName) return;
+        if (!isEditorMode && !isZoneEnabled(zoneName)) return;
+        navigateToZone(zoneName);
       }
     },
-    [mapState, isAnimating, navigate, searchParams],
+    [mapState, isAnimating, navigate, searchParams, mapRef, isEditorMode, isZoneEnabled, navigateToZone],
   );
 
   const handlePlaceClick = useCallback(
