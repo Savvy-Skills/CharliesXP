@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { AuthProvider } from './hooks/useAuth';
 
 // Code-split every route for optimal initial load
-const LandingPage       = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
+const MapPage           = lazy(() => import('./pages/MapPage').then(m => ({ default: m.MapPage })));
 const PlaceDetailPage   = lazy(() => import('./pages/PlaceDetailPage').then(m => ({ default: m.PlaceDetailPage })));
 const ZoneDetailPage    = lazy(() => import('./pages/ZoneDetailPage').then(m => ({ default: m.ZoneDetailPage })));
 const StyleGuidePage    = lazy(() => import('./pages/StyleGuide/StyleGuidePage').then(m => ({ default: m.StyleGuidePage })));
@@ -45,9 +45,9 @@ export default function App() {
       <Suspense fallback={<PageFallback />}>
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname === '/' || location.pathname.startsWith('/map') ? '_landing' : location.pathname}>
-            <Route path="/" element={<AnimatedPage><LandingPage /></AnimatedPage>} />
-            <Route path="/map" element={<AnimatedPage><LandingPage /></AnimatedPage>} />
-            <Route path="/map/:zoneId" element={<AnimatedPage><LandingPage /></AnimatedPage>} />
+            <Route path="/" element={<AnimatedPage><MapPage /></AnimatedPage>} />
+            <Route path="/map" element={<AnimatedPage><MapPage /></AnimatedPage>} />
+            <Route path="/map/:zoneId" element={<AnimatedPage><MapPage /></AnimatedPage>} />
             <Route path="/map/:zoneId/:placeSlug" element={<AnimatedPage><PlaceDetailPage /></AnimatedPage>} />
             <Route path="/place/:slug" element={<AnimatedPage><PlaceDetailPage /></AnimatedPage>} />
             <Route path="/zone/:name" element={<AnimatedPage><ZoneDetailPage /></AnimatedPage>} />

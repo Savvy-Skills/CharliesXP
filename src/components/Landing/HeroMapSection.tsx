@@ -53,6 +53,11 @@ interface HeroMapSectionProps {
   enabledZoneIds?: string[];
   isZoneEnabled?: (zoneId: string) => boolean;
   onToggleZone?: (zoneId: string, enabled: boolean) => void;
+  // URL-derived place selection + navigation callbacks (wired up in Task 10/11)
+  selectedPlaceSlug?: string | null;
+  onOpenPlace?: (zoneId: string, placeSlug: string) => void;
+  onClosePlace?: (zoneId: string) => void;
+  onCloseZone?: () => void;
 }
 
 export function HeroMapSection({
@@ -89,6 +94,10 @@ export function HeroMapSection({
   enabledZoneIds = [],
   isZoneEnabled: _isZoneEnabled,
   onToggleZone,
+  selectedPlaceSlug: _selectedPlaceSlug,
+  onOpenPlace: _onOpenPlace,
+  onClosePlace: _onClosePlace,
+  onCloseZone: _onCloseZone,
 }: HeroMapSectionProps) {
   const [previewPlace, setPreviewPlace] = useState<Place | null>(null);
   const [activeCategory, setActiveCategory] = useState<PlaceCategory | null>(null);

@@ -1,0 +1,394 @@
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useSearchParams, useNavigate, useParams } from 'react-router';
+import { ZONE_MAP, ZONE_POLYGON_CENTERS, ZONE_CENTROIDS, ZONE_ENTER_THRESHOLD, ZONE_EXIT_THRESHOLD } from '../utils/zoneMapping';
+import { PageShell } from '../components/Layout/PageShell';
+import { SEOHead } from '../components/SEOHead';
+import { HeroMapSection } from '../components/Landing/HeroMapSection';
+import { PaywallModal } from '../components/ui/PaywallModal';
+import { WelcomePopup, hasDismissedWelcome } from '../components/Welcome/WelcomePopup';
+import { MapHeaderProvider } from '../hooks/useMapHeader';
+import { usePlaces } from '../hooks/usePlaces';
+import { useMapFlyTo } from '../hooks/useMapFlyTo';
+import { useMapZoom } from '../hooks/useMapZoom';
+import { useAuth } from '../hooks/useAuth';
+import { usePackages } from '../hooks/usePackages';
+import { useZoneSettings } from '../hooks/useZoneSettings';
+import type { Place, Coordinates, MapZoomState } from '../types';
+
+export function MapPage() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { zoneId: urlZoneId, placeSlug: urlPlaceSlug } = useParams<{ zoneId?: string; placeSlug?: string }>();
+  const isEditorMode = searchParams.get('editor') === 'true';
+
+  // ── URL is the single source of truth for map state ──────────────────────
+  const mapState: MapZoomState = urlZoneId ? 'zoneDetail' : 'overview';
+  const activeZone = urlZoneId ?? null;
+  const selectedPlaceSlug = urlPlaceSlug ?? null;
+
+  // Preload packages so PaywallModal opens instantly
+  usePackages();
+
+  const { places, getPlacesByZone, activeCategories, refetch, optimisticAdd, optimisticUpdate, optimisticDelete } = usePlaces();
+  const { mapRef, flyToPlace, flyToDefault } = useMapFlyTo();
+  const { zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, isAnimating } = useMapZoom(mapRef);
+  const { unlockedZones: rawUnlockedZones, isZoneUnlocked, isAdmin, refreshAccess, user } = useAuth();
+  const { enabledZoneIds, isZoneEnabled, toggleZone } = useZoneSettings();
+
+  const unlockedZones = isAdmin ? enabledZoneIds : rawUnlockedZones.filter(z => enabledZoneIds.includes(z));
+  const [paywallZone, setPaywallZone] = useState<string | null>(null);
+  const [paymentToast, setPaymentToast] = useState<'success' | 'cancelled' | null>(null);
+  const [editorTab, setEditorTab] = useState<'places' | 'zones' | 'landmarks'>('places');
+  const [welcomePopupOpen, setWelcomePopupOpen] = useState<boolean>(() => {
+    return !user && !hasDismissedWelcome();
+  });
+  const isMapMode = mapState === 'zoneDetail' || mapState === 'overview';
+
+  // Handle payment return params (?payment=success|cancelled)
+  useEffect(() => {
+    const payment = searchParams.get('payment');
+    if (payment === 'success' || payment === 'cancelled') {
+      setPaymentToast(payment);
+      window.history.replaceState(null, '', '/');
+      if (payment === 'success') {
+        const poll = async (attempts = 0) => {
+          await refreshAccess();
+          refetch();
+          if (attempts < 5) setTimeout(() => poll(attempts + 1), 2000);
+        };
+        setTimeout(() => poll(), 1000);
+      }
+      setTimeout(() => setPaymentToast(null), 6000);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Sync map camera with URL zone changes ─────────────────────────────────
+  // When activeZone changes (URL changes), fire the appropriate camera animation.
+  const prevZoneRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    const prev = prevZoneRef.current;
+    prevZoneRef.current = activeZone;
+
+    if (prev === undefined) {
+      // Initial mount — if a zone is already in the URL, zoom in after map settles
+      if (activeZone) setTimeout(() => zoomIntoZone(activeZone), 400);
+      return;
+    }
+
+    if (activeZone && activeZone !== prev) {
+      // Entered a zone (or switched zones)
+      zoomIntoZone(activeZone);
+    } else if (!activeZone && prev) {
+      // Left a zone — return to previous overview camera
+      zoomOutToExpanded();
+    }
+  }, [activeZone]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Navigation helpers ────────────────────────────────────────────────────
+  // All navigation goes through React Router. Query params (e.g. ?editor=true) are preserved.
+
+  const navigateToZone = useCallback(
+    (zoneId: string) => {
+      const qs = searchParams.toString();
+      if (mapState === 'overview') {
+        window.history.pushState(null, '', `/${qs ? '?' + qs : ''}`);
+      }
+      navigate(`/${zoneId}${qs ? '?' + qs : ''}`);
+    },
+    [navigate, searchParams, mapState],
+  );
+
+  const navigateToPlace = useCallback(
+    (zoneId: string, placeSlug: string) => {
+      const qs = searchParams.toString();
+      navigate(`/${zoneId}/${placeSlug}${qs ? '?' + qs : ''}`);
+    },
+    [navigate, searchParams],
+  );
+
+  const navigateCloseZone = useCallback(() => {
+    const qs = searchParams.toString();
+    navigate(`/${qs ? '?' + qs : ''}`);
+  }, [navigate, searchParams]);
+
+  const navigateClosePlace = useCallback(
+    (zoneId: string) => {
+      const qs = searchParams.toString();
+      navigate(`/${zoneId}${qs ? '?' + qs : ''}`);
+    },
+    [navigate, searchParams],
+  );
+
+  // ── Editor state ──────────────────────────────────────────────────────────
+  const [pendingCoordinates, setPendingCoordinates] = useState<Coordinates | null>(null);
+  const [currentView, setCurrentView] = useState({ zoom: 16, pitch: 50, bearing: 0 });
+  const [pendingPlaceId, setPendingPlaceId] = useState<string | null>(null);
+
+  const zonePlaces = activeZone ? getPlacesByZone(activeZone) : [];
+  const activeZonePlaces = activeZone ? getPlacesByZone(activeZone) : [];
+  const activeCategory = activeCategories.length === 1 ? activeCategories[0] : null;
+
+  // Editor mode: handle ?zone= and ?placeId= query params on initial load
+  useEffect(() => {
+    if (!isEditorMode) return;
+    const zone = searchParams.get('zone');
+    const placeId = searchParams.get('placeId');
+    if (placeId) setPendingPlaceId(placeId);
+    // If zone is in query params (legacy) and not already in the path, navigate to correct URL
+    if (zone && !urlZoneId) {
+      navigate(`/${zone}?editor=true${placeId ? '&placeId=' + placeId : ''}`);
+    } else if (mapState === 'overview') {
+      navigate(`/?editor=true`);
+    }
+  }, [isEditorMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fly to place once it's available in the places array
+  useEffect(() => {
+    if (!pendingPlaceId || places.length === 0) return;
+    const place = places.find((p) => p.id === pendingPlaceId);
+    if (place) {
+      setTimeout(() => flyToPlace(place), 2000);
+      setPendingPlaceId(null);
+    }
+  }, [pendingPlaceId, places, flyToPlace]);
+
+  // ── Event handlers ────────────────────────────────────────────────────────
+
+  // When the user manually zooms out of a zone, clear the zone from the URL
+  const handleZoomChange = useCallback(
+    (zoom: number) => {
+      if (isAnimating.current) return;
+
+      // Zoom out while inside a zone → clear zone from URL
+      if (mapState === 'zoneDetail' && zoom < ZONE_EXIT_THRESHOLD) {
+        const qs = searchParams.toString();
+        navigate(`/${qs ? '?' + qs : ''}`);
+        return;
+      }
+
+      // Zoom in while on the map → enter the zone under the map center.
+      // Locked-zone paywall is shown in the sidebar by ZoneSidePanel once we land.
+      if (mapState === 'overview' && zoom >= ZONE_ENTER_THRESHOLD) {
+        const map = mapRef.current?.getMap();
+        if (!map) return;
+        const center = map.getCenter();
+        const point = map.project([center.lng, center.lat]);
+        const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
+        const zoneName = features[0]?.properties?.zone as string | undefined;
+        if (!zoneName) return;
+        if (!isEditorMode && !isZoneEnabled(zoneName)) return;
+        navigateToZone(zoneName);
+      }
+    },
+    [mapState, isAnimating, navigate, searchParams, mapRef, isEditorMode, isZoneEnabled, navigateToZone],
+  );
+
+  const handlePlaceClick = useCallback(
+    (place: Place) => { flyToPlace(place); },
+    [flyToPlace],
+  );
+
+  const handleMapClick = useCallback(
+    (e: { lngLat: { lng: number; lat: number } }) => {
+      // Editor: click inside active zone to drop a pin
+      if (isEditorMode && mapState === 'zoneDetail' && activeZone) {
+        const map = mapRef.current?.getMap();
+        if (map) {
+          setCurrentView({ zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() });
+        }
+        setPendingCoordinates({ lng: e.lngLat.lng, lat: e.lngLat.lat });
+        return;
+      }
+
+      const map = mapRef.current?.getMap();
+      if (!map) return;
+      const point = map.project([e.lngLat.lng, e.lngLat.lat]);
+
+      // In zone detail: allow clicking a different zone, ignore everything else
+      if (mapState === 'zoneDetail') {
+        const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
+        const zoneName = features[0]?.properties?.zone as string | undefined;
+        if (zoneName && zoneName !== activeZone && (isEditorMode || isZoneEnabled(zoneName))) {
+          if (isEditorMode || isZoneUnlocked(zoneName)) {
+            navigateToZone(zoneName);
+          } else {
+            setPaywallZone(zoneName);
+          }
+        }
+        return;
+      }
+
+      if (mapState === 'overview') {
+        const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
+        if (features.length > 0) {
+          const zoneName = features[0].properties?.zone as string;
+          if (zoneName && (isEditorMode || isZoneEnabled(zoneName))) {
+            if (isEditorMode || isZoneUnlocked(zoneName)) {
+              navigateToZone(zoneName);
+            } else {
+              navigate('/');
+              setTimeout(() => setPaywallZone(zoneName), 300);
+            }
+            return;
+          }
+        }
+        navigate('/');
+        return;
+      }
+
+      // Expanded mode: click to enter a zone
+      if (isEditorMode && map.getLayer('zones-disabled-fill')) {
+        const disabledFeatures = map.queryRenderedFeatures(point, { layers: ['zones-disabled-fill'] });
+        if (disabledFeatures.length > 0) {
+          const zoneName = disabledFeatures[0].properties?.zone as string;
+          if (zoneName) { navigateToZone(zoneName); return; }
+        }
+      }
+
+      const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
+      if (features.length > 0) {
+        const zoneName = features[0].properties?.zone as string;
+        if (!zoneName || (!isEditorMode && !isZoneEnabled(zoneName))) return;
+        if (isEditorMode || isZoneUnlocked(zoneName)) {
+          navigateToZone(zoneName);
+        } else {
+          setPaywallZone(zoneName);
+        }
+      }
+    },
+    [mapState, mapRef, isZoneUnlocked, isZoneEnabled, isEditorMode, activeZone, navigate, navigateToZone],
+  );
+
+  const handleCancelPending = useCallback(() => setPendingCoordinates(null), []);
+
+  const handleAddPlace = useCallback(
+    (place: Omit<Place, 'id'>) => optimisticAdd(place, activeZone ?? ''),
+    [activeZone, optimisticAdd],
+  );
+
+  const handleUpdatePlace = useCallback(
+    (id: string, updates: Partial<Place>) => optimisticUpdate(id, updates),
+    [optimisticUpdate],
+  );
+
+  const handleDeletePlace = useCallback(
+    (id: string) => optimisticDelete(id),
+    [optimisticDelete],
+  );
+
+  const handleMoveToZone = useCallback(
+    (placeId: string, zoneId: string) => {
+      const center = ZONE_POLYGON_CENTERS[zoneId] ?? ZONE_CENTROIDS[zoneId];
+      const updates: Partial<Place> = { zone: zoneId };
+      if (center) updates.coordinates = { lng: center.lng, lat: center.lat };
+      optimisticUpdate(placeId, updates);
+      navigateToZone(zoneId);
+    },
+    [optimisticUpdate, navigateToZone],
+  );
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'Charlies XP',
+    url: 'https://charliesxp.com',
+    description: 'Experience London like a Londoner. Personal, human, editorial guides to London.',
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: 'https://charliesxp.com/',
+      'query-input': 'required name=search_term_string',
+    },
+  };
+
+  return (
+    <MapHeaderProvider value={{
+      isMapMode,
+      isEditorMode,
+      editorTab,
+      onEditorTabChange: setEditorTab,
+      onCollapse: () => { zoomOutToOverview(); navigate('/'); },
+      activeZone,
+    }}>
+    <>
+      {/* Payment toast — outside PageShell for z-index */}
+      {paymentToast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999]" style={{ pointerEvents: 'auto' }}>
+          <div className={`px-6 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 ${
+            paymentToast === 'success'
+              ? 'bg-green-600 text-white'
+              : 'bg-[var(--sg-navy)] text-white'
+          }`}>
+            {paymentToast === 'success' ? (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                Payment successful! Your zones are being unlocked...
+              </>
+            ) : (
+              <>Payment cancelled. No charge was made.</>
+            )}
+            <button onClick={() => setPaymentToast(null)} className="ml-2 opacity-70 hover:opacity-100 cursor-pointer">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
+        </div>
+      )}
+      <PageShell>
+        <SEOHead
+          title="Experience London Like a Londoner"
+          description="Charlies XP — personal, human, editorial guides to London's best places, zones, and hidden stories. From someone who has walked every part of the city."
+          path="/"
+          jsonLd={jsonLd}
+        />
+        <HeroMapSection
+          places={places}
+          mapRef={mapRef}
+          mapState={mapState}
+          activeZone={activeZone}
+          unlockedZones={unlockedZones}
+          zonePlaces={zonePlaces}
+          onPlaceClick={handlePlaceClick}
+          onLockedZoneClick={(zoneId) => isEditorMode ? navigateToZone(zoneId) : setPaywallZone(zoneId)}
+          onUnlockZone={(zoneId) => setPaywallZone(zoneId)}
+          onZoneClick={navigateToZone}
+          onZoomOut={() => navigate(-1)}
+          enabledZoneIds={enabledZoneIds}
+          isZoneEnabled={isZoneEnabled}
+          onToggleZone={toggleZone}
+          onCollapse={() => { zoomOutToOverview(); navigate('/'); }}
+          onExpand={() => navigate('/')}
+          onResetView={flyToDefault}
+          onMapClick={handleMapClick}
+          onZoomChange={handleZoomChange}
+          allUnlockedPlaces={activeZonePlaces}
+          activeCategory={activeCategory}
+          isEditorMode={isEditorMode}
+          editorTab={editorTab}
+          onEditorTabChange={setEditorTab}
+          pendingCoordinates={pendingCoordinates}
+          currentView={currentView}
+          onCancelPending={handleCancelPending}
+          onAddPlace={handleAddPlace}
+          onUpdatePlace={handleUpdatePlace}
+          onDeletePlace={handleDeletePlace}
+          onMoveToZone={handleMoveToZone}
+          selectedPlaceSlug={selectedPlaceSlug}
+          onOpenPlace={navigateToPlace}
+          onClosePlace={navigateClosePlace}
+          onCloseZone={navigateCloseZone}
+        />
+
+        <PaywallModal
+          isOpen={!!paywallZone}
+          onClose={() => setPaywallZone(null)}
+          zoneName={paywallZone ? (ZONE_MAP[paywallZone]?.name ?? paywallZone) : ''}
+          zoneId={paywallZone ?? ''}
+        />
+        <WelcomePopup
+          isOpen={welcomePopupOpen}
+          onClose={() => setWelcomePopupOpen(false)}
+        />
+      </PageShell>
+    </>
+    </MapHeaderProvider>
+  );
+}
