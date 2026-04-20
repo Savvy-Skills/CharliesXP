@@ -1,9 +1,22 @@
 import zonesData from '../data/zones.json';
 import zoneCentersData from '../data/zone-centers.json';
 import type { Zone } from '../types';
+import { RESERVED_ZONE_SLUGS, isReservedSlug } from './reservedSlugs';
 
 /** All zones loaded from config */
 export const ZONES: Zone[] = zonesData as Zone[];
+
+// Fail-fast at import time if a zone slug would shadow an app route.
+// This catches the bug when someone adds a new zone to zones.json whose
+// id collides with /login, /admin, etc. See src/utils/reservedSlugs.ts.
+for (const zone of ZONES) {
+  if (isReservedSlug(zone.id)) {
+    throw new Error(
+      `Zone id "${zone.id}" is a reserved slug (would shadow an app route). ` +
+      `Reserved: ${RESERVED_ZONE_SLUGS.join(', ')}.`,
+    );
+  }
+}
 
 /** O(1) lookup by zone slug */
 export const ZONE_MAP: Record<string, Zone> = Object.fromEntries(
