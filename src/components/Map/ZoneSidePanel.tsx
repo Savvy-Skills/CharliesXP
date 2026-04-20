@@ -1,4 +1,4 @@
-import { Star, ChevronRight, Lock, Check } from 'lucide-react';
+import { ChevronRight, Lock, Check } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import type { Place } from '../../types';
 import { CATEGORIES } from '../../types';
@@ -61,7 +61,6 @@ export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked =
             <ul className="space-y-2 mb-5">
               {[
                 '30 days of full access',
-                'Detailed reviews & ratings',
                 'Insider tips & hidden gems',
               ].map((feature) => (
                 <li key={feature} className="flex items-center gap-2 text-xs text-[var(--sg-navy)]">
@@ -126,7 +125,7 @@ export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked =
             {places.map((place, index) => {
               const cat = CATEGORIES.find((c) => c.value === place.category);
               return (
-                <button
+                <div
                   key={place.id}
                   onClick={() => onPlaceClick(place)}
                   className="w-full text-left px-5 py-4 hover:bg-[var(--sg-offwhite)] transition-colors
@@ -149,7 +148,7 @@ export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked =
                         <span className="text-lg shrink-0">{CATEGORY_EMOJI[place.category]}</span>
                       </div>
 
-                      {/* Category + rating */}
+                      {/* Category */}
                       <div className="flex items-center gap-2 mt-1">
                         <span
                           className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
@@ -157,11 +156,6 @@ export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked =
                         >
                           {cat?.label}
                         </span>
-                        <div className="flex items-center gap-0.5">
-                          {Array.from({ length: place.rating }).map((_, i) => (
-                            <Star key={i} size={9} className="text-[var(--sg-thames)] fill-[var(--sg-thames)]" />
-                          ))}
-                        </div>
                       </div>
 
                       {/* Description snippet */}
@@ -193,7 +187,7 @@ export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked =
                       </button>
                     </div>
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>

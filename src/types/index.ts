@@ -14,7 +14,6 @@ export interface Place {
   markerIcon: string;
   markerImage: string;
   images: string[];
-  rating: number;
   visitDate: string;
   tags: string[];
   zoom: number;

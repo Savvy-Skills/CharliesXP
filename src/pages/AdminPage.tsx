@@ -39,7 +39,6 @@ interface AdminPlace {
   description: string;
   zone_id: string;
   category: string;
-  rating: number | null;
   placed: boolean;
   active: boolean;
 }
@@ -152,7 +151,7 @@ export function AdminPage() {
   const fetchPlaces = () => {
     supabase
       .from('places')
-      .select('id, name, description, zone_id, category, rating, placed, active')
+      .select('id, name, description, zone_id, category, placed, active')
       .order('zone_id')
       .then(({ data }) => {
         if (data) setPlaces(data as AdminPlace[]);
@@ -697,7 +696,6 @@ export function AdminPage() {
                       <th className="py-2 pr-4">Name</th>
                       <th className="py-2 pr-4">Zone</th>
                       <th className="py-2 pr-4">Category</th>
-                      <th className="py-2 pr-4">Rating</th>
                       <th className="py-2 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -716,9 +714,6 @@ export function AdminPage() {
                           {zoneName(p.zone_id)}
                         </td>
                         <td className="py-2 pr-4 text-[var(--sg-navy)]/60">{p.category}</td>
-                        <td className="py-2 pr-4 text-[var(--sg-navy)]/60">
-                          {p.rating ?? '—'}
-                        </td>
                         <td className="py-2 text-right">
                           {deleting === p.id ? (
                             <span className="inline-flex items-center gap-2 text-xs">

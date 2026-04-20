@@ -2,11 +2,11 @@ import { MapPin, Star, Coffee, Landmark, TreePine } from 'lucide-react';
 import { SectionShell } from '../SectionShell';
 
 const items = [
-  { title: 'Borough Market', subtitle: 'Southwark · Food Market', rating: '5.0', icon: '🛒' },
-  { title: 'Tate Modern', subtitle: 'Southwark · Museum', rating: '4.8', icon: '🎨' },
-  { title: 'The Anchor', subtitle: 'Southwark · Pub', rating: '4.5', icon: '🍺' },
-  { title: 'Maltby Street', subtitle: 'Bermondsey · Street Food', rating: '4.7', icon: '🍜' },
-  { title: 'Flat Iron Square', subtitle: 'Southwark · Bar', rating: '4.3', icon: '🍸' },
+  { title: 'Borough Market', subtitle: 'Southwark · Food Market', icon: '🛒' },
+  { title: 'Tate Modern', subtitle: 'Southwark · Museum', icon: '🎨' },
+  { title: 'The Anchor', subtitle: 'Southwark · Pub', icon: '🍺' },
+  { title: 'Maltby Street', subtitle: 'Bermondsey · Street Food', icon: '🍜' },
+  { title: 'Flat Iron Square', subtitle: 'Southwark · Bar', icon: '🍸' },
 ];
 
 const icons = [MapPin, Star, Coffee, Landmark, TreePine];
@@ -45,7 +45,6 @@ export function SGLists() {
                   <p className="text-sm font-semibold truncate" style={{ color: 'var(--sg-navy)', fontFamily: 'var(--sg-font)' }}>{item.title}</p>
                   <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--sg-navy)', opacity: 0.5, fontFamily: 'var(--sg-font)' }}>{item.subtitle}</p>
                 </div>
-                <span className="text-xs font-semibold" style={{ color: 'var(--sg-thames)', fontFamily: 'var(--sg-font)' }}>★ {item.rating}</span>
               </ItemRow>
             ))}
           </div>

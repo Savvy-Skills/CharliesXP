@@ -2,7 +2,6 @@ import { useParams, Link } from 'react-router';
 import { ArrowLeft, MapPin, Lock } from 'lucide-react';
 import { PageShell } from '../components/Layout/PageShell';
 import { SEOHead } from '../components/SEOHead';
-import { ZonePlacesList } from '../components/Zone/ZonePlacesList';
 import { usePlaces } from '../hooks/usePlaces';
 import { useAuth } from '../hooks/useAuth';
 
@@ -70,10 +69,13 @@ export function ZoneDetailPage() {
         <p className="text-[var(--sg-navy)] leading-relaxed mb-8">{zone.description}</p>
 
         {unlocked ? (
-          <>
-            <h2 className="font-display text-lg font-bold text-[var(--sg-navy)] mb-4">Places in {zone.name}</h2>
-            <ZonePlacesList places={zonePlaces} />
-          </>
+          <Link
+            to={`/map/${zone.id}`}
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[var(--sg-crimson)]
+              hover:bg-[var(--sg-crimson-hover)] text-white text-sm font-semibold transition-colors"
+          >
+            <MapPin size={16} /> See all places on the map
+          </Link>
         ) : (
           <div className="bg-[var(--sg-offwhite)] rounded-xl p-8 text-center">
             <Lock size={32} className="text-[var(--sg-navy)]/60 mx-auto mb-3" />

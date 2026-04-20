@@ -14,7 +14,6 @@ interface SupabasePlaceRow {
   marker_icon: string;
   marker_image: string;
   images: string[];
-  rating: number;
   tags: string[];
   visit_date: string | null;
   camera: { zoom?: number; pitch?: number; bearing?: number };
@@ -42,7 +41,6 @@ function rowToPlace(row: SupabasePlaceRow): Place {
     markerIcon: row.marker_icon,
     markerImage: row.marker_image,
     images: row.images,
-    rating: row.rating,
     visitDate: row.visit_date ?? '',
     tags: row.tags,
     zoom: row.camera?.zoom ?? 15,
@@ -65,7 +63,6 @@ function placeToRow(place: Omit<Place, 'id' | 'slug'>, activeZone: string): Reco
     marker_icon: place.markerIcon,
     marker_image: place.markerImage,
     images: place.images,
-    rating: place.rating,
     tags: place.tags,
     visit_date: place.visitDate,
     camera: { zoom: place.zoom, pitch: place.pitch, bearing: place.bearing },
@@ -85,7 +82,6 @@ function partialPlaceToDbUpdates(updates: Partial<Place>): Record<string, unknow
     dbUpdates.placed = true;
   }
   if (updates.address !== undefined) dbUpdates.address = updates.address;
-  if (updates.rating !== undefined) dbUpdates.rating = updates.rating;
   if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
   return dbUpdates;
 }

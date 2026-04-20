@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { Star, MapPin, Calendar, ExternalLink } from 'lucide-react';
+import { MapPin, Calendar, ExternalLink } from 'lucide-react';
 import type { Place } from '../../types';
 import { CATEGORIES } from '../../types';
 import { CATEGORY_EMOJI } from '../../utils/mapStyles';
@@ -54,16 +54,6 @@ export function PlaceContent({ place }: PlaceContentProps) {
             )}
           </div>
         </div>
-      </div>
-
-      <div className="flex items-center gap-1 mb-4">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Star
-            key={i}
-            size={18}
-            className={i < place.rating ? 'text-[var(--sg-thames)] fill-[var(--sg-thames)]' : 'text-[var(--sg-border)]'}
-          />
-        ))}
       </div>
 
       <p className="text-[var(--sg-navy)] leading-relaxed mb-6">{place.description}</p>

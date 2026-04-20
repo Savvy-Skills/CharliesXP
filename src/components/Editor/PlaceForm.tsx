@@ -31,7 +31,6 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
       : undefined
   );
   const [address, setAddress] = useState(initial?.address ?? '');
-  const [rating, setRating] = useState(initial?.rating ?? 3);
   const [visitDate, setVisitDate] = useState(initial?.visitDate ?? '');
   const [tags, setTags] = useState(initial?.tags.join(', ') ?? '');
   const [lng, setLng] = useState(String(initial?.coordinates?.lng ?? coordinates?.lng ?? 0));
@@ -54,13 +53,12 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
       description !== (initial.description ?? '') ||
       category !== (initial.category ?? 'other') ||
       address !== (initial.address ?? '') ||
-      rating !== (initial.rating ?? 3) ||
       visitDate !== (initial.visitDate ?? '') ||
       tags !== (initial.tags.join(', ') ?? '') ||
       lng !== String(initial.coordinates?.lng ?? 0) ||
       lat !== String(initial.coordinates?.lat ?? 0)
     );
-  }, [name, description, category, address, rating, visitDate, tags, lng, lat, initial, dragCoordinates]);
+  }, [name, description, category, address, visitDate, tags, lng, lat, initial, dragCoordinates]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -80,7 +78,6 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
       markerIcon: customMarker?.name ?? category,
       markerImage: customMarker?.image || `/markers/${category}.png`,
       images: initial?.images ?? [],
-      rating,
       visitDate,
       tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
       zoom: currentView?.zoom ?? initial?.zoom ?? 16,
@@ -164,28 +161,14 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-semibold text-[var(--sg-navy)] mb-1.5">Rating</label>
-            <select
-              value={rating}
-              onChange={(e) => setRating(Number(e.target.value))}
-              className={inputClass}
-            >
-              {[1, 2, 3, 4, 5].map((r) => (
-                <option key={r} value={r}>{'★'.repeat(r)}{'☆'.repeat(5 - r)}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-[var(--sg-navy)] mb-1.5">Visit Date</label>
-            <input
-              type="date"
-              value={visitDate}
-              onChange={(e) => setVisitDate(e.target.value)}
-              className={inputClass}
-            />
-          </div>
+        <div>
+          <label className="block text-sm font-semibold text-[var(--sg-navy)] mb-1.5">Visit Date</label>
+          <input
+            type="date"
+            value={visitDate}
+            onChange={(e) => setVisitDate(e.target.value)}
+            className={inputClass}
+          />
         </div>
 
         <div>
