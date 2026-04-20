@@ -76,7 +76,10 @@ export function MapPage() {
 
   // ── Sync map camera with URL zone changes ─────────────────────────────────
   // When activeZone changes (URL changes), fire the appropriate camera animation.
+  // If the URL change originated from a pan (handleMoveEnd), we skip the flyTo
+  // so the camera doesn't fight the user's gesture.
   const prevZoneRef = useRef<string | null | undefined>(undefined);
+  const skipNextZoneFlyToRef = useRef(false);
   useEffect(() => {
     const prev = prevZoneRef.current;
     prevZoneRef.current = activeZone;
@@ -84,6 +87,11 @@ export function MapPage() {
     if (prev === undefined) {
       // Initial mount — if a zone is already in the URL, zoom in after map settles
       if (activeZone) setTimeout(() => zoomIntoZone(activeZone), 400);
+      return;
+    }
+
+    if (skipNextZoneFlyToRef.current) {
+      skipNextZoneFlyToRef.current = false;
       return;
     }
 
@@ -226,6 +234,32 @@ export function MapPage() {
     },
     [mapState, isAnimating, navigate, searchParams, mapRef, isEditorMode, isZoneEnabled, navigateToZone],
   );
+
+  // When the user drag-pans the camera while inside a zone, update the URL
+  // to reflect the zone under the map center so the sidebar / active-zone UI
+  // follows the viewport. Bound to `dragend` (not `moveend`) so scroll-zoom
+  // and programmatic flyTo animations don't retrigger zone switching — that
+  // caused an oscillation on zoom-out. Suppress the URL-triggered flyTo for
+  // this transition so we don't fight the user's gesture.
+  const handleDragEnd = useCallback(() => {
+    if (isAnimating.current) return;
+    if (isEditorMode) return;
+    if (mapState !== 'zoneDetail') return;
+
+    const map = mapRef.current?.getMap();
+    if (!map || !map.isStyleLoaded()) return;
+
+    const center = map.getCenter();
+    const point = map.project([center.lng, center.lat]);
+    const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
+    const zoneName = features[0]?.properties?.zone as string | undefined;
+    if (!zoneName || zoneName === activeZone) return;
+    if (!isZoneEnabled(zoneName)) return;
+
+    skipNextZoneFlyToRef.current = true;
+    const qs = searchParams.toString();
+    navigate(`/${zoneName}${qs ? '?' + qs : ''}`, { replace: true });
+  }, [mapState, activeZone, isAnimating, isEditorMode, isZoneEnabled, mapRef, navigate, searchParams]);
 
   const handlePlaceClick = useCallback(
     (place: Place) => { flyToPlace(place); },
@@ -403,6 +437,7 @@ export function MapPage() {
           onResetView={flyToDefault}
           onMapClick={handleMapClick}
           onZoomChange={handleZoomChange}
+          onDragEnd={handleDragEnd}
           allUnlockedPlaces={activeZonePlaces}
           activeCategory={activeCategory}
           isEditorMode={isEditorMode}

@@ -36,7 +36,7 @@ interface HeroMapSectionProps {
   onResetView: () => void;
   onMapClick?: (e: { lngLat: { lng: number; lat: number } }) => void;
   onZoomChange?: (zoom: number) => void;
-  onMoveEnd?: () => void;
+  onDragEnd?: () => void;
   allUnlockedPlaces?: Place[];
   activeCategory?: PlaceCategory | null;
   // Editor props
@@ -77,7 +77,7 @@ export function HeroMapSection({
   onResetView,
   onMapClick,
   onZoomChange,
-  onMoveEnd,
+  onDragEnd,
   allUnlockedPlaces,
   activeCategory: activeCategoryProp,
   // Editor
@@ -492,7 +492,7 @@ export function HeroMapSection({
               mode="full"
               interactive
               onZoomChange={handleZoomChangeLocal}
-              onMoveEnd={onMoveEnd}
+              onDragEnd={onDragEnd}
               skip3DModels
               activeZone={mapState === 'zoneDetail' ? activeZone : null}
               hoveredZone={hoveredZoneId}

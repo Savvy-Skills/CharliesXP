@@ -137,7 +137,7 @@ interface InteractiveMapProps {
   mapChildren?: ReactNode;
   children?: ReactNode;
   onZoomChange?: (zoom: number) => void;
-  onMoveEnd?: () => void;
+  onDragEnd?: () => void;
   skip3DModels?: boolean;
   activeZone?: string | null;
   /** Zone ID to highlight (from icon hover or external source) */
@@ -319,7 +319,7 @@ export function InteractiveMap({
   mapChildren,
   children,
   onZoomChange,
-  onMoveEnd,
+  onDragEnd,
   skip3DModels = false,
   activeZone = null,
   hoveredZone = null,
@@ -808,7 +808,7 @@ export function InteractiveMap({
         ref={mapRef}
         {...viewState}
         onMove={isContained ? undefined : handleMove}
-        onMoveEnd={() => onMoveEnd?.()}
+        onDragEnd={() => onDragEnd?.()}
         onClick={isContained ? undefined : onMapClick}
         mapboxAccessToken={MAPBOX_TOKEN}
         mapStyle={(overrideStyle ?? MAP_STYLES[mapStyle]) as Parameters<typeof MapGL>[0]['mapStyle']}
