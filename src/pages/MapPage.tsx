@@ -22,7 +22,10 @@ export function MapPage() {
   const isEditorMode = searchParams.get('editor') === 'true';
 
   // ── URL is the single source of truth for map state ──────────────────────
-  const mapState: MapZoomState = urlZoneId ? 'zoneDetail' : 'overview';
+  // Root path `/` renders the expanded full-screen map. Zone path `/:zoneId`
+  // renders the zone-detail state. The old `'overview'` state (small hero
+  // preview) is retired now that the landing page is gone.
+  const mapState: MapZoomState = urlZoneId ? 'zoneDetail' : 'expanded';
   const activeZone = urlZoneId ?? null;
   const selectedPlaceSlug = urlPlaceSlug ?? null;
 
@@ -51,7 +54,7 @@ export function MapPage() {
   const [welcomePopupOpen, setWelcomePopupOpen] = useState<boolean>(() => {
     return !user && !hasDismissedWelcome();
   });
-  const isMapMode = mapState === 'zoneDetail' || mapState === 'overview';
+  const isMapMode = true;  // MapPage is always map-mode now that landing is gone
 
   // Handle payment return params (?payment=success|cancelled)
   useEffect(() => {
@@ -131,7 +134,7 @@ export function MapPage() {
   const navigateToZone = useCallback(
     (zoneId: string) => {
       const qs = searchParams.toString();
-      if (mapState === 'overview') {
+      if (mapState === 'expanded') {
         window.history.pushState(null, '', `/${qs ? '?' + qs : ''}`);
       }
       navigate(`/${zoneId}${qs ? '?' + qs : ''}`);
@@ -178,7 +181,7 @@ export function MapPage() {
     // If zone is in query params (legacy) and not already in the path, navigate to correct URL
     if (zone && !urlZoneId) {
       navigate(`/${zone}?editor=true${placeId ? '&placeId=' + placeId : ''}`);
-    } else if (mapState === 'overview') {
+    } else if (mapState === 'expanded') {
       navigate(`/?editor=true`);
     }
   }, [isEditorMode]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -209,7 +212,7 @@ export function MapPage() {
 
       // Zoom in while on the map → enter the zone under the map center.
       // Locked-zone paywall is shown in the sidebar by ZoneSidePanel once we land.
-      if (mapState === 'overview' && zoom >= ZONE_ENTER_THRESHOLD) {
+      if (mapState === 'expanded' && zoom >= ZONE_ENTER_THRESHOLD) {
         const map = mapRef.current?.getMap();
         if (!map) return;
         const center = map.getCenter();
@@ -259,7 +262,7 @@ export function MapPage() {
         return;
       }
 
-      if (mapState === 'overview') {
+      if (mapState === 'expanded') {
         const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
         if (features.length > 0) {
           const zoneName = features[0].properties?.zone as string;
