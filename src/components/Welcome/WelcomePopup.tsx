@@ -26,50 +26,38 @@ export function WelcomePopup({ isOpen, onClose }: WelcomePopupProps) {
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose}>
-      <article className="p-8 space-y-7 max-h-[80vh] overflow-y-auto custom-scrollbar">
+      <article className="p-6 space-y-5 max-h-[80vh] overflow-y-auto custom-scrollbar">
         <header className="text-center">
-          <h2 className="font-display text-2xl font-bold text-[var(--sg-crimson)]">
+          <h2 className="font-display text-xl font-bold text-[var(--sg-crimson)]">
             About Interest Map
           </h2>
-          <p className="text-[var(--sg-navy)]/70 leading-relaxed mt-3">
-            A curated collection of the best spots in central London — from hidden cocktail bars
-            to world-class museums. Every place has been personally visited and reviewed.
-            Unlock zones to discover insider guides, detailed reviews, and hidden gems
-            in each London neighbourhood.
+          <p className="text-sm text-[var(--sg-navy)]/70 leading-relaxed mt-2">
+            A curated collection of the best spots in central London, from hidden cocktail bars
+            to world-class museums. Every place has been personally visited and reviewed. Unlock
+            zones to discover insider guides and hidden gems.
           </p>
         </header>
 
-        <section className="pt-6 border-t border-[var(--sg-border)]">
-          <h3 className="font-display text-xl font-bold text-[var(--sg-crimson)]">
+        <section className="pt-4 border-t border-[var(--sg-border)]">
+          <h3 className="font-display text-lg font-bold text-[var(--sg-crimson)]">
             Why Charlie and not AI?
           </h3>
-          <div className="space-y-3 text-[var(--sg-navy)]/75 leading-relaxed mt-3">
-            <p className="font-medium text-[var(--sg-navy)]">Good question. Genuinely.</p>
+          <div className="space-y-2 text-sm text-[var(--sg-navy)]/75 leading-relaxed mt-2">
             <p>
-              AI will give you information. Accurate, fast, and often impressive. But it has
-              never actually been there.
-            </p>
-            <p>
-              It doesn't know that the market is only worth it before 9am on a Saturday. It has
-              never walked that route on a rainy Wednesday in November and known — in the way you
-              only know from being somewhere — that the café on the corner is worth the detour.
-              It has never tested the food, sat in the parks, seen the shows, or felt the weather.
+              AI gives you information. Accurate, fast, impressive. But it has never actually
+              been there.
             </p>
             <p className="font-medium text-[var(--sg-navy)]">
-              Charlie has done all of that. Repeatedly. In all weathers.
+              Charlie has. Repeatedly. In all weathers.
             </p>
-            <p>
-              Information tells you what exists. Charlie tells you what's worth it — for you,
-              specifically, on the day you're actually there.
-            </p>
-            <p className="italic">That's not something you can search for.</p>
+            <p>Information tells you what exists. Charlie tells you what's worth it.</p>
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-3">
+          <div className="mt-4 flex flex-wrap gap-2">
             <Link
               to="/who-is-charlie"
               onClick={handleClose}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg
                 bg-[var(--sg-crimson)] hover:bg-[var(--sg-crimson-hover)] text-white text-sm font-semibold
                 transition-colors"
             >
@@ -78,7 +66,7 @@ export function WelcomePopup({ isOpen, onClose }: WelcomePopupProps) {
             <Link
               to="/the-london-i-love"
               onClick={handleClose}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg
                 bg-[var(--sg-offwhite)] hover:bg-[var(--sg-border)] text-[var(--sg-navy)] text-sm font-semibold
                 transition-colors"
             >
@@ -87,7 +75,7 @@ export function WelcomePopup({ isOpen, onClose }: WelcomePopupProps) {
           </div>
         </section>
 
-        <footer className="pt-5 border-t border-[var(--sg-border)] flex items-center justify-between gap-4 flex-wrap">
+        <footer className="pt-4 border-t border-[var(--sg-border)] flex items-center justify-between gap-4 flex-wrap">
           <label className="flex items-center gap-2 text-sm text-[var(--sg-navy)]/70 cursor-pointer select-none">
             <input
               type="checkbox"
