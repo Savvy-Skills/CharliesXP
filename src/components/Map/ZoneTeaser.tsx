@@ -41,7 +41,7 @@ export default function ZoneTeaser({ zoneId, zoneName, places, teaserCounts, act
   const totalPlaces = categoryCounts.reduce((sum, [, count]) => sum + count, 0);
 
   return (
-    <div className="absolute bottom-4 right-4 z-10">
+    <div className="hidden md:block absolute bottom-4 right-4 z-10">
       <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-[#e8dfd5] p-4 min-w-[200px]">
         {zoneId && (
           <div className="text-xs font-bold text-[#7c2d36] uppercase tracking-wider mb-2">{zoneName || zoneId}</div>
