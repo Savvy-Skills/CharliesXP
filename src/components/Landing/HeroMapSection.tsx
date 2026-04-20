@@ -624,6 +624,10 @@ export function HeroMapSection({
                     onUnlock={() => onUnlockZone(activeZone)}
                     teaserCounts={teasers[activeZone]}
                     hideHeader
+                    selectedPlaceSlug={selectedPlaceSlug}
+                    onClosePlace={() => {
+                      if (activeZone) onClosePlace?.(activeZone);
+                    }}
                   />
                 )}
                 {/* Zone teaser inside drawer for mobile */}

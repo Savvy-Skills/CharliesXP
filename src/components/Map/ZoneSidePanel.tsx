@@ -1,8 +1,9 @@
-import { ChevronRight, Lock, Check } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Lock, Check } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import type { Place } from '../../types';
 import { CATEGORIES } from '../../types';
 import { CATEGORY_EMOJI } from '../../utils/mapStyles';
+import { PlaceDetailView } from './PlaceDetailView';
 
 interface ZoneSidePanelProps {
   zoneId: string;
@@ -13,12 +14,17 @@ interface ZoneSidePanelProps {
   onUnlock?: () => void;
   teaserCounts?: Record<string, number>;
   hideHeader?: boolean;
+  selectedPlaceSlug?: string | null;
+  onClosePlace?: () => void;
 }
 
-export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked = false, onUnlock, teaserCounts, hideHeader = false }: ZoneSidePanelProps) {
+export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked = false, onUnlock, teaserCounts, hideHeader = false, selectedPlaceSlug, onClosePlace }: ZoneSidePanelProps) {
   const displayName = zoneName || zoneId;
   const navigate = useNavigate();
   const lockedCount = teaserCounts ? Object.values(teaserCounts).reduce((a, b) => a + b, 0) : 0;
+  const selectedPlace = selectedPlaceSlug
+    ? (places.find((p) => p.slug === selectedPlaceSlug) ?? null)
+    : null;
 
   return (
     <div className="h-full w-full md:w-[380px] shrink-0 bg-white border-r border-[var(--sg-border)]
@@ -113,8 +119,28 @@ export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked =
           </div>
         </div>
       ) : (
-      /* Place list */
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
+      <>
+      {/* Mobile: place detail view replaces list when a place is selected */}
+      {selectedPlace && (
+        <div className="flex-1 md:hidden overflow-hidden">
+          <PlaceDetailView
+            place={selectedPlace}
+            header={
+              <button
+                onClick={onClosePlace}
+                className="flex items-center gap-2 px-4 py-3 border-b border-[var(--sg-border)]
+                  text-sm font-semibold text-[var(--sg-navy)]
+                  hover:bg-[var(--sg-offwhite)] transition-colors cursor-pointer w-full"
+              >
+                <ArrowLeft size={16} /> Back to zone
+              </button>
+            }
+          />
+        </div>
+      )}
+
+      {/* Place list — always visible on desktop; hidden on mobile when a place is selected */}
+      <div className={`flex-1 overflow-y-auto custom-scrollbar ${selectedPlace ? 'hidden md:block' : ''}`}>
         {places.length === 0 ? (
           <div className="px-5 py-12 text-center">
             <p className="text-sm text-[var(--sg-navy)]/60">No places in this zone yet.</p>
@@ -193,6 +219,7 @@ export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked =
           </div>
         )}
       </div>
+      </>
       )}
     </div>
   );
