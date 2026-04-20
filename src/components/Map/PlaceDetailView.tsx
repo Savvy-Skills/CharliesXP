@@ -51,10 +51,10 @@ export function PlaceDetailView({ place, header, footer }: PlaceDetailViewProps)
             <div className="flex flex-wrap gap-1.5">
               {place.tags.map((t) => (
                 <span
-                  key={t}
+                  key={t.id}
                   className="text-xs px-2 py-0.5 rounded-full bg-[var(--sg-offwhite)] text-[var(--sg-navy)]/70"
                 >
-                  {t}
+                  {t.name}
                 </span>
               ))}
             </div>

@@ -1,5 +1,4 @@
-import { ArrowLeft, ChevronRight, Lock, Check } from 'lucide-react';
-import { useNavigate } from 'react-router';
+import { ArrowLeft, Lock, Check } from 'lucide-react';
 import type { Place } from '../../types';
 import { CATEGORIES } from '../../types';
 import { CATEGORY_EMOJI } from '../../utils/mapStyles';
@@ -20,7 +19,6 @@ interface ZoneSidePanelProps {
 
 export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked = false, onUnlock, teaserCounts, hideHeader = false, selectedPlaceSlug, onClosePlace }: ZoneSidePanelProps) {
   const displayName = zoneName || zoneId;
-  const navigate = useNavigate();
   const lockedCount = teaserCounts ? Object.values(teaserCounts).reduce((a, b) => a + b, 0) : 0;
   const selectedPlace = selectedPlaceSlug
     ? (places.find((p) => p.slug === selectedPlaceSlug) ?? null)
@@ -193,24 +191,13 @@ export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked =
                       {place.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
                           {place.tags.slice(0, 3).map((tag) => (
-                            <span key={tag} className="text-[10px] text-[var(--sg-navy)]/40 bg-[var(--sg-offwhite)] px-1.5 py-0.5 rounded">
-                              {tag}
+                            <span key={tag.id} className="text-[10px] text-[var(--sg-navy)]/40 bg-[var(--sg-offwhite)] px-1.5 py-0.5 rounded">
+                              {tag.name}
                             </span>
                           ))}
                         </div>
                       )}
 
-                      {/* View details link */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(place.zone ? `/map/${place.zone}/${place.slug}` : `/place/${place.slug}`);
-                        }}
-                        className="flex items-center gap-1 mt-2 text-[10px] font-semibold
-                          text-[var(--sg-crimson)] hover:text-[var(--sg-crimson-hover)] transition-colors cursor-pointer"
-                      >
-                        View Details <ChevronRight size={10} />
-                      </button>
                     </div>
                   </div>
                 </div>

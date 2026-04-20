@@ -7,6 +7,7 @@ export interface Landmark {
   zone_id: string;
   coordinates: { lng: number; lat: number };
   icon: string;
+  iconUrl: string | null;
   min_zoom: number;
 }
 
@@ -16,6 +17,7 @@ interface SupabaseLandmarkRow {
   zone_id: string;
   coordinates: { lng: number; lat: number };
   icon: string;
+  icon_url: string | null;
   min_zoom: number;
 }
 
@@ -26,6 +28,7 @@ function rowToLandmark(row: SupabaseLandmarkRow): Landmark {
     zone_id: row.zone_id,
     coordinates: row.coordinates,
     icon: row.icon,
+    iconUrl: row.icon_url,
     min_zoom: row.min_zoom,
   };
 }
@@ -36,6 +39,7 @@ function landmarkToRow(landmark: Omit<Landmark, 'id'>): Record<string, unknown> 
     zone_id: landmark.zone_id,
     coordinates: landmark.coordinates,
     icon: landmark.icon,
+    icon_url: landmark.iconUrl,
     min_zoom: landmark.min_zoom,
   };
 }
@@ -98,6 +102,7 @@ export function useSupabaseLandmarks() {
     if (updates.zone_id !== undefined) dbUpdates.zone_id = updates.zone_id;
     if (updates.coordinates !== undefined) dbUpdates.coordinates = updates.coordinates;
     if (updates.icon !== undefined) dbUpdates.icon = updates.icon;
+    if (updates.iconUrl !== undefined) dbUpdates.icon_url = updates.iconUrl;
     if (updates.min_zoom !== undefined) dbUpdates.min_zoom = updates.min_zoom;
 
     if (Object.keys(dbUpdates).length === 0) return;

@@ -84,10 +84,10 @@ export function PlaceContent({ place }: PlaceContentProps) {
         <div className="flex flex-wrap gap-2 mb-6">
           {place.tags.map((tag) => (
             <span
-              key={tag}
+              key={tag.id}
               className="px-2.5 py-1 text-xs bg-[var(--sg-offwhite)] text-[var(--sg-navy)]/60 rounded-full"
             >
-              #{tag}
+              #{tag.name}
             </span>
           ))}
         </div>

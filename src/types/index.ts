@@ -15,7 +15,8 @@ export interface Place {
   markerImage: string;
   images: string[];
   visitDate: string;
-  tags: string[];
+  tags: Tag[];
+  iconUrl: string | null;
   zoom: number;
   pitch: number;
   bearing: number;
@@ -35,6 +36,14 @@ export interface Zone {
   color: string;
   centroid: { lng: number; lat: number };
   radius: number;
+}
+
+export interface Tag {
+  id: string;
+  slug: string;
+  name: string;
+  color: string;
+  sortOrder: number;
 }
 
 export type PlaceCategory =

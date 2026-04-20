@@ -85,6 +85,7 @@ export function LandmarkListPanel({
         zone_id: form.zone_id,
         coordinates: pendingCoordinates,
         icon: '',
+        iconUrl: null,
         min_zoom: form.min_zoom,
       });
       onCancelPending();

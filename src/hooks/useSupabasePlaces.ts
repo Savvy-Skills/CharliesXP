@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import type { Place, PlaceCategory } from '../types';
+import type { Place, PlaceCategory, Tag } from '../types';
 
 interface SupabasePlaceRow {
   id: string;
@@ -14,11 +14,12 @@ interface SupabasePlaceRow {
   marker_icon: string;
   marker_image: string;
   images: string[];
-  tags: string[];
+  icon_url: string | null;
   visit_date: string | null;
   camera: { zoom?: number; pitch?: number; bearing?: number };
   model: { url: string; scale?: number; rotation?: [number, number, number] } | null;
   active: boolean;
+  place_tags?: Array<{ tags: { id: string; slug: string; name: string; color: string; sort_order: number } }>;
 }
 
 export function generateSlug(name: string): string {
@@ -30,6 +31,16 @@ export function generateSlug(name: string): string {
 }
 
 function rowToPlace(row: SupabasePlaceRow): Place {
+  const tags: Tag[] = (row.place_tags ?? [])
+    .map((pt) => ({
+      id: pt.tags.id,
+      slug: pt.tags.slug,
+      name: pt.tags.name,
+      color: pt.tags.color,
+      sortOrder: pt.tags.sort_order,
+    }))
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+
   return {
     id: row.id,
     slug: row.slug ?? generateSlug(row.name),
@@ -42,7 +53,8 @@ function rowToPlace(row: SupabasePlaceRow): Place {
     markerImage: row.marker_image,
     images: row.images,
     visitDate: row.visit_date ?? '',
-    tags: row.tags,
+    tags,
+    iconUrl: row.icon_url,
     zoom: row.camera?.zoom ?? 15,
     pitch: row.camera?.pitch ?? 45,
     bearing: row.camera?.bearing ?? 0,
@@ -63,7 +75,6 @@ function placeToRow(place: Omit<Place, 'id' | 'slug'>, activeZone: string): Reco
     marker_icon: place.markerIcon,
     marker_image: place.markerImage,
     images: place.images,
-    tags: place.tags,
     visit_date: place.visitDate,
     camera: { zoom: place.zoom, pitch: place.pitch, bearing: place.bearing },
     placed: true,
@@ -82,7 +93,6 @@ function partialPlaceToDbUpdates(updates: Partial<Place>): Record<string, unknow
     dbUpdates.placed = true;
   }
   if (updates.address !== undefined) dbUpdates.address = updates.address;
-  if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
   return dbUpdates;
 }
 
@@ -95,7 +105,7 @@ export function useSupabasePlaces() {
     setLoading(true);
     const { data, error: err } = await supabase
       .from('places')
-      .select('*')
+      .select('*, place_tags(tags(id, slug, name, color, sort_order))')
       .eq('active', true);
 
     if (err) {
@@ -184,6 +194,18 @@ export function useSupabasePlaces() {
     }
   }, []);
 
+  const setPlaceTags = useCallback(async (placeId: string, tagIds: string[]) => {
+    const { error: delErr } = await supabase
+      .from('place_tags')
+      .delete()
+      .eq('place_id', placeId);
+    if (delErr) { console.error('place_tags delete:', delErr); return; }
+    if (tagIds.length === 0) return;
+    const rows = tagIds.map((tag_id) => ({ place_id: placeId, tag_id }));
+    const { error: insErr } = await supabase.from('place_tags').insert(rows);
+    if (insErr) console.error('place_tags insert:', insErr);
+  }, []);
+
   return {
     places,
     loading,
@@ -192,5 +214,6 @@ export function useSupabasePlaces() {
     optimisticAdd,
     optimisticUpdate,
     optimisticDelete,
+    setPlaceTags,
   };
 }
