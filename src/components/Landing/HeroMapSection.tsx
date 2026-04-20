@@ -61,7 +61,7 @@ interface HeroMapSectionProps {
 }
 
 export function HeroMapSection({
-  places: _places,
+  places,
   mapRef,
   mapState,
   activeZone,
@@ -94,12 +94,11 @@ export function HeroMapSection({
   enabledZoneIds = [],
   isZoneEnabled: _isZoneEnabled,
   onToggleZone,
-  selectedPlaceSlug: _selectedPlaceSlug,
-  onOpenPlace: _onOpenPlace,
-  onClosePlace: _onClosePlace,
+  selectedPlaceSlug,
+  onOpenPlace,
+  onClosePlace,
   onCloseZone: _onCloseZone,
 }: HeroMapSectionProps) {
-  const [previewPlace, setPreviewPlace] = useState<Place | null>(null);
   const [activeCategory, setActiveCategory] = useState<PlaceCategory | null>(null);
   const [hoveredZoneId, setHoveredZoneId] = useState<string | null>(null);
   const [editPlaceKey, setEditPlaceKey] = useState<string | null>(null);
@@ -123,23 +122,23 @@ export function HeroMapSection({
     (place: Place) => {
       if (isEditorMode) {
         setEditPlaceKey(`${place.id}::${Date.now()}`);
-      } else {
-        setPreviewPlace(place);
+      } else if (place.zone) {
+        onOpenPlace?.(place.zone, place.slug);
       }
       onPlaceClick(place);
     },
-    [onPlaceClick, isEditorMode],
+    [onPlaceClick, onOpenPlace, isEditorMode],
   );
-
-  const handleClosePreview = useCallback(() => {
-    setPreviewPlace(null);
-  }, []);
 
   const handleBack = useCallback(() => {
     onZoomOut();
-    setPreviewPlace(null);
     setActiveCategory(null);
   }, [onZoomOut]);
+
+  // URL-derived selected place (replaces old local previewPlace state).
+  const selectedPlace = selectedPlaceSlug && activeZone
+    ? (places.find((p) => p.slug === selectedPlaceSlug && p.zone === activeZone) ?? null)
+    : null;
 
   // In editor mode, bypass zone lock
   const isZoneLocked = isEditorMode ? false : (activeZone ? !unlockedZones.includes(activeZone) : false);
@@ -151,13 +150,13 @@ export function HeroMapSection({
     .filter(([zoneId]) => enabledZoneIds.includes(zoneId));
   const placeCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const place of _places) {
+    for (const place of places) {
       if (place.zone) {
         counts[place.zone] = (counts[place.zone] ?? 0) + 1;
       }
     }
     return counts;
-  }, [_places]);
+  }, [places]);
 
   const lockedZonesWithCentroids = isEditorMode
     ? []
@@ -578,7 +577,12 @@ export function HeroMapSection({
 
             {/* Place preview card (for map marker clicks) — not in editor mode */}
             {mapState === 'zoneDetail' && !isEditorMode && (
-              <PlacePreviewCard place={previewPlace} onClose={handleClosePreview} />
+              <PlacePreviewCard
+                place={selectedPlace}
+                onClose={() => {
+                  if (activeZone) onClosePlace?.(activeZone);
+                }}
+              />
             )}
 
             {/* Zone teaser summary panel — desktop only */}
