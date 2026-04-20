@@ -35,6 +35,15 @@ export function MapPage() {
   const { unlockedZones: rawUnlockedZones, isZoneUnlocked, isAdmin, refreshAccess, user } = useAuth();
   const { enabledZoneIds, isZoneEnabled, toggleZone } = useZoneSettings();
 
+  const canOpenPlace =
+    !!activeZone &&
+    (isEditorMode || isZoneUnlocked(activeZone)) &&
+    isZoneEnabled(activeZone);
+
+  // When the zone is locked or disabled, keep the URL but don't open the detail.
+  // This preserves the shareable link for the recipient.
+  const effectivePlaceSlug = canOpenPlace ? selectedPlaceSlug : null;
+
   const unlockedZones = isAdmin ? enabledZoneIds : rawUnlockedZones.filter(z => enabledZoneIds.includes(z));
   const [paywallZone, setPaywallZone] = useState<string | null>(null);
   const [paymentToast, setPaymentToast] = useState<'success' | 'cancelled' | null>(null);
@@ -83,6 +92,38 @@ export function MapPage() {
       zoomOutToExpanded();
     }
   }, [activeZone]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Redirect on unknown zone or unknown place ─────────────────────────────
+  useEffect(() => {
+    if (!urlZoneId) return;
+    const zoneExists = !!ZONE_MAP[urlZoneId];
+    if (!zoneExists) {
+      navigate('/', { replace: true });
+      return;
+    }
+    if (!urlPlaceSlug) return;
+    // Don't redirect unknown places inside a LOCKED zone — keep the URL
+    // so a user who later unlocks the zone still lands on their share link.
+    if (!(isEditorMode || isZoneUnlocked(urlZoneId))) return;
+    const place = places.find(
+      (p) => p.slug === urlPlaceSlug && p.zone === urlZoneId,
+    );
+    if (!place) navigate(`/${urlZoneId}`, { replace: true });
+  }, [urlZoneId, urlPlaceSlug, places, isEditorMode, isZoneUnlocked, navigate]);
+
+  // ── Camera sequence: fly to place after zoomIntoZone settles ──────────────
+  useEffect(() => {
+    if (!effectivePlaceSlug || !activeZone) return;
+    const place = places.find(
+      (p) => p.slug === effectivePlaceSlug && p.zone === activeZone,
+    );
+    if (!place) return;
+    // Wait for zone-in animation to finish (1500ms per useMapZoom) before the
+    // second camera move. This runs on every URL change — consecutive opens
+    // in the same zone will retrigger, which is desired for different places.
+    const t = setTimeout(() => flyToPlace(place), 1600);
+    return () => clearTimeout(t);
+  }, [effectivePlaceSlug, activeZone, places, flyToPlace]);
 
   // ── Navigation helpers ────────────────────────────────────────────────────
   // All navigation goes through React Router. Query params (e.g. ?editor=true) are preserved.
@@ -371,7 +412,7 @@ export function MapPage() {
           onUpdatePlace={handleUpdatePlace}
           onDeletePlace={handleDeletePlace}
           onMoveToZone={handleMoveToZone}
-          selectedPlaceSlug={selectedPlaceSlug}
+          selectedPlaceSlug={effectivePlaceSlug}
           onOpenPlace={navigateToPlace}
           onClosePlace={navigateClosePlace}
           onCloseZone={navigateCloseZone}
