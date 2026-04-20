@@ -6,7 +6,7 @@ import { ZONE_POLYGON_CENTERS, ZONE_CENTROIDS, ZONE_EXIT_THRESHOLD } from '../ut
 
 /**
  * Pure camera-animation hook. Has no knowledge of URL or app state —
- * the caller (LandingPage) owns those and tells this hook when to move.
+ * the caller (MapPage) owns those and tells this hook when to move.
  */
 export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
   const previousView = useRef<ViewState | null>(null);
