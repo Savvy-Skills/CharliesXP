@@ -2,7 +2,6 @@ import { Link } from 'react-router';
 import { MapPin, Calendar, ExternalLink } from 'lucide-react';
 import type { Place } from '../../types';
 import { CATEGORIES } from '../../types';
-import { CATEGORY_EMOJI } from '../../utils/mapStyles';
 
 interface PlaceContentProps {
   place: Place;
@@ -10,7 +9,6 @@ interface PlaceContentProps {
 
 export function PlaceContent({ place }: PlaceContentProps) {
   const category = CATEGORIES.find((c) => c.value === place.category);
-  const emoji = CATEGORY_EMOJI[place.category] ?? '📍';
   const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${place.coordinates.lat},${place.coordinates.lng}`;
 
   return (
@@ -27,11 +25,10 @@ export function PlaceContent({ place }: PlaceContentProps) {
 
       <div className="flex items-start gap-4 mb-4">
         <div
-          className="w-12 h-12 rounded-full flex items-center justify-center text-xl shrink-0"
+          className="w-12 h-12 rounded-full shrink-0"
           style={{ backgroundColor: category?.color ?? '#6b7280' }}
-        >
-          {emoji}
-        </div>
+          aria-label={category?.label ?? 'Place'}
+        />
         <div className="flex-1 min-w-0">
           <h1 className="font-display text-2xl font-bold text-[var(--sg-navy)] leading-tight">{place.name}</h1>
           <div className="flex items-center gap-2 mt-1">

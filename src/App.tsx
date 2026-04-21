@@ -92,6 +92,9 @@ export default function App() {
             <Route path="/map/:zoneId/:placeSlug" element={<LegacyMapRedirect />} />
             <Route path="/place/:slug" element={<LegacyPlaceRedirect />} />
             <Route path="/zone/:name" element={<LegacyZoneRedirect />} />
+            {/* Editor shortcut — keep before /:zoneId catch-all so it's not
+                treated as an unknown zone and bounced to /. */}
+            <Route path="/editor" element={<Navigate to="/?editor=true" replace />} />
 
             {/* Canonical map routes */}
             <Route path="/" element={<AnimatedPage><MapPage /></AnimatedPage>} />

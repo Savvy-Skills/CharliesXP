@@ -1,15 +1,18 @@
 import { useCallback, useRef } from 'react';
 import type { MapRef } from 'react-map-gl/mapbox';
-import type { ViewState } from '../types';
 import { DEFAULT_VIEW_STATE } from '../utils/mapStyles';
-import { ZONE_POLYGON_CENTERS, ZONE_CENTROIDS, ZONE_EXIT_THRESHOLD } from '../utils/zoneMapping';
+import { ZONE_POLYGON_CENTERS, ZONE_CENTROIDS } from '../utils/zoneMapping';
 
 /**
- * Pure camera-animation hook. Has no knowledge of URL or app state —
- * the caller (MapPage) owns those and tells this hook when to move.
+ * Camera-animation primitives for the map. Stateless — the caller decides
+ * *when* to animate. Zone entry/exit now happens on explicit click actions
+ * only; pan and scroll-zoom just update the URL and leave the camera alone.
+ *
+ * `isAnimating` is exposed so callers can suppress handlers that would
+ * otherwise double-fire during a programmatic flight (e.g., the zoom-
+ * threshold auto-enter/exit in MapPage).
  */
 export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
-  const previousView = useRef<ViewState | null>(null);
   const isAnimating = useRef(false);
 
   const flyToWithGuard = useCallback(
@@ -23,25 +26,11 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
     [mapRef],
   );
 
-  /** Fly into a zone, storing the current view so we can return later. */
+  /** Fly into a zone centroid. Click-driven; never called reactively. */
   const zoomIntoZone = useCallback(
     (zoneId: string) => {
-      const map = mapRef.current;
-      if (!map) return;
       const centroid = ZONE_POLYGON_CENTERS[zoneId] ?? ZONE_CENTROIDS[zoneId];
       if (!centroid) return;
-
-      const currentMap = map.getMap();
-      // Clamp saved zoom below exit threshold so zoomOutToExpanded never lands
-      // us at a zoom that would immediately re-trigger the zoom-in entry.
-      previousView.current = {
-        longitude: currentMap.getCenter().lng,
-        latitude: currentMap.getCenter().lat,
-        zoom: Math.min(currentMap.getZoom(), ZONE_EXIT_THRESHOLD - 0.5),
-        pitch: currentMap.getPitch(),
-        bearing: currentMap.getBearing(),
-      };
-
       flyToWithGuard({
         center: [centroid.lng, centroid.lat],
         zoom: 14,
@@ -52,26 +41,11 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
         padding: { top: 80, bottom: 20, left: 20, right: 20 },
       }, 1500);
     },
-    [mapRef, flyToWithGuard],
+    [flyToWithGuard],
   );
 
-  /** Fly back to the view that was saved before entering the zone. */
-  const zoomOutToExpanded = useCallback(() => {
-    const target = previousView.current ?? DEFAULT_VIEW_STATE;
-    previousView.current = null;
-    flyToWithGuard({
-      center: [target.longitude, target.latitude],
-      zoom: target.zoom,
-      pitch: target.pitch,
-      bearing: target.bearing,
-      duration: 1200,
-      essential: true,
-    }, 1200);
-  }, [flyToWithGuard]);
-
-  /** Fly back to the city-level default view (used on map collapse). */
+  /** Fly to the city-level default view. Used by the close-zone button. */
   const zoomOutToOverview = useCallback(() => {
-    previousView.current = null;
     flyToWithGuard({
       center: [DEFAULT_VIEW_STATE.longitude, DEFAULT_VIEW_STATE.latitude],
       zoom: DEFAULT_VIEW_STATE.zoom,
@@ -82,5 +56,5 @@ export function useMapZoom(mapRef: React.RefObject<MapRef | null>) {
     }, 1200);
   }, [flyToWithGuard]);
 
-  return { zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, isAnimating };
+  return { zoomIntoZone, zoomOutToOverview, isAnimating };
 }

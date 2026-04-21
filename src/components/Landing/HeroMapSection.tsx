@@ -15,8 +15,7 @@ import { LandmarkListPanel } from '../Editor/LandmarkListPanel';
 import { TagListPanel } from '../Editor/TagListPanel';
 import { MobileDrawer } from '../ui/MobileDrawer';
 import type { Place, PlaceCategory, MapZoomState, Coordinates } from '../../types';
-import { ZONE_POLYGON_CENTERS, ZONE_MAP } from '../../utils/zoneMapping';
-import { CATEGORY_EMOJI } from '../../utils/mapStyles';
+import { ZONE_POLYGON_CENTERS, ZONE_MAP, LANDMARK_LABEL_ZOOM } from '../../utils/zoneMapping';
 import { useSupabaseLandmarks } from '../../hooks/useSupabaseLandmarks';
 import { useZoneTeasers } from '../../hooks/useZoneTeasers';
 
@@ -110,6 +109,10 @@ export function HeroMapSection({
   const [pendingLandmarkCoords, setPendingLandmarkCoords] = useState<{ lng: number; lat: number } | null>(null);
   const [pendingLandmarkZoneId, setPendingLandmarkZoneId] = useState<string | null>(null);
   const [editingLandmarkId, setEditingLandmarkId] = useState<string | null>(null);
+  // Used to make the list scroll to + briefly highlight whichever landmark
+  // the admin just clicked on the map. We bump the timestamp each click so
+  // consecutive clicks on the same landmark re-fire the scroll effect.
+  const [focusedLandmark, setFocusedLandmark] = useState<{ id: string; t: number } | null>(null);
   const { landmarks, addLandmark, updateLandmark, deleteLandmark } = useSupabaseLandmarks();
   const { teasers } = useZoneTeasers();
 
@@ -264,7 +267,10 @@ export function HeroMapSection({
         }
         setPendingLandmarkCoords({ lng: e.lngLat.lng, lat: e.lngLat.lat });
         setPendingLandmarkZoneId(detectedZone);
-        setEditingLandmarkId(null);
+        // Do NOT clear `editingLandmarkId` here — if a landmark is being
+        // edited, the click means "reposition this landmark", not "start a
+        // new add". LandmarkListPanel's save handler merges pending coords
+        // into the update when both are set.
         return;
       }
       onMapClick?.(e);
@@ -275,15 +281,15 @@ export function HeroMapSection({
   // Determine which sidebar to show
   const renderSidebar = () => {
     if (isEditorMode) {
+      let body: React.ReactNode;
       if (editorTab === 'tags') {
-        return (
-          <div className="h-full w-full bg-white border-r border-[var(--sg-border)] overflow-y-auto">
+        body = (
+          <div className="h-full w-full overflow-y-auto">
             <TagListPanel />
           </div>
         );
-      }
-      if (editorTab === 'landmarks') {
-        return (
+      } else if (editorTab === 'landmarks') {
+        body = (
           <LandmarkListPanel
             landmarks={landmarks}
             onAdd={addLandmark}
@@ -304,11 +310,11 @@ export function HeroMapSection({
                 duration: 1000,
               });
             }}
+            focusedLandmark={focusedLandmark ?? null}
           />
         );
-      }
-      if (editorTab === 'zones') {
-        return (
+      } else if (editorTab === 'zones') {
+        body = (
           <ZoneListPanel
             enabledZoneIds={enabledZoneIds}
             onToggleZone={onToggleZone ?? (() => {})}
@@ -322,11 +328,10 @@ export function HeroMapSection({
             }}
           />
         );
-      }
-      if (mapState === 'zoneDetail' && activeZone) {
+      } else if (mapState === 'zoneDetail' && activeZone) {
         const zone = ZONE_MAP[activeZone];
-        return (
-          <div className="h-full w-full bg-white border-r border-[var(--sg-border)] flex flex-col overflow-hidden">
+        body = (
+          <div className="h-full w-full flex flex-col overflow-hidden">
             <div className="px-4 py-3 border-b border-[var(--sg-border)] flex items-center gap-2 shrink-0">
               <span
                 className="w-3 h-3 rounded-full shrink-0"
@@ -359,18 +364,47 @@ export function HeroMapSection({
             </div>
           </div>
         );
-      }
-      return (
-        <div className="h-full w-full bg-white border-r border-[var(--sg-border)] flex flex-col items-center justify-center p-8">
-          <div className="w-14 h-14 rounded-full bg-[var(--sg-crimson)]/10 flex items-center justify-center mb-4">
-            <MapPin size={24} className="text-[var(--sg-crimson)]" />
+      } else {
+        body = (
+          <div className="h-full w-full flex flex-col items-center justify-center p-8">
+            <div className="w-14 h-14 rounded-full bg-[var(--sg-crimson)]/10 flex items-center justify-center mb-4">
+              <MapPin size={24} className="text-[var(--sg-crimson)]" />
+            </div>
+            <h3 className="font-display text-lg font-bold text-[var(--sg-navy)] mb-2">
+              Select a Zone
+            </h3>
+            <p className="text-sm text-[var(--sg-navy)]/50 text-center leading-relaxed">
+              Click on a zone on the map to start editing places.
+            </p>
           </div>
-          <h3 className="font-display text-lg font-bold text-[var(--sg-navy)] mb-2">
-            Select a Zone
-          </h3>
-          <p className="text-sm text-[var(--sg-navy)]/50 text-center leading-relaxed">
-            Click on a zone on the map to start editing places.
-          </p>
+        );
+      }
+
+      // Shared editor shell: tab bar on top, panel body below.
+      const editorTabs: { value: 'places' | 'zones' | 'landmarks' | 'tags'; label: string }[] = [
+        { value: 'places',    label: 'Places' },
+        { value: 'zones',     label: 'Zones' },
+        { value: 'landmarks', label: 'Landmarks' },
+        { value: 'tags',      label: 'Tags' },
+      ];
+      return (
+        <div className="h-full w-full bg-white border-r border-[var(--sg-border)] flex flex-col overflow-hidden">
+          <div className="px-3 py-2 border-b border-[var(--sg-border)] flex items-center gap-1 shrink-0 bg-[var(--sg-offwhite)]">
+            {editorTabs.map((t) => (
+              <button
+                key={t.value}
+                onClick={() => onEditorTabChange?.(t.value)}
+                className={`text-xs px-2.5 py-1 rounded-md cursor-pointer transition-colors ${
+                  editorTab === t.value
+                    ? 'bg-[var(--sg-navy)] text-white'
+                    : 'text-[var(--sg-navy)]/60 hover:bg-white'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex-1 overflow-hidden">{body}</div>
         </div>
       );
     }
@@ -562,6 +596,12 @@ export function HeroMapSection({
                               duration: 1500,
                               essential: true,
                             });
+                            // In landmarks editor, also scroll-and-highlight
+                            // in the sidebar list so admins can hit Edit/
+                            // Delete without hunting for the row.
+                            if (isEditorMode && editorTab === 'landmarks') {
+                              setFocusedLandmark({ id: lm.id, t: Date.now() });
+                            }
                           }}
                           className="flex flex-col items-center cursor-pointer bg-transparent border-0 p-0 focus:outline-none"
                           aria-label={`Fly to ${lm.name}`}
@@ -573,9 +613,14 @@ export function HeroMapSection({
                             draggable={false}
                             onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icons/default-landmark.png'; }}
                           />
-                          <span className="text-[9px] font-medium text-[var(--sg-navy)]/50 mt-0.5 whitespace-nowrap max-w-[80px] truncate">
-                            {lm.name}
-                          </span>
+                          {currentZoom >= LANDMARK_LABEL_ZOOM && (
+                            <span
+                              className="mt-1 px-1.5 py-[1px] rounded-md bg-white/90 text-[10px] font-semibold
+                                text-[var(--sg-navy)] whitespace-nowrap max-w-[120px] truncate shadow-sm"
+                            >
+                              {lm.name}
+                            </span>
+                          )}
                         </button>
                       </Marker>
                     ))}
@@ -680,10 +725,7 @@ export function HeroMapSection({
                         .sort(([, a], [, b]) => b - a)
                         .map(([category, count]) => (
                           <div key={category} className="flex items-center justify-between text-sm">
-                            <span className="flex items-center gap-2 text-[#2d1f1a]">
-                              <span className="text-base">{CATEGORY_EMOJI[category] ?? '📍'}</span>
-                              <span className="capitalize">{category}s</span>
-                            </span>
+                            <span className="capitalize text-[#2d1f1a]">{category}s</span>
                             <span className="font-medium text-[#7c2d36]">{count}</span>
                           </div>
                         ))}

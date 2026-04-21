@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { ArrowRightLeft } from 'lucide-react';
 import type { Place, PlaceCategory, Coordinates } from '../../types';
-import { MarkerPicker, type CustomMarker } from './MarkerPicker';
+import { CATEGORIES } from '../../types';
 import { Button } from '../ui/Button';
 import { MANAGED_ZONES, ZONE_MAP } from '../../utils/zoneMapping';
 import { IconPicker } from './IconPicker';
@@ -28,11 +28,6 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
   const [name, setName] = useState(initial?.name ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
   const [category, setCategory] = useState<PlaceCategory>(initial?.category ?? 'other');
-  const [customMarker, setCustomMarker] = useState<CustomMarker | undefined>(
-    initial?.category === 'other' && initial?.markerIcon !== 'other'
-      ? { name: initial.markerIcon, image: initial.markerImage }
-      : undefined
-  );
   const [address, setAddress] = useState(initial?.address ?? '');
   const [visitDate, setVisitDate] = useState(initial?.visitDate ?? '');
   const [lng, setLng] = useState(String(initial?.coordinates?.lng ?? coordinates?.lng ?? 0));
@@ -87,8 +82,10 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
       category,
       coordinates: { lng: parseFloat(lng) || 0, lat: parseFloat(lat) || 0 },
       address,
-      markerIcon: customMarker?.name ?? category,
-      markerImage: customMarker?.image || `/markers/${category}.png`,
+      // markerIcon / markerImage are legacy columns — the real icon lives
+      // in `iconUrl` now. Keep the type satisfied with empty strings.
+      markerIcon: '',
+      markerImage: '',
       images: initial?.images ?? [],
       visitDate,
       tags: initial?.tags ?? [],
@@ -133,19 +130,23 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-[var(--sg-navy)] mb-2">Category & Marker</label>
-          <MarkerPicker
+          <label className="block text-sm font-semibold text-[var(--sg-navy)] mb-2">Category</label>
+          <select
             value={category}
-            customMarker={customMarker}
-            onChange={(cat, custom) => {
-              setCategory(cat);
-              setCustomMarker(custom);
-            }}
-          />
+            onChange={(e) => setCategory(e.target.value as PlaceCategory)}
+            className={inputClass}
+          >
+            {CATEGORIES.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+          <p className="text-[11px] text-[var(--sg-navy)]/50 mt-1">
+            Describes what the place is. The map icon below is separate.
+          </p>
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-[var(--sg-navy)]/70 mb-1">Map icon</label>
+          <label className="block text-sm font-semibold text-[var(--sg-navy)] mb-2">Map icon</label>
           <IconPicker
             iconUrl={iconUrl}
             defaultUrl="/icons/default-place.png"

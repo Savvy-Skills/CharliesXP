@@ -228,17 +228,18 @@ export function MapPage() {
   const activeZonePlaces = activeZone ? getPlacesByZone(activeZone) : [];
   const activeCategory = activeCategories.length === 1 ? activeCategories[0] : null;
 
-  // Editor mode: handle ?zone= and ?placeId= query params on initial load
+  // Editor mode: migrate legacy ?zone=X query param into the URL path on
+  // initial load. The old self-navigate for the `mapState === 'expanded'`
+  // branch was a no-op (you're already at `/?editor=true` if the effect
+  // reaches it) and a latent cause of spurious "redirected to editor"
+  // behaviour if anything ever re-fired it — removed.
   useEffect(() => {
     if (!isEditorMode) return;
     const zone = searchParams.get('zone');
     const placeId = searchParams.get('placeId');
     if (placeId) setPendingPlaceId(placeId);
-    // If zone is in query params (legacy) and not already in the path, navigate to correct URL
     if (zone && !urlZoneId) {
       navigate(`/${zone}?editor=true${placeId ? '&placeId=' + placeId : ''}`);
-    } else if (mapState === 'expanded') {
-      navigate(`/?editor=true`);
     }
   }, [isEditorMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -452,7 +453,7 @@ export function MapPage() {
           onLockedZoneClick={(zoneId) => isEditorMode ? enterZone(zoneId) : setPaywallZone(zoneId)}
           onUnlockZone={(zoneId) => setPaywallZone(zoneId)}
           onZoneClick={enterZone}
-          onZoomOut={() => navigate(-1)}
+          onZoomOut={closeZone}
           enabledZoneIds={enabledZoneIds}
           isZoneEnabled={isZoneEnabled}
           onToggleZone={toggleZone}

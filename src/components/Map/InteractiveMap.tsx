@@ -1,9 +1,9 @@
-import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { Map as MapboxMap, MapMouseEvent } from 'mapbox-gl';
 import MapGL, { type MapRef, type ViewStateChangeEvent } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { PlaceMarker } from './PlaceMarker';
-import { MAP_STYLES, DEFAULT_VIEW_STATE, LONDON_BOUNDS, ALLOWED_LABEL_LAYERS, type MapStyleKey } from '../../utils/mapStyles';
+import { MAP_STYLES, DEFAULT_MAP_STYLE, DEFAULT_VIEW_STATE, LONDON_BOUNDS, ALLOWED_LABEL_LAYERS, ZONE_COLORS, getLightPresetForNow, type MapStyleKey } from '../../utils/mapStyles';
 import { ZONE_ENTER_THRESHOLD } from '../../utils/zoneMapping';
 import { createModelLayer } from './ModelLayer';
 import { useAuth } from '../../hooks/useAuth';
@@ -170,19 +170,11 @@ function DebugOverlay({ viewState, activeZone, editorMode, onResetCamera, onOpen
         {activeZone && <div>zone: <span className="text-pink-400">{activeZone}</span></div>}
         {isAdmin && (
           <div className="pt-1 mt-1 border-t border-white/20 space-y-1 pointer-events-auto">
-            {!isEditor && (
-              <a href="/map?editor=true" className="block text-cyan-400 hover:text-cyan-300">
-                Editor Mode
-              </a>
-            )}
             {isEditor && (
-              <a href="/map" className="block text-cyan-400 hover:text-cyan-300">
+              <a href="/" className="block text-cyan-400 hover:text-cyan-300">
                 Exit Editor
               </a>
             )}
-            <a href="/admin" className="block text-orange-400 hover:text-orange-300">
-              Dashboard
-            </a>
             {onOpenStyleModal && (
               <button
                 onClick={onOpenStyleModal}
@@ -342,9 +334,24 @@ export function InteractiveMap({
     }
     return DEFAULT_VIEW_STATE;
   });
-  const [mapStyle] = useState<MapStyleKey>('streets');
+  const [mapStyle] = useState<MapStyleKey>(DEFAULT_MAP_STYLE);
   const [overrideStyle, setOverrideStyle] = useState<StyleOverride | null>(null);
-  const [styleConfig, setStyleConfig] = useState<StyleConfig | null>(null);
+  // Baseline config is the always-on default: auto-detected light preset and
+  // POI/transit/place labels hidden. User-applied overrides from the Style
+  // JSON modal layer on top. `userOverrodeStyle` is the flag the debug HUD
+  // uses to show the `*` and the Reset button — it must NOT reflect the
+  // baseline being present.
+  const baselineStyleConfig = useMemo<StyleConfig>(() => ({
+    basemap: {
+      lightPreset: getLightPresetForNow(),
+      showPointOfInterestLabels: false,
+      showTransitLabels: false,
+      showPlaceLabels: false,
+      showRoadLabels: true,
+    },
+  }), []);
+  const [styleConfig, setStyleConfig] = useState<StyleConfig | null>(() => baselineStyleConfig);
+  const [userOverrodeStyle, setUserOverrodeStyle] = useState(false);
   const styleConfigRef = useRef<StyleConfig | null>(null);
   useEffect(() => { styleConfigRef.current = styleConfig; }, [styleConfig]);
   const [styleModalOpen, setStyleModalOpen] = useState(false);
@@ -361,29 +368,50 @@ export function InteractiveMap({
     sessionStorage.setItem('map-viewport', JSON.stringify(viewState));
   }, [viewState]);
 
-  // Apply Mapbox Standard-style config props (e.g. basemap.show3dBuildings).
+  // Apply Mapbox Standard-style config props (e.g. basemap.lightPreset).
   // Re-applies on every style.load because swapping styles resets config.
+  // Also called directly from `handleLoad` below to guarantee the initial
+  // config lands even if this effect registers after `style.load` fires.
+  const applyStyleConfig = useCallback(() => {
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+    const cfg = styleConfigRef.current;
+    if (!cfg) return;
+    for (const [scope, props] of Object.entries(cfg)) {
+      for (const [key, value] of Object.entries(props)) {
+        try {
+          (map as unknown as { setConfigProperty: (s: string, k: string, v: unknown) => void })
+            .setConfigProperty(scope, key, value);
+        } catch {
+          // Non-Standard styles don't support setConfigProperty — ignore.
+        }
+      }
+    }
+  }, [mapRef]);
+
   useEffect(() => {
     const map = mapRef.current?.getMap();
     if (!map) return;
-    const applyConfig = () => {
-      const cfg = styleConfigRef.current;
-      if (!cfg) return;
-      for (const [scope, props] of Object.entries(cfg)) {
-        for (const [key, value] of Object.entries(props)) {
-          try {
-            (map as unknown as { setConfigProperty: (s: string, k: string, v: unknown) => void })
-              .setConfigProperty(scope, key, value);
-          } catch {
-            // Non-Standard styles don't support setConfigProperty — ignore.
-          }
-        }
-      }
+    applyStyleConfig();
+    map.on('style.load', applyStyleConfig);
+    return () => { map.off('style.load', applyStyleConfig); };
+  }, [mapRef, styleConfig, applyStyleConfig]);
+
+  // Keep the Standard `lightPreset` in sync with the local clock. We re-check
+  // every 10 minutes and only trigger a state update when the preset actually
+  // changes — no point re-running `setConfigProperty` every tick.
+  useEffect(() => {
+    const tick = () => {
+      const next = getLightPresetForNow();
+      setStyleConfig((prev) => {
+        const current = prev?.basemap?.lightPreset;
+        if (current === next) return prev;
+        return { ...(prev ?? {}), basemap: { ...(prev?.basemap ?? {}), lightPreset: next } };
+      });
     };
-    applyConfig();
-    map.on('style.load', applyConfig);
-    return () => { map.off('style.load', applyConfig); };
-  }, [mapRef, styleConfig]);
+    const id = window.setInterval(tick, 10 * 60 * 1000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const handleMove = useCallback((evt: ViewStateChangeEvent) => {
     const vs = evt.viewState as ViewState;
@@ -449,7 +477,7 @@ export function InteractiveMap({
         type: 'line',
         source: 'postcodes',
         paint: {
-          'line-color': '#8b7355',
+          'line-color': ZONE_COLORS.gridLine,
           'line-width': 0.3,
           'line-opacity': 0.15,
         },
@@ -463,7 +491,7 @@ export function InteractiveMap({
         type: 'fill',
         source: 'world-dim-src',
         paint: {
-          'fill-color': '#faf8f5',
+          'fill-color': ZONE_COLORS.worldDim,
           'fill-opacity': 0.6,
         },
         layout: { visibility: 'none' },
@@ -478,7 +506,7 @@ export function InteractiveMap({
         source: 'zones',
         filter: ['==', ['get', 'zone'], ''],
         paint: {
-          'fill-color': ['get', 'color'],
+          'fill-color': ZONE_COLORS.activeFill,
           'fill-opacity': 0.02,
         },
         layout: { visibility: 'none' },
@@ -494,7 +522,7 @@ export function InteractiveMap({
           ? ['in', ['get', 'zone'], ['literal', ids]]         // only enabled zones
           : ['==', ['get', 'zone'], ''];                      // match nothing (loading or empty)
 
-    // Zone fill — semi-transparent, per-zone color
+    // Zone fill — single grey palette, opacity ramps with zoom
     if (!map.getLayer('zones-fill')) {
       map.addLayer({
         id: 'zones-fill',
@@ -502,13 +530,13 @@ export function InteractiveMap({
         source: 'zones',
         ...(zoneFilter && { filter: zoneFilter }),
         paint: {
-          'fill-color': ['get', 'color'],
+          'fill-color': ZONE_COLORS.fill,
           'fill-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.12, 14, 0.06, 16, 0.03],
         },
       });
     }
 
-    // Zone border — outer borders only, per-zone color
+    // Zone border — outer borders only
     if (!map.getLayer('zones-border')) {
       map.addLayer({
         id: 'zones-border',
@@ -516,7 +544,7 @@ export function InteractiveMap({
         source: 'zones',
         ...(zoneFilter && { filter: zoneFilter }),
         paint: {
-          'line-color': ['get', 'color'],
+          'line-color': ZONE_COLORS.border,
           'line-width': ['interpolate', ['linear'], ['zoom'], 10, 2.5, 13, 2, 15, 1, 17, 0.3],
           'line-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.7, 13, 0.6, 15, 0.35, 17, 0.15],
         },
@@ -531,7 +559,7 @@ export function InteractiveMap({
         source: 'zones',
         filter: ['==', ['get', 'zone'], ''],
         paint: {
-          'fill-color': ['get', 'color'],
+          'fill-color': ZONE_COLORS.hoverFill,
           'fill-opacity': 0.2,
         },
       });
@@ -545,14 +573,14 @@ export function InteractiveMap({
         source: 'zones',
         filter: ['==', ['get', 'zone'], ''],
         paint: {
-          'line-color': ['get', 'color'],
+          'line-color': ZONE_COLORS.hoverBorder,
           'line-width': 3.5,
           'line-opacity': 0.9,
         },
       });
     }
 
-    // Disabled zone fill — grey, low opacity, hidden by default
+    // Disabled zone fill — hidden by default
     if (!map.getLayer('zones-disabled-fill')) {
       map.addLayer({
         id: 'zones-disabled-fill',
@@ -560,14 +588,14 @@ export function InteractiveMap({
         source: 'zones',
         filter: ['==', ['get', 'zone'], ''],
         paint: {
-          'fill-color': '#6b7280',
+          'fill-color': ZONE_COLORS.disabledFill,
           'fill-opacity': 0.08,
         },
         layout: { visibility: 'none' },
       }, 'zones-fill'); // Insert BELOW zones-fill
     }
 
-    // Disabled zone border — grey, dashed, hidden by default
+    // Disabled zone border — dashed, hidden by default
     if (!map.getLayer('zones-disabled-border')) {
       map.addLayer({
         id: 'zones-disabled-border',
@@ -575,7 +603,7 @@ export function InteractiveMap({
         source: 'zones',
         filter: ['==', ['get', 'zone'], ''],
         paint: {
-          'line-color': '#9ca3af',
+          'line-color': ZONE_COLORS.disabledBorder,
           'line-width': 1.5,
           'line-opacity': 0.5,
           'line-dasharray': [4, 4],
@@ -592,7 +620,7 @@ export function InteractiveMap({
         source: 'zones',
         filter: ['==', ['get', 'zone'], ''],
         paint: {
-          'fill-color': '#9ca3af',
+          'fill-color': ZONE_COLORS.disabledHover,
           'fill-opacity': 0.15,
         },
         layout: { visibility: 'none' },
@@ -717,24 +745,43 @@ export function InteractiveMap({
     if (!map) return;
 
     const modelPlaces = skip3DModels ? [] : places.filter((p) => p.model);
-    hideClutterLabels(map);
-    hideTransitLayers(map);
+    // Layer-ID-based hide hacks only apply to legacy styles (streets, light,
+    // etc.). Standard uses slot-based layers with different IDs — its clutter
+    // is controlled by `showPointOfInterestLabels` / `showTransitLabels`
+    // config props, which we set in the initial styleConfig.
+    const isStandardStyle = mapStyle === 'standard';
+    if (!isStandardStyle) {
+      hideClutterLabels(map);
+      hideTransitLayers(map);
+    }
+    // Re-apply Standard config here too — the styleConfig effect may have
+    // fired before the map was ready to receive setConfigProperty calls.
+    applyStyleConfig();
     addPostcodeLayers(map);
     registerHoverHandlers(map);
     if (modelPlaces.length > 0) add3DModels(map, modelPlaces);
     applyZoneFilters(map);
-    setMapReady(true);
+    // Wait for the map to settle before fading in. `setConfigProperty`
+    // above (lightPreset, showPlaceLabels=false, etc.) schedules a repaint
+    // on the next frame; revealing before that frame lands makes the
+    // fade-in overlap the label/light-preset transition, which reads as a
+    // "dirty" flash. `idle` fires once tiles are loaded AND no transitions
+    // are pending.
+    map.once('idle', () => setMapReady(true));
 
     map.on('style.load', () => {
-      hideClutterLabels(map);
-      hideTransitLayers(map);
+      if (!isStandardStyle) {
+        hideClutterLabels(map);
+        hideTransitLayers(map);
+      }
+      applyStyleConfig();
       addPostcodeLayers(map);
       if (modelPlaces.length > 0) add3DModels(map, modelPlaces);
       applyZoneFilters(map);
       // Force filter effect to re-run after layers are recreated
       setLayerVersion(v => v + 1);
     });
-  }, [mapRef, places, hideClutterLabels, hideTransitLayers, addPostcodeLayers, registerHoverHandlers, add3DModels, applyZoneFilters]);
+  }, [mapRef, places, mapStyle, skip3DModels, hideClutterLabels, hideTransitLayers, addPostcodeLayers, registerHoverHandlers, add3DModels, applyZoneFilters, applyStyleConfig]);
 
   // Toggle dim overlay when activeZone changes — dims ENTIRE map except active zone
   useEffect(() => {
@@ -853,8 +900,8 @@ export function InteractiveMap({
           map.easeTo({ pitch: DEFAULT_VIEW_STATE.pitch, bearing: DEFAULT_VIEW_STATE.bearing, duration: 500 });
         }}
         onOpenStyleModal={() => setStyleModalOpen(true)}
-        hasStyleOverride={overrideStyle !== null || styleConfig !== null}
-        onClearStyleOverride={() => { setOverrideStyle(null); setStyleConfig(null); }}
+        hasStyleOverride={userOverrodeStyle || overrideStyle !== null}
+        onClearStyleOverride={() => { setOverrideStyle(null); setStyleConfig(baselineStyleConfig); setUserOverrodeStyle(false); }}
       />
 
       <StyleOverrideModal
@@ -863,6 +910,9 @@ export function InteractiveMap({
         onApply={(directive) => {
           if (directive.style !== undefined) setOverrideStyle(directive.style);
           if (directive.config !== undefined) setStyleConfig(directive.config);
+          if (directive.style !== undefined || directive.config !== undefined) {
+            setUserOverrodeStyle(true);
+          }
           if (directive.camera) {
             const map = mapRef.current?.getMap();
             if (map) {

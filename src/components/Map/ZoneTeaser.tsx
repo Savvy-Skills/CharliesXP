@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import type { Place, PlaceCategory } from '../../types';
-import { CATEGORY_EMOJI } from '../../utils/mapStyles';
 
 interface ZoneTeaserProps {
   zoneId?: string | null;
@@ -8,10 +7,6 @@ interface ZoneTeaserProps {
   places?: Place[];
   teaserCounts?: Record<string, number>;
   activeCategory?: PlaceCategory | null;
-}
-
-function getCategoryEmoji(category: string): string {
-  return CATEGORY_EMOJI[category] ?? '📍';
 }
 
 export default function ZoneTeaser({ zoneId, zoneName, places, teaserCounts, activeCategory }: ZoneTeaserProps) {
@@ -60,10 +55,7 @@ export default function ZoneTeaser({ zoneId, zoneName, places, teaserCounts, act
               key={category}
               className="flex items-center justify-between text-sm"
             >
-              <span className="flex items-center gap-2 text-[#2d1f1a]">
-                <span className="text-base">{getCategoryEmoji(category)}</span>
-                <span className="capitalize">{category}s</span>
-              </span>
+              <span className="capitalize text-[#2d1f1a]">{category}s</span>
               <span className="font-medium text-[#7c2d36]">{count}</span>
             </div>
           ))}

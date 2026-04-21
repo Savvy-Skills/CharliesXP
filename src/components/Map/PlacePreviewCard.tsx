@@ -10,14 +10,15 @@ interface PlacePreviewCardProps {
 }
 
 /**
- * Desktop-only floating card at the bottom-center of the map. Hidden on mobile;
- * the ZoneSidePanel drawer owns the detail view there (Task 11).
+ * Desktop-only floating card anchored to the bottom-right of the map —
+ * the same slot ZoneTeaser occupies when the zone is locked. Hidden on
+ * mobile; the ZoneSidePanel drawer owns the detail view there (Task 11).
  */
 export function PlacePreviewCard({ place, onClose }: PlacePreviewCardProps) {
   if (!place) return null;
   return (
-    <div className="hidden md:flex absolute bottom-5 left-1/2 -translate-x-1/2 z-40
-      w-[min(520px,92vw)] max-h-[60vh] bg-white rounded-2xl shadow-2xl
+    <div className="hidden md:flex absolute bottom-4 right-4 z-40
+      w-[min(380px,92vw)] max-h-[60vh] bg-white rounded-2xl shadow-2xl
       border border-[var(--sg-border)] overflow-hidden flex-col pointer-events-auto">
       <PlaceDetailView
         place={place}

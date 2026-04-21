@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Trash2, Edit3, X } from 'lucide-react';
 import type { Place, Coordinates } from '../../types';
 import { CATEGORIES } from '../../types';
-import { CATEGORY_EMOJI } from '../../utils/mapStyles';
 import { PlaceForm } from './PlaceForm';
 
 interface EditorPanelProps {
@@ -137,11 +136,11 @@ export function EditorPanel({
                       className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer text-left"
                     >
                       <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0"
+                        className="w-8 h-8 rounded-full shrink-0"
                         style={{ backgroundColor: cat?.color ?? '#6b7280' }}
-                      >
-                        {CATEGORY_EMOJI[place.category]}
-                      </div>
+                        aria-label={cat?.label ?? 'Place'}
+                      />
+                      <span className="sr-only">{cat?.label ?? place.category}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-[var(--sg-navy)] truncate">
                           {place.name}

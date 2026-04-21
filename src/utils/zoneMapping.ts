@@ -72,3 +72,5 @@ export const CITY_ZOOM = 12;
 export const ZONE_ZOOM = 14;
 export const ZONE_ENTER_THRESHOLD = 13.5;
 export const ZONE_EXIT_THRESHOLD = 13;
+/** Minimum zoom at which landmark name labels render on the map. */
+export const LANDMARK_LABEL_ZOOM = 13;

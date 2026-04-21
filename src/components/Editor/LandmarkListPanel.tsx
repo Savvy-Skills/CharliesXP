@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Search, X, Pencil, Trash2 } from 'lucide-react';
 import type { Landmark } from '../../hooks/useSupabaseLandmarks';
 import { ZONES } from '../../utils/zoneMapping';
@@ -15,6 +15,10 @@ interface LandmarkListPanelProps {
   editingLandmarkId: string | null;
   onEditLandmark: (id: string | null) => void;
   onFlyTo: (coords: { lng: number; lat: number }) => void;
+  /** Scroll this landmark into view and highlight it briefly. A fresh
+   *  session object (new identity) fires the scroll even for repeat clicks
+   *  on the same landmark. */
+  focusedLandmark?: { id: string; t: number } | null;
 }
 
 interface LandmarkForm {
@@ -36,6 +40,7 @@ export function LandmarkListPanel({
   editingLandmarkId,
   onEditLandmark,
   onFlyTo,
+  focusedLandmark,
 }: LandmarkListPanelProps) {
   const [search, setSearch] = useState('');
   const [form, setForm] = useState<LandmarkForm>(EMPTY_FORM);
@@ -48,20 +53,44 @@ export function LandmarkListPanel({
     ? landmarks.find((l) => l.id === editingLandmarkId)
     : null;
 
-  // Initialize form when editing starts
+  // Only initialize the form when the EDIT/ADD SESSION starts. A session
+  // change is either a new editingLandmarkId or a transition from
+  // "no pending coords" to "pending coords" while not editing. Subsequent
+  // changes (e.g. the admin clicking the map again to reposition) must NOT
+  // wipe whatever the admin has typed.
+  const sessionKey = editingLandmarkId ?? (pendingCoordinates ? 'new' : null);
+  const lastSessionKey = useRef<string | null>(null);
   useEffect(() => {
-    if (editingLandmark) {
+    if (sessionKey === lastSessionKey.current) return;
+    lastSessionKey.current = sessionKey;
+    if (editingLandmarkId && editingLandmark) {
       setForm({
         name: editingLandmark.name,
         zone_id: editingLandmark.zone_id,
         min_zoom: editingLandmark.min_zoom,
       });
       setIconUrl(editingLandmark.iconUrl ?? null);
-    } else if (pendingCoordinates) {
+    } else if (!editingLandmarkId && pendingCoordinates) {
       setForm({ ...EMPTY_FORM, zone_id: pendingZoneId ?? '' });
       setIconUrl(null);
     }
-  }, [editingLandmarkId, editingLandmark, pendingCoordinates, pendingZoneId]);
+  }, [sessionKey, editingLandmarkId, editingLandmark, pendingCoordinates, pendingZoneId]);
+
+  // Scroll-into-view + transient highlight for a landmark the admin just
+  // clicked on the map. `focusedLandmark` is a session object so repeat
+  // clicks on the same id re-fire this effect.
+  const rowRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
+  const [justFocusedId, setJustFocusedId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!focusedLandmark) return;
+    const node = rowRefs.current.get(focusedLandmark.id);
+    if (node) {
+      node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setJustFocusedId(focusedLandmark.id);
+      const t = setTimeout(() => setJustFocusedId(null), 1600);
+      return () => clearTimeout(t);
+    }
+  }, [focusedLandmark]);
 
   const filteredLandmarks = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -77,13 +106,19 @@ export function LandmarkListPanel({
     if (!form.name.trim()) return;
 
     if (editingLandmarkId) {
-      onUpdate(editingLandmarkId, {
+      // If the admin clicked the map while editing, pendingCoordinates holds
+      // the new position — merge it into the update so "Update" actually
+      // moves the landmark.
+      const updates: Partial<Omit<Landmark, 'id'>> = {
         name: form.name.trim(),
         zone_id: form.zone_id,
         min_zoom: form.min_zoom,
         iconUrl,
-      });
+      };
+      if (pendingCoordinates) updates.coordinates = pendingCoordinates;
+      onUpdate(editingLandmarkId, updates);
       onEditLandmark(null);
+      if (pendingCoordinates) onCancelPending();
     } else if (pendingCoordinates) {
       onAdd({
         name: form.name.trim(),
@@ -100,11 +135,8 @@ export function LandmarkListPanel({
   };
 
   const handleCancel = () => {
-    if (editingLandmarkId) {
-      onEditLandmark(null);
-    } else {
-      onCancelPending();
-    }
+    if (editingLandmarkId) onEditLandmark(null);
+    if (pendingCoordinates) onCancelPending();
     setForm(EMPTY_FORM);
     setIconUrl(null);
   };
@@ -269,13 +301,20 @@ export function LandmarkListPanel({
           <div className="space-y-0.5 px-2">
             {filteredLandmarks.map((lm) => {
               const isEditing = editingLandmarkId === lm.id;
+              const isFocused = justFocusedId === lm.id;
               return (
                 <div
                   key={lm.id}
+                  ref={(node) => {
+                    if (node) rowRefs.current.set(lm.id, node);
+                    else rowRefs.current.delete(lm.id);
+                  }}
                   className={`flex items-center gap-3 px-2 py-2.5 rounded-xl transition-colors group ${
                     isEditing
                       ? 'bg-[var(--sg-thames)]/8 ring-1 ring-[var(--sg-thames)]/20'
-                      : 'hover:bg-[var(--sg-offwhite)]'
+                      : isFocused
+                        ? 'bg-[var(--sg-crimson)]/10 ring-1 ring-[var(--sg-crimson)]/40'
+                        : 'hover:bg-[var(--sg-offwhite)]'
                   }`}
                 >
                   {/* Crimson dot */}

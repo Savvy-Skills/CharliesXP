@@ -1,7 +1,6 @@
 import { ArrowLeft, Lock, Check } from 'lucide-react';
 import type { Place } from '../../types';
 import { CATEGORIES } from '../../types';
-import { CATEGORY_EMOJI } from '../../utils/mapStyles';
 import { PlaceDetailView } from './PlaceDetailView';
 
 interface ZoneSidePanelProps {
@@ -163,14 +162,11 @@ export function ZoneSidePanel({ zoneId, zoneName, places, onPlaceClick, locked =
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      {/* Name + category */}
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-sm font-bold text-[var(--sg-navy)] group-hover:text-[var(--sg-crimson)]
-                          transition-colors leading-snug">
-                          {place.name}
-                        </h3>
-                        <span className="text-lg shrink-0">{CATEGORY_EMOJI[place.category]}</span>
-                      </div>
+                      {/* Name */}
+                      <h3 className="text-sm font-bold text-[var(--sg-navy)] group-hover:text-[var(--sg-crimson)]
+                        transition-colors leading-snug">
+                        {place.name}
+                      </h3>
 
                       {/* Category */}
                       <div className="flex items-center gap-2 mt-1">
