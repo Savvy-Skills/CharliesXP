@@ -12,6 +12,7 @@ import { ZoneLockIcon } from '../Map/ZoneLockIcon';
 import { EditorPanel } from '../Editor/EditorPanel';
 import { ZoneListPanel } from '../Editor/ZoneListPanel';
 import { LandmarkListPanel } from '../Editor/LandmarkListPanel';
+import { TagListPanel } from '../Editor/TagListPanel';
 import { MobileDrawer } from '../ui/MobileDrawer';
 import type { Place, PlaceCategory, MapZoomState, Coordinates } from '../../types';
 import { ZONE_POLYGON_CENTERS, ZONE_MAP } from '../../utils/zoneMapping';
@@ -41,15 +42,16 @@ interface HeroMapSectionProps {
   activeCategory?: PlaceCategory | null;
   // Editor props
   isEditorMode?: boolean;
-  editorTab?: 'places' | 'zones' | 'landmarks';
-  onEditorTabChange?: (tab: 'places' | 'zones' | 'landmarks') => void;
+  editorTab?: 'places' | 'zones' | 'landmarks' | 'tags';
+  onEditorTabChange?: (tab: 'places' | 'zones' | 'landmarks' | 'tags') => void;
   pendingCoordinates?: Coordinates | null;
   currentView?: { zoom: number; pitch: number; bearing: number };
-  onAddPlace?: (place: Omit<Place, 'id'>) => void;
+  onAddPlace?: (place: Omit<Place, 'id'>) => Promise<string | null> | string | null | void;
   onUpdatePlace?: (id: string, updates: Partial<Place>) => void;
   onDeletePlace?: (id: string) => void;
   onCancelPending?: () => void;
   onMoveToZone?: (placeId: string, zoneId: string) => void;
+  onSaveTags?: (placeId: string, tagIds: string[]) => Promise<void> | void;
   enabledZoneIds?: string[];
   isZoneEnabled?: (zoneId: string) => boolean;
   onToggleZone?: (zoneId: string, enabled: boolean) => void;
@@ -91,6 +93,7 @@ export function HeroMapSection({
   onDeletePlace,
   onCancelPending,
   onMoveToZone,
+  onSaveTags,
   enabledZoneIds = [],
   isZoneEnabled: _isZoneEnabled,
   onToggleZone,
@@ -99,7 +102,7 @@ export function HeroMapSection({
   onClosePlace,
   onCloseZone: _onCloseZone,
 }: HeroMapSectionProps) {
-  const [activeCategory, setActiveCategory] = useState<PlaceCategory | null>(null);
+  const [activeTagId, setActiveTagId] = useState<string | null>(null);
   const [hoveredZoneId, setHoveredZoneId] = useState<string | null>(null);
   const [editPlaceKey, setEditPlaceKey] = useState<string | null>(null);
   const [showDisabledZones, setShowDisabledZones] = useState(false);
@@ -132,7 +135,7 @@ export function HeroMapSection({
 
   const handleBack = useCallback(() => {
     onZoomOut();
-    setActiveCategory(null);
+    setActiveTagId(null);
   }, [onZoomOut]);
 
   // URL-derived selected place (replaces old local previewPlace state).
@@ -142,8 +145,9 @@ export function HeroMapSection({
 
   // In editor mode, bypass zone lock
   const isZoneLocked = isEditorMode ? false : (activeZone ? !unlockedZones.includes(activeZone) : false);
-  const filteredZonePlaces =
-    zonePlaces.filter((p) => !activeCategory || p.category === activeCategory);
+  const filteredZonePlaces = activeTagId
+    ? zonePlaces.filter((p) => p.tags.some((t) => t.id === activeTagId))
+    : zonePlaces;
 
   // Use polygon centers for icon placement (center of zone boundary, not station location)
   const allZonesWithCentroids = Object.entries(ZONE_POLYGON_CENTERS)
@@ -271,6 +275,13 @@ export function HeroMapSection({
   // Determine which sidebar to show
   const renderSidebar = () => {
     if (isEditorMode) {
+      if (editorTab === 'tags') {
+        return (
+          <div className="h-full w-full bg-white border-r border-[var(--sg-border)] overflow-y-auto">
+            <TagListPanel />
+          </div>
+        );
+      }
       if (editorTab === 'landmarks') {
         return (
           <LandmarkListPanel
@@ -333,7 +344,7 @@ export function HeroMapSection({
                 places={displayPlaces}
                 pendingCoordinates={pendingCoordinates ?? null}
                 currentView={currentView}
-                onAdd={onAddPlace ?? (() => {})}
+                onAdd={onAddPlace ?? (() => null)}
                 onUpdate={onUpdatePlace ?? (() => {})}
                 onDelete={onDeletePlace ?? (() => {})}
                 onCancelPending={() => { onCancelPending?.(); setEditPlaceKey(null); }}
@@ -343,6 +354,7 @@ export function HeroMapSection({
                 dragCoordinates={dragCoordinates}
                 onDragComplete={clearDragOverride}
                 onMoveToZone={onMoveToZone}
+                onSaveTags={onSaveTags}
               />
             </div>
           </div>
@@ -441,7 +453,7 @@ export function HeroMapSection({
 
   // Should the sidebar be visible?
   const showSidebar = isEditorMode
-    ? (mapState === 'expanded' || mapState === 'zoneDetail' || editorTab === 'zones' || editorTab === 'landmarks')
+    ? (mapState === 'expanded' || mapState === 'zoneDetail' || editorTab === 'zones' || editorTab === 'landmarks' || editorTab === 'tags')
     : (mapState === 'expanded' || (mapState === 'zoneDetail' && !!activeZone));
 
   // ── Fullscreen mode ──
@@ -475,9 +487,8 @@ export function HeroMapSection({
                 activeZone={activeZone}
                 sidebarOpen={!!showSidebar}
                 onZoneSelect={onZoneClick}
-                places={zonePlaces}
-                activeCategory={activeCategory}
-                onCategoryChange={setActiveCategory}
+                activeTagId={activeTagId}
+                onTagChange={setActiveTagId}
                 onBack={handleBack}
                 onCollapse={onCollapse}
                 isEditorMode={isEditorMode}
@@ -539,12 +550,33 @@ export function HeroMapSection({
                         latitude={lm.coordinates.lat}
                         anchor="center"
                       >
-                        <div className="flex flex-col items-center pointer-events-none">
-                          <div className="w-3 h-3 rounded-full bg-[var(--sg-crimson)]/60 border border-white/80 shadow-sm" />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            mapRef.current?.getMap()?.flyTo({
+                              center: [lm.coordinates.lng, lm.coordinates.lat],
+                              zoom: 17,
+                              pitch: 50,
+                              bearing: 0,
+                              duration: 1500,
+                              essential: true,
+                            });
+                          }}
+                          className="flex flex-col items-center cursor-pointer bg-transparent border-0 p-0 focus:outline-none"
+                          aria-label={`Fly to ${lm.name}`}
+                        >
+                          <img
+                            src={lm.iconUrl ?? '/icons/default-landmark.png'}
+                            alt=""
+                            className="w-5 h-5 object-contain drop-shadow transition-transform hover:scale-125"
+                            draggable={false}
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icons/default-landmark.png'; }}
+                          />
                           <span className="text-[9px] font-medium text-[var(--sg-navy)]/50 mt-0.5 whitespace-nowrap max-w-[80px] truncate">
                             {lm.name}
                           </span>
-                        </div>
+                        </button>
                       </Marker>
                     ))}
                   {/* Pending landmark marker (click-to-place, draggable) */}
@@ -585,8 +617,10 @@ export function HeroMapSection({
               />
             )}
 
-            {/* Zone teaser summary panel — desktop only */}
-            {mapState === 'zoneDetail' && !isEditorMode && (
+            {/* Zone teaser summary panel — desktop only, locked zones only.
+                Once a zone is unlocked, the place detail card takes this
+                bottom-right slot instead. */}
+            {mapState === 'zoneDetail' && !isEditorMode && isZoneLocked && (
               <div className="hidden md:block">
                 <ZoneTeaser
                   zoneId={activeZone}
@@ -605,12 +639,17 @@ export function HeroMapSection({
                 onClose={handleBack}
                 containerHeight={typeof window !== 'undefined' ? window.innerHeight - 48 : 700}
                 peekContent={
-                  <p className="text-sm text-[var(--sg-navy)] text-center">
-                    {isZoneLocked
-                      ? <>This zone has <span className="font-bold text-[var(--sg-crimson)]">{teaserTotal}</span> place{teaserTotal !== 1 ? 's' : ''} waiting for you</>
-                      : <><span className="font-bold text-[var(--sg-thames)]">{filteredZonePlaces.length}</span> place{filteredZonePlaces.length !== 1 ? 's' : ''} to explore</>
-                    }
-                  </p>
+                  // Hide the peek summary once a place is selected — the
+                  // place detail takes over the drawer and the count
+                  // becomes noise.
+                  selectedPlaceSlug ? null : (
+                    <p className="text-sm text-[var(--sg-navy)] text-center">
+                      {isZoneLocked
+                        ? <>This zone has <span className="font-bold text-[var(--sg-crimson)]">{teaserTotal}</span> place{teaserTotal !== 1 ? 's' : ''} waiting for you in {activeZone ? (ZONE_MAP[activeZone]?.name ?? activeZone) : ''}</>
+                        : <><span className="font-bold text-[var(--sg-thames)]">{filteredZonePlaces.length}</span> place{filteredZonePlaces.length !== 1 ? 's' : ''} to explore in {activeZone ? (ZONE_MAP[activeZone]?.name ?? activeZone) : ''}</>
+                      }
+                    </p>
+                  )
                 }
               >
                 {/* Render sidebar with header hidden (already in map header + peek) */}

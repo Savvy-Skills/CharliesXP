@@ -9,7 +9,7 @@ interface EditorPanelProps {
   places: Place[];
   pendingCoordinates: Coordinates | null;
   currentView: { zoom: number; pitch: number; bearing: number };
-  onAdd: (place: Omit<Place, 'id'>) => void;
+  onAdd: (place: Omit<Place, 'id'>) => Promise<string | null> | string | null | void;
   onUpdate: (id: string, updates: Partial<Place>) => void;
   onDelete: (id: string) => void;
   onCancelPending: () => void;
@@ -20,6 +20,7 @@ interface EditorPanelProps {
   dragCoordinates?: { lng: number; lat: number } | null;
   onDragComplete?: () => void;
   onMoveToZone?: (placeId: string, zoneId: string) => void;
+  onSaveTags?: (placeId: string, tagIds: string[]) => Promise<void> | void;
 }
 
 export function EditorPanel({
@@ -36,6 +37,7 @@ export function EditorPanel({
   dragCoordinates,
   onDragComplete,
   onMoveToZone,
+  onSaveTags,
 }: EditorPanelProps) {
   const [editingPlace, setEditingPlace] = useState<Place | null>(null);
   const placesRef = useRef(places);
@@ -80,15 +82,20 @@ export function EditorPanel({
             currentView={currentView}
             isDragging={isDragging}
             dragCoordinates={dragCoordinates}
-            onSubmit={(place) => {
+            onSaveTags={onSaveTags}
+            onSubmit={async (place) => {
+              let savedId: string | null = null;
               if ('id' in place && place.id) {
                 onUpdate(place.id, place);
+                savedId = place.id;
               } else {
-                onAdd(place as Omit<Place, 'id'>);
+                const result = await onAdd(place as Omit<Place, 'id'>);
+                savedId = typeof result === 'string' ? result : null;
               }
               setEditingPlace(null);
               onCancelPending();
               onDragComplete?.();
+              return savedId;
             }}
             onCancel={() => {
               setEditingPlace(null);

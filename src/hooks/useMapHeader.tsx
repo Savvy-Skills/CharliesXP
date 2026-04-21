@@ -4,8 +4,8 @@ import type { ReactNode } from 'react';
 export interface MapHeaderValue {
   isMapMode: boolean;
   isEditorMode: boolean;
-  editorTab: 'places' | 'zones' | 'landmarks';
-  onEditorTabChange: (tab: 'places' | 'zones' | 'landmarks') => void;
+  editorTab: 'places' | 'zones' | 'landmarks' | 'tags';
+  onEditorTabChange: (tab: 'places' | 'zones' | 'landmarks' | 'tags') => void;
   onCollapse: () => void;
   activeZone: string | null;
 }

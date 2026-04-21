@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router';
 import { ZONE_MAP, ZONE_POLYGON_CENTERS, ZONE_CENTROIDS, ZONE_ENTER_THRESHOLD, ZONE_EXIT_THRESHOLD } from '../utils/zoneMapping';
 import { PageShell } from '../components/Layout/PageShell';
@@ -32,9 +32,9 @@ export function MapPage() {
   // Preload packages so PaywallModal opens instantly
   usePackages();
 
-  const { places, getPlacesByZone, activeCategories, refetch, optimisticAdd, optimisticUpdate, optimisticDelete } = usePlaces();
+  const { places, getPlacesByZone, activeCategories, refetch, optimisticAdd, optimisticUpdate, optimisticDelete, setPlaceTags } = usePlaces();
   const { mapRef, flyToPlace, flyToDefault } = useMapFlyTo();
-  const { zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, isAnimating } = useMapZoom(mapRef);
+  const { zoomIntoZone, zoomOutToOverview, isAnimating } = useMapZoom(mapRef);
   const { unlockedZones: rawUnlockedZones, isZoneUnlocked, isAdmin, refreshAccess, user } = useAuth();
   const { enabledZoneIds, isZoneEnabled, toggleZone } = useZoneSettings();
 
@@ -50,7 +50,7 @@ export function MapPage() {
   const unlockedZones = isAdmin ? enabledZoneIds : rawUnlockedZones.filter(z => enabledZoneIds.includes(z));
   const [paywallZone, setPaywallZone] = useState<string | null>(null);
   const [paymentToast, setPaymentToast] = useState<'success' | 'cancelled' | null>(null);
-  const [editorTab, setEditorTab] = useState<'places' | 'zones' | 'landmarks'>('places');
+  const [editorTab, setEditorTab] = useState<'places' | 'zones' | 'landmarks' | 'tags'>('places');
   const [welcomePopupOpen, setWelcomePopupOpen] = useState<boolean>(() => {
     return !user && !hasDismissedWelcome();
   });
@@ -74,35 +74,59 @@ export function MapPage() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Sync map camera with URL zone changes ─────────────────────────────────
-  // When activeZone changes (URL changes), fire the appropriate camera animation.
-  // If the URL change originated from a pan (handleMoveEnd), we skip the flyTo
-  // so the camera doesn't fight the user's gesture.
-  const prevZoneRef = useRef<string | null | undefined>(undefined);
-  const skipNextZoneFlyToRef = useRef(false);
+  // ── Settle-time reconciliation ────────────────────────────────────────────
+  // While a programmatic flyTo is running, `handleZoomChange` is silenced by
+  // `isAnimating` (otherwise the fly-out through thresholds would oscillate).
+  // If the user scrolls past a threshold during that window and stops before
+  // the timer clears, no move event fires afterward — the URL gets stuck out
+  // of sync with the actual zoom. `reconcileThresholds` runs once after each
+  // flight completes, reading the zoom directly and correcting the URL if
+  // the user is on the wrong side of a threshold.
+  const reconcileThresholds = useCallback(() => {
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+    const zoom = map.getZoom();
+    const path = window.location.pathname;
+    const currentZone = path === '/' ? null : (path.split('/')[1] || null);
+    const qs = searchParams.toString();
+    const suffix = qs ? '?' + qs : '';
+
+    if (currentZone && zoom < ZONE_EXIT_THRESHOLD) {
+      navigate(`/${suffix}`, { replace: true });
+      return;
+    }
+    if (!currentZone && zoom >= ZONE_ENTER_THRESHOLD) {
+      const center = map.getCenter();
+      const point = map.project([center.lng, center.lat]);
+      const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
+      const zoneName = features[0]?.properties?.zone as string | undefined;
+      if (!zoneName) return;
+      if (!isEditorMode && !isZoneEnabled(zoneName)) return;
+      navigate(`/${zoneName}${suffix}`, { replace: true });
+    }
+  }, [mapRef, navigate, searchParams, isEditorMode, isZoneEnabled]);
+
+  // ── Deep-link: fly into a zone on initial mount ───────────────────────────
+  // URL changes no longer drive camera animations. The only reactive flyTo is
+  // this mount-time poll for a pre-existing URL zone (e.g. someone lands on
+  // /W1 directly or refreshes). Every other zone transition is animated by
+  // the click handler that caused it (enterZone / closeZone).
   useEffect(() => {
-    const prev = prevZoneRef.current;
-    prevZoneRef.current = activeZone;
-
-    if (prev === undefined) {
-      // Initial mount — if a zone is already in the URL, zoom in after map settles
-      if (activeZone) setTimeout(() => zoomIntoZone(activeZone), 400);
-      return;
-    }
-
-    if (skipNextZoneFlyToRef.current) {
-      skipNextZoneFlyToRef.current = false;
-      return;
-    }
-
-    if (activeZone && activeZone !== prev) {
-      // Entered a zone (or switched zones)
-      zoomIntoZone(activeZone);
-    } else if (!activeZone && prev) {
-      // Left a zone — return to previous overview camera
-      zoomOutToExpanded();
-    }
-  }, [activeZone]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!activeZone) return;
+    let cancelled = false;
+    const tryFly = () => {
+      if (cancelled) return;
+      const map = mapRef.current?.getMap();
+      if (map?.isStyleLoaded()) {
+        zoomIntoZone(activeZone);
+        setTimeout(reconcileThresholds, 1700);
+        return;
+      }
+      setTimeout(tryFly, 200);
+    };
+    tryFly();
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps — mount-only
 
   // ── Redirect on unknown zone or unknown place ─────────────────────────────
   useEffect(() => {
@@ -137,18 +161,47 @@ export function MapPage() {
   }, [effectivePlaceSlug, activeZone, places, flyToPlace]);
 
   // ── Navigation helpers ────────────────────────────────────────────────────
-  // All navigation goes through React Router. Query params (e.g. ?editor=true) are preserved.
+  // Two flavours:
+  //   • `navigateToZone` / `navigateCloseZone` — pure URL updates, no camera
+  //     animation. Used by scroll-zoom thresholds and drag-pan handlers so
+  //     the camera stays under the user's control.
+  //   • `enterZone` / `closeZone` — click-driven. They update the URL AND
+  //     fire an explicit flyTo, because a click is an expression of intent
+  //     for the camera to move.
+  //
+  // Threshold / pan transitions use `replace: true` to keep the history
+  // stack tidy during continuous motion. Click transitions push so the
+  // browser back button does what the user expects.
 
   const navigateToZone = useCallback(
     (zoneId: string) => {
       const qs = searchParams.toString();
-      if (mapState === 'expanded') {
-        window.history.pushState(null, '', `/${qs ? '?' + qs : ''}`);
-      }
-      navigate(`/${zoneId}${qs ? '?' + qs : ''}`);
+      navigate(`/${zoneId}${qs ? '?' + qs : ''}`, { replace: true });
     },
-    [navigate, searchParams, mapState],
+    [navigate, searchParams],
   );
+
+  const navigateCloseZone = useCallback(() => {
+    const qs = searchParams.toString();
+    navigate(`/${qs ? '?' + qs : ''}`, { replace: true });
+  }, [navigate, searchParams]);
+
+  const enterZone = useCallback(
+    (zoneId: string) => {
+      const qs = searchParams.toString();
+      navigate(`/${zoneId}${qs ? '?' + qs : ''}`);
+      zoomIntoZone(zoneId);
+      setTimeout(reconcileThresholds, 1700);
+    },
+    [navigate, searchParams, zoomIntoZone, reconcileThresholds],
+  );
+
+  const closeZone = useCallback(() => {
+    const qs = searchParams.toString();
+    navigate(`/${qs ? '?' + qs : ''}`);
+    zoomOutToOverview();
+    setTimeout(reconcileThresholds, 1400);
+  }, [navigate, searchParams, zoomOutToOverview, reconcileThresholds]);
 
   const navigateToPlace = useCallback(
     (zoneId: string, placeSlug: string) => {
@@ -157,11 +210,6 @@ export function MapPage() {
     },
     [navigate, searchParams],
   );
-
-  const navigateCloseZone = useCallback(() => {
-    const qs = searchParams.toString();
-    navigate(`/${qs ? '?' + qs : ''}`);
-  }, [navigate, searchParams]);
 
   const navigateClosePlace = useCallback(
     (zoneId: string) => {
@@ -206,20 +254,18 @@ export function MapPage() {
 
   // ── Event handlers ────────────────────────────────────────────────────────
 
-  // When the user manually zooms out of a zone, clear the zone from the URL
+  // Scroll-zoom threshold: pure URL update. The camera is mid-motion under
+  // the user's finger — do NOT animate. `isAnimating` guards against this
+  // handler firing during an in-flight click-initiated flyTo.
   const handleZoomChange = useCallback(
     (zoom: number) => {
       if (isAnimating.current) return;
 
-      // Zoom out while inside a zone → clear zone from URL
       if (mapState === 'zoneDetail' && zoom < ZONE_EXIT_THRESHOLD) {
-        const qs = searchParams.toString();
-        navigate(`/${qs ? '?' + qs : ''}`);
+        navigateCloseZone();
         return;
       }
 
-      // Zoom in while on the map → enter the zone under the map center.
-      // Locked-zone paywall is shown in the sidebar by ZoneSidePanel once we land.
       if (mapState === 'expanded' && zoom >= ZONE_ENTER_THRESHOLD) {
         const map = mapRef.current?.getMap();
         if (!map) return;
@@ -232,15 +278,12 @@ export function MapPage() {
         navigateToZone(zoneName);
       }
     },
-    [mapState, isAnimating, navigate, searchParams, mapRef, isEditorMode, isZoneEnabled, navigateToZone],
+    [mapState, isAnimating, mapRef, isEditorMode, isZoneEnabled, navigateToZone, navigateCloseZone],
   );
 
-  // When the user drag-pans the camera while inside a zone, update the URL
-  // to reflect the zone under the map center so the sidebar / active-zone UI
-  // follows the viewport. Bound to `dragend` (not `moveend`) so scroll-zoom
-  // and programmatic flyTo animations don't retrigger zone switching — that
-  // caused an oscillation on zoom-out. Suppress the URL-triggered flyTo for
-  // this transition so we don't fight the user's gesture.
+  // Drag-pan inside a zone: URL follows the viewport, no camera animation.
+  // Bound to `dragend` (not `moveend`) so scroll-zoom and programmatic
+  // flyTo don't retrigger zone switching.
   const handleDragEnd = useCallback(() => {
     if (isAnimating.current) return;
     if (isEditorMode) return;
@@ -256,10 +299,8 @@ export function MapPage() {
     if (!zoneName || zoneName === activeZone) return;
     if (!isZoneEnabled(zoneName)) return;
 
-    skipNextZoneFlyToRef.current = true;
-    const qs = searchParams.toString();
-    navigate(`/${zoneName}${qs ? '?' + qs : ''}`, { replace: true });
-  }, [mapState, activeZone, isAnimating, isEditorMode, isZoneEnabled, mapRef, navigate, searchParams]);
+    navigateToZone(zoneName);
+  }, [mapState, activeZone, isAnimating, isEditorMode, isZoneEnabled, mapRef, navigateToZone]);
 
   const handlePlaceClick = useCallback(
     (place: Place) => { flyToPlace(place); },
@@ -288,7 +329,7 @@ export function MapPage() {
         const zoneName = features[0]?.properties?.zone as string | undefined;
         if (zoneName && zoneName !== activeZone && (isEditorMode || isZoneEnabled(zoneName))) {
           if (isEditorMode || isZoneUnlocked(zoneName)) {
-            navigateToZone(zoneName);
+            enterZone(zoneName);
           } else {
             setPaywallZone(zoneName);
           }
@@ -296,30 +337,13 @@ export function MapPage() {
         return;
       }
 
-      if (mapState === 'expanded') {
-        const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
-        if (features.length > 0) {
-          const zoneName = features[0].properties?.zone as string;
-          if (zoneName && (isEditorMode || isZoneEnabled(zoneName))) {
-            if (isEditorMode || isZoneUnlocked(zoneName)) {
-              navigateToZone(zoneName);
-            } else {
-              navigate('/');
-              setTimeout(() => setPaywallZone(zoneName), 300);
-            }
-            return;
-          }
-        }
-        navigate('/');
-        return;
-      }
-
-      // Expanded mode: click to enter a zone
+      // Expanded: clicking a zone polygon enters it. Editor can also target
+      // disabled zones via a dedicated layer.
       if (isEditorMode && map.getLayer('zones-disabled-fill')) {
         const disabledFeatures = map.queryRenderedFeatures(point, { layers: ['zones-disabled-fill'] });
         if (disabledFeatures.length > 0) {
           const zoneName = disabledFeatures[0].properties?.zone as string;
-          if (zoneName) { navigateToZone(zoneName); return; }
+          if (zoneName) { enterZone(zoneName); return; }
         }
       }
 
@@ -328,19 +352,19 @@ export function MapPage() {
         const zoneName = features[0].properties?.zone as string;
         if (!zoneName || (!isEditorMode && !isZoneEnabled(zoneName))) return;
         if (isEditorMode || isZoneUnlocked(zoneName)) {
-          navigateToZone(zoneName);
+          enterZone(zoneName);
         } else {
           setPaywallZone(zoneName);
         }
       }
     },
-    [mapState, mapRef, isZoneUnlocked, isZoneEnabled, isEditorMode, activeZone, navigate, navigateToZone],
+    [mapState, mapRef, isZoneUnlocked, isZoneEnabled, isEditorMode, activeZone, enterZone],
   );
 
   const handleCancelPending = useCallback(() => setPendingCoordinates(null), []);
 
   const handleAddPlace = useCallback(
-    (place: Omit<Place, 'id'>) => optimisticAdd(place, activeZone ?? ''),
+    (place: Omit<Place, 'id'>): Promise<string | null> => optimisticAdd(place, activeZone ?? ''),
     [activeZone, optimisticAdd],
   );
 
@@ -360,9 +384,9 @@ export function MapPage() {
       const updates: Partial<Place> = { zone: zoneId };
       if (center) updates.coordinates = { lng: center.lng, lat: center.lat };
       optimisticUpdate(placeId, updates);
-      navigateToZone(zoneId);
+      enterZone(zoneId);
     },
-    [optimisticUpdate, navigateToZone],
+    [optimisticUpdate, enterZone],
   );
 
   const jsonLd = {
@@ -384,7 +408,7 @@ export function MapPage() {
       isEditorMode,
       editorTab,
       onEditorTabChange: setEditorTab,
-      onCollapse: () => { zoomOutToOverview(); navigate('/'); },
+      onCollapse: closeZone,
       activeZone,
     }}>
     <>
@@ -425,14 +449,14 @@ export function MapPage() {
           unlockedZones={unlockedZones}
           zonePlaces={zonePlaces}
           onPlaceClick={handlePlaceClick}
-          onLockedZoneClick={(zoneId) => isEditorMode ? navigateToZone(zoneId) : setPaywallZone(zoneId)}
+          onLockedZoneClick={(zoneId) => isEditorMode ? enterZone(zoneId) : setPaywallZone(zoneId)}
           onUnlockZone={(zoneId) => setPaywallZone(zoneId)}
-          onZoneClick={navigateToZone}
+          onZoneClick={enterZone}
           onZoomOut={() => navigate(-1)}
           enabledZoneIds={enabledZoneIds}
           isZoneEnabled={isZoneEnabled}
           onToggleZone={toggleZone}
-          onCollapse={() => { zoomOutToOverview(); navigate('/'); }}
+          onCollapse={closeZone}
           onExpand={() => navigate('/')}
           onResetView={flyToDefault}
           onMapClick={handleMapClick}
@@ -450,10 +474,11 @@ export function MapPage() {
           onUpdatePlace={handleUpdatePlace}
           onDeletePlace={handleDeletePlace}
           onMoveToZone={handleMoveToZone}
+          onSaveTags={setPlaceTags}
           selectedPlaceSlug={effectivePlaceSlug}
           onOpenPlace={navigateToPlace}
           onClosePlace={navigateClosePlace}
-          onCloseZone={navigateCloseZone}
+          onCloseZone={closeZone}
         />
 
         <PaywallModal

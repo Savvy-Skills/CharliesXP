@@ -4,16 +4,19 @@ import type { Place, PlaceCategory, Coordinates } from '../../types';
 import { MarkerPicker, type CustomMarker } from './MarkerPicker';
 import { Button } from '../ui/Button';
 import { MANAGED_ZONES, ZONE_MAP } from '../../utils/zoneMapping';
+import { IconPicker } from './IconPicker';
+import { useTags } from '../../hooks/useTags';
 
 interface PlaceFormProps {
   initial?: Place;
   coordinates?: Coordinates;
   currentView?: { zoom: number; pitch: number; bearing: number };
-  onSubmit: (place: Omit<Place, 'id'> | Place) => void;
+  onSubmit: (place: Omit<Place, 'id'> | Place) => Promise<string | null | void> | void;
   onCancel: () => void;
   isDragging?: boolean;
   dragCoordinates?: { lng: number; lat: number } | null;
   onMoveToZone?: (placeId: string, zoneId: string) => void;
+  onSaveTags?: (placeId: string, tagIds: string[]) => Promise<void> | void;
 }
 
 const inputClass = `w-full bg-white border border-[var(--sg-border)] rounded-xl px-3 py-2.5
@@ -21,7 +24,7 @@ const inputClass = `w-full bg-white border border-[var(--sg-border)] rounded-xl 
   focus:outline-none focus:border-[var(--sg-thames)] focus:ring-2 focus:ring-[var(--sg-thames)]/15
   transition-all duration-200`;
 
-export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCancel, isDragging = false, dragCoordinates, onMoveToZone }: PlaceFormProps) {
+export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCancel, isDragging = false, dragCoordinates, onMoveToZone, onSaveTags }: PlaceFormProps) {
   const [name, setName] = useState(initial?.name ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
   const [category, setCategory] = useState<PlaceCategory>(initial?.category ?? 'other');
@@ -34,6 +37,11 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
   const [visitDate, setVisitDate] = useState(initial?.visitDate ?? '');
   const [lng, setLng] = useState(String(initial?.coordinates?.lng ?? coordinates?.lng ?? 0));
   const [lat, setLat] = useState(String(initial?.coordinates?.lat ?? coordinates?.lat ?? 0));
+  const [iconUrl, setIconUrl] = useState<string | null>(initial?.iconUrl ?? null);
+  const { tags: allTags } = useTags();
+  const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(
+    () => new Set((initial?.tags ?? []).map((t) => t.id)),
+  );
 
   // Sync coordinates from marker drag
   useEffect(() => {
@@ -47,6 +55,10 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
   const hasChanges = useMemo(() => {
     if (!initial) return true; // New place — always allow submit
     if (dragCoordinates) return true; // Drag moved the place — always allow save
+    const initialTagIds = new Set((initial.tags ?? []).map((t) => t.id));
+    const tagsChanged =
+      initialTagIds.size !== selectedTagIds.size ||
+      Array.from(selectedTagIds).some((id) => !initialTagIds.has(id));
     return (
       name !== (initial.name ?? '') ||
       description !== (initial.description ?? '') ||
@@ -54,11 +66,13 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
       address !== (initial.address ?? '') ||
       visitDate !== (initial.visitDate ?? '') ||
       lng !== String(initial.coordinates?.lng ?? 0) ||
-      lat !== String(initial.coordinates?.lat ?? 0)
+      lat !== String(initial.coordinates?.lat ?? 0) ||
+      iconUrl !== (initial.iconUrl ?? null) ||
+      tagsChanged
     );
-  }, [name, description, category, address, visitDate, lng, lat, initial, dragCoordinates]);
+  }, [name, description, category, address, visitDate, lng, lat, initial, dragCoordinates, iconUrl, selectedTagIds]);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const slug = initial?.slug ?? name
       .toLowerCase()
@@ -78,12 +92,18 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
       images: initial?.images ?? [],
       visitDate,
       tags: initial?.tags ?? [],
-      iconUrl: initial?.iconUrl ?? null,
+      iconUrl,
       zoom: currentView?.zoom ?? initial?.zoom ?? 16,
       pitch: currentView?.pitch ?? initial?.pitch ?? 50,
       bearing: currentView?.bearing ?? initial?.bearing ?? 0,
     };
-    onSubmit(place);
+    const result = await onSubmit(place);
+    if (onSaveTags) {
+      const savedId = typeof result === 'string' ? result : initial?.id ?? null;
+      if (savedId) {
+        await onSaveTags(savedId, Array.from(selectedTagIds));
+      }
+    }
   };
 
   return (
@@ -122,6 +142,46 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
               setCustomMarker(custom);
             }}
           />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-[var(--sg-navy)]/70 mb-1">Map icon</label>
+          <IconPicker
+            iconUrl={iconUrl}
+            defaultUrl="/icons/default-place.png"
+            folder="places"
+            recordId={initial?.id ?? `new-${Date.now()}`}
+            onUploaded={setIconUrl}
+            onReset={() => setIconUrl(null)}
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-[var(--sg-navy)]/70 mb-1">Tags</label>
+          <div className="flex flex-wrap gap-1.5">
+            {allTags.map((tag) => {
+              const active = selectedTagIds.has(tag.id);
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedTagIds((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(tag.id)) next.delete(tag.id); else next.add(tag.id);
+                      return next;
+                    });
+                  }}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                    active ? 'text-white border-transparent' : 'text-[var(--sg-navy)]/70 border-[var(--sg-border)] hover:bg-[var(--sg-offwhite)]'
+                  }`}
+                  style={active ? { backgroundColor: tag.color } : { backgroundColor: tag.color + '20' }}
+                >
+                  {tag.name}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div>

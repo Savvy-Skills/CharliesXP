@@ -4,7 +4,7 @@ import zonesData from '../data/zones.json';
 import { useSupabasePlaces } from './useSupabasePlaces';
 
 export function usePlaces() {
-  const { places, loading, error, refetch, optimisticAdd, optimisticUpdate, optimisticDelete } = useSupabasePlaces();
+  const { places, loading, error, refetch, optimisticAdd, optimisticUpdate, optimisticDelete, setPlaceTags } = useSupabasePlaces();
   const [activeCategories, setActiveCategories] = useState<PlaceCategory[]>([]);
 
   const filteredPlaces =
@@ -58,5 +58,6 @@ export function usePlaces() {
     optimisticAdd,
     optimisticUpdate,
     optimisticDelete,
+    setPlaceTags,
   };
 }

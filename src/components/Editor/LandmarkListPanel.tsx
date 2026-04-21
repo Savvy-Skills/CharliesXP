@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Search, X, Pencil, Trash2 } from 'lucide-react';
 import type { Landmark } from '../../hooks/useSupabaseLandmarks';
 import { ZONES } from '../../utils/zoneMapping';
+import { IconPicker } from './IconPicker';
 
 interface LandmarkListPanelProps {
   landmarks: Landmark[];
@@ -39,6 +40,7 @@ export function LandmarkListPanel({
   const [search, setSearch] = useState('');
   const [form, setForm] = useState<LandmarkForm>(EMPTY_FORM);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [iconUrl, setIconUrl] = useState<string | null>(null);
 
   const showForm = pendingCoordinates !== null || editingLandmarkId !== null;
 
@@ -54,8 +56,10 @@ export function LandmarkListPanel({
         zone_id: editingLandmark.zone_id,
         min_zoom: editingLandmark.min_zoom,
       });
+      setIconUrl(editingLandmark.iconUrl ?? null);
     } else if (pendingCoordinates) {
       setForm({ ...EMPTY_FORM, zone_id: pendingZoneId ?? '' });
+      setIconUrl(null);
     }
   }, [editingLandmarkId, editingLandmark, pendingCoordinates, pendingZoneId]);
 
@@ -77,6 +81,7 @@ export function LandmarkListPanel({
         name: form.name.trim(),
         zone_id: form.zone_id,
         min_zoom: form.min_zoom,
+        iconUrl,
       });
       onEditLandmark(null);
     } else if (pendingCoordinates) {
@@ -85,12 +90,13 @@ export function LandmarkListPanel({
         zone_id: form.zone_id,
         coordinates: pendingCoordinates,
         icon: '',
-        iconUrl: null,
+        iconUrl,
         min_zoom: form.min_zoom,
       });
       onCancelPending();
     }
     setForm(EMPTY_FORM);
+    setIconUrl(null);
   };
 
   const handleCancel = () => {
@@ -100,6 +106,7 @@ export function LandmarkListPanel({
       onCancelPending();
     }
     setForm(EMPTY_FORM);
+    setIconUrl(null);
   };
 
   const handleDelete = (id: string) => {
@@ -184,6 +191,20 @@ export function LandmarkListPanel({
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-medium text-[var(--sg-navy)]/60 uppercase mb-1">
+              Map icon
+            </label>
+            <IconPicker
+              iconUrl={iconUrl}
+              defaultUrl="/icons/default-landmark.png"
+              folder="landmarks"
+              recordId={editingLandmark?.id ?? `new-${Date.now()}`}
+              onUploaded={setIconUrl}
+              onReset={() => setIconUrl(null)}
+            />
           </div>
 
           <div>

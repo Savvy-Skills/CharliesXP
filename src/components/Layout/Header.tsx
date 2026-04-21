@@ -100,6 +100,16 @@ export function Header() {
               >
                 Landmarks
               </button>
+              <button
+                onClick={() => mapHeader?.onEditorTabChange('tags')}
+                className={`text-xs px-2 py-1 rounded-md cursor-pointer transition-colors ${
+                  editorTab === 'tags'
+                    ? 'bg-[var(--sg-navy)] text-white'
+                    : 'text-[var(--sg-navy)]/50 hover:bg-[var(--sg-offwhite)]'
+                }`}
+              >
+                Tags
+              </button>
             </div>
           </div>
         )}

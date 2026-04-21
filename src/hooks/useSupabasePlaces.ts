@@ -75,6 +75,7 @@ function placeToRow(place: Omit<Place, 'id' | 'slug'>, activeZone: string): Reco
     marker_icon: place.markerIcon,
     marker_image: place.markerImage,
     images: place.images,
+    icon_url: place.iconUrl ?? null,
     visit_date: place.visitDate,
     camera: { zoom: place.zoom, pitch: place.pitch, bearing: place.bearing },
     placed: true,
@@ -93,6 +94,7 @@ function partialPlaceToDbUpdates(updates: Partial<Place>): Record<string, unknow
     dbUpdates.placed = true;
   }
   if (updates.address !== undefined) dbUpdates.address = updates.address;
+  if (updates.iconUrl !== undefined) dbUpdates.icon_url = updates.iconUrl;
   return dbUpdates;
 }
 
@@ -123,7 +125,7 @@ export function useSupabasePlaces() {
   }, [fetchPlaces]);
 
   // ── Optimistic Add ──
-  const optimisticAdd = useCallback(async (place: Omit<Place, 'id'>, activeZone: string) => {
+  const optimisticAdd = useCallback(async (place: Omit<Place, 'id'>, activeZone: string): Promise<string | null> => {
     const tempId = `temp-${crypto.randomUUID()}`;
     const optimisticPlace: Place = { ...place, id: tempId, zone: place.zone ?? activeZone };
 
@@ -140,11 +142,12 @@ export function useSupabasePlaces() {
       console.error('Add place error:', err);
       // Revert: remove the temp place
       setPlaces(prev => prev.filter(p => p.id !== tempId));
-    } else {
-      // Replace temp with real DB record
-      const realPlace = rowToPlace(data as SupabasePlaceRow);
-      setPlaces(prev => prev.map(p => p.id === tempId ? realPlace : p));
+      return null;
     }
+    // Replace temp with real DB record
+    const realPlace = rowToPlace(data as SupabasePlaceRow);
+    setPlaces(prev => prev.map(p => p.id === tempId ? realPlace : p));
+    return realPlace.id;
   }, []);
 
   // ── Optimistic Update ──
