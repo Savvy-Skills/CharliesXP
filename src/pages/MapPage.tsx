@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { useSearchParams, useNavigate, useParams, useLocation } from 'react-router';
+import { useState, useCallback, useEffect } from 'react';
+import { useSearchParams, useNavigate, useParams } from 'react-router';
 import { ZONE_MAP, ZONE_POLYGON_CENTERS, ZONE_CENTROIDS, ZONE_ENTER_THRESHOLD, ZONE_EXIT_THRESHOLD } from '../utils/zoneMapping';
 import { PageShell } from '../components/Layout/PageShell';
 import { SEOHead } from '../components/SEOHead';
 import { HeroMapSection } from '../components/Landing/HeroMapSection';
 import { PaywallModal } from '../components/ui/PaywallModal';
+import { WelcomePopup, hasDismissedWelcome } from '../components/Welcome/WelcomePopup';
 import { MapHeaderProvider } from '../hooks/useMapHeader';
 import { usePlaces } from '../hooks/usePlaces';
 import { useMapFlyTo } from '../hooks/useMapFlyTo';
@@ -14,42 +15,53 @@ import { usePackages } from '../hooks/usePackages';
 import { useZoneSettings } from '../hooks/useZoneSettings';
 import type { Place, Coordinates, MapZoomState } from '../types';
 
-export function LandingPage() {
+export function MapPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const { zoneId: urlZoneId } = useParams<{ zoneId?: string }>();
+  const { zoneId: urlZoneId, placeSlug: urlPlaceSlug } = useParams<{ zoneId?: string; placeSlug?: string }>();
   const isEditorMode = searchParams.get('editor') === 'true';
 
   // ── URL is the single source of truth for map state ──────────────────────
-  const mapState: MapZoomState = !location.pathname.startsWith('/map')
-    ? 'overview'
-    : urlZoneId
-      ? 'zoneDetail'
-      : 'expanded';
+  // Root path `/` renders the expanded full-screen map. Zone path `/:zoneId`
+  // renders the zone-detail state. The old `'overview'` state (small hero
+  // preview) is retired now that the landing page is gone.
+  const mapState: MapZoomState = urlZoneId ? 'zoneDetail' : 'expanded';
   const activeZone = urlZoneId ?? null;
+  const selectedPlaceSlug = urlPlaceSlug ?? null;
 
   // Preload packages so PaywallModal opens instantly
   usePackages();
 
-  const { places, getPlacesByZone, activeCategories, refetch, optimisticAdd, optimisticUpdate, optimisticDelete } = usePlaces();
+  const { places, getPlacesByZone, activeCategories, refetch, optimisticAdd, optimisticUpdate, optimisticDelete, setPlaceTags } = usePlaces();
   const { mapRef, flyToPlace, flyToDefault } = useMapFlyTo();
-  const { zoomIntoZone, zoomOutToExpanded, zoomOutToOverview, isAnimating } = useMapZoom(mapRef);
-  const { unlockedZones: rawUnlockedZones, isZoneUnlocked, isAdmin, refreshAccess } = useAuth();
+  const { zoomIntoZone, zoomOutToOverview, isAnimating } = useMapZoom(mapRef);
+  const { unlockedZones: rawUnlockedZones, isZoneUnlocked, isAdmin, refreshAccess, user } = useAuth();
   const { enabledZoneIds, isZoneEnabled, toggleZone } = useZoneSettings();
+
+  const canOpenPlace =
+    !!activeZone &&
+    (isEditorMode || isZoneUnlocked(activeZone)) &&
+    isZoneEnabled(activeZone);
+
+  // When the zone is locked or disabled, keep the URL but don't open the detail.
+  // This preserves the shareable link for the recipient.
+  const effectivePlaceSlug = canOpenPlace ? selectedPlaceSlug : null;
 
   const unlockedZones = isAdmin ? enabledZoneIds : rawUnlockedZones.filter(z => enabledZoneIds.includes(z));
   const [paywallZone, setPaywallZone] = useState<string | null>(null);
   const [paymentToast, setPaymentToast] = useState<'success' | 'cancelled' | null>(null);
-  const [editorTab, setEditorTab] = useState<'places' | 'zones' | 'landmarks'>('places');
-  const isMapMode = mapState === 'expanded' || mapState === 'zoneDetail';
+  const [editorTab, setEditorTab] = useState<'places' | 'zones' | 'landmarks' | 'tags'>('places');
+  const [welcomePopupOpen, setWelcomePopupOpen] = useState<boolean>(() => {
+    return !user && !hasDismissedWelcome();
+  });
+  const isMapMode = true;  // MapPage is always map-mode now that landing is gone
 
   // Handle payment return params (?payment=success|cancelled)
   useEffect(() => {
     const payment = searchParams.get('payment');
     if (payment === 'success' || payment === 'cancelled') {
       setPaymentToast(payment);
-      window.history.replaceState(null, '', '/map');
+      window.history.replaceState(null, '', '/');
       if (payment === 'success') {
         const poll = async (attempts = 0) => {
           await refreshAccess();
@@ -62,42 +74,149 @@ export function LandingPage() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Sync map camera with URL zone changes ─────────────────────────────────
-  // When activeZone changes (URL changes), fire the appropriate camera animation.
-  const prevZoneRef = useRef<string | null | undefined>(undefined);
-  useEffect(() => {
-    const prev = prevZoneRef.current;
-    prevZoneRef.current = activeZone;
+  // ── Settle-time reconciliation ────────────────────────────────────────────
+  // While a programmatic flyTo is running, `handleZoomChange` is silenced by
+  // `isAnimating` (otherwise the fly-out through thresholds would oscillate).
+  // If the user scrolls past a threshold during that window and stops before
+  // the timer clears, no move event fires afterward — the URL gets stuck out
+  // of sync with the actual zoom. `reconcileThresholds` runs once after each
+  // flight completes, reading the zoom directly and correcting the URL if
+  // the user is on the wrong side of a threshold.
+  const reconcileThresholds = useCallback(() => {
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+    const zoom = map.getZoom();
+    const path = window.location.pathname;
+    const currentZone = path === '/' ? null : (path.split('/')[1] || null);
+    const qs = searchParams.toString();
+    const suffix = qs ? '?' + qs : '';
 
-    if (prev === undefined) {
-      // Initial mount — if a zone is already in the URL, zoom in after map settles
-      if (activeZone) setTimeout(() => zoomIntoZone(activeZone), 400);
+    if (currentZone && zoom < ZONE_EXIT_THRESHOLD) {
+      navigate(`/${suffix}`, { replace: true });
       return;
     }
-
-    if (activeZone && activeZone !== prev) {
-      // Entered a zone (or switched zones)
-      zoomIntoZone(activeZone);
-    } else if (!activeZone && prev) {
-      // Left a zone — return to previous overview camera
-      zoomOutToExpanded();
+    if (!currentZone && zoom >= ZONE_ENTER_THRESHOLD) {
+      const center = map.getCenter();
+      const point = map.project([center.lng, center.lat]);
+      const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
+      const zoneName = features[0]?.properties?.zone as string | undefined;
+      if (!zoneName) return;
+      if (!isEditorMode && !isZoneEnabled(zoneName)) return;
+      navigate(`/${zoneName}${suffix}`, { replace: true });
     }
-  }, [activeZone]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mapRef, navigate, searchParams, isEditorMode, isZoneEnabled]);
+
+  // ── Deep-link: fly into a zone on initial mount ───────────────────────────
+  // URL changes no longer drive camera animations. The only reactive flyTo is
+  // this mount-time poll for a pre-existing URL zone (e.g. someone lands on
+  // /W1 directly or refreshes). Every other zone transition is animated by
+  // the click handler that caused it (enterZone / closeZone).
+  useEffect(() => {
+    if (!activeZone) return;
+    let cancelled = false;
+    const tryFly = () => {
+      if (cancelled) return;
+      const map = mapRef.current?.getMap();
+      if (map?.isStyleLoaded()) {
+        zoomIntoZone(activeZone);
+        setTimeout(reconcileThresholds, 1700);
+        return;
+      }
+      setTimeout(tryFly, 200);
+    };
+    tryFly();
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps — mount-only
+
+  // ── Redirect on unknown zone or unknown place ─────────────────────────────
+  useEffect(() => {
+    if (!urlZoneId) return;
+    const zoneExists = !!ZONE_MAP[urlZoneId];
+    if (!zoneExists) {
+      navigate('/', { replace: true });
+      return;
+    }
+    if (!urlPlaceSlug) return;
+    // Don't redirect unknown places inside a LOCKED zone — keep the URL
+    // so a user who later unlocks the zone still lands on their share link.
+    if (!(isEditorMode || isZoneUnlocked(urlZoneId))) return;
+    const place = places.find(
+      (p) => p.slug === urlPlaceSlug && p.zone === urlZoneId,
+    );
+    if (!place) navigate(`/${urlZoneId}`, { replace: true });
+  }, [urlZoneId, urlPlaceSlug, places, isEditorMode, isZoneUnlocked, navigate]);
+
+  // ── Camera sequence: fly to place after zoomIntoZone settles ──────────────
+  useEffect(() => {
+    if (!effectivePlaceSlug || !activeZone) return;
+    const place = places.find(
+      (p) => p.slug === effectivePlaceSlug && p.zone === activeZone,
+    );
+    if (!place) return;
+    // Wait for zone-in animation to finish (1500ms per useMapZoom) before the
+    // second camera move. This runs on every URL change — consecutive opens
+    // in the same zone will retrigger, which is desired for different places.
+    const t = setTimeout(() => flyToPlace(place), 1600);
+    return () => clearTimeout(t);
+  }, [effectivePlaceSlug, activeZone, places, flyToPlace]);
 
   // ── Navigation helpers ────────────────────────────────────────────────────
-  // All navigation goes through React Router. Query params (e.g. ?editor=true) are preserved.
+  // Two flavours:
+  //   • `navigateToZone` / `navigateCloseZone` — pure URL updates, no camera
+  //     animation. Used by scroll-zoom thresholds and drag-pan handlers so
+  //     the camera stays under the user's control.
+  //   • `enterZone` / `closeZone` — click-driven. They update the URL AND
+  //     fire an explicit flyTo, because a click is an expression of intent
+  //     for the camera to move.
+  //
+  // Threshold / pan transitions use `replace: true` to keep the history
+  // stack tidy during continuous motion. Click transitions push so the
+  // browser back button does what the user expects.
 
   const navigateToZone = useCallback(
     (zoneId: string) => {
       const qs = searchParams.toString();
-      // When jumping from overview, insert /map into browser history so
-      // the back button returns to the expanded map rather than skipping to /
-      if (mapState === 'overview') {
-        window.history.pushState(null, '', `/map${qs ? '?' + qs : ''}`);
-      }
-      navigate(`/map/${zoneId}${qs ? '?' + qs : ''}`);
+      navigate(`/${zoneId}${qs ? '?' + qs : ''}`, { replace: true });
     },
-    [navigate, searchParams, mapState],
+    [navigate, searchParams],
+  );
+
+  const navigateCloseZone = useCallback(() => {
+    const qs = searchParams.toString();
+    navigate(`/${qs ? '?' + qs : ''}`, { replace: true });
+  }, [navigate, searchParams]);
+
+  const enterZone = useCallback(
+    (zoneId: string) => {
+      const qs = searchParams.toString();
+      navigate(`/${zoneId}${qs ? '?' + qs : ''}`);
+      zoomIntoZone(zoneId);
+      setTimeout(reconcileThresholds, 1700);
+    },
+    [navigate, searchParams, zoomIntoZone, reconcileThresholds],
+  );
+
+  const closeZone = useCallback(() => {
+    const qs = searchParams.toString();
+    navigate(`/${qs ? '?' + qs : ''}`);
+    zoomOutToOverview();
+    setTimeout(reconcileThresholds, 1400);
+  }, [navigate, searchParams, zoomOutToOverview, reconcileThresholds]);
+
+  const navigateToPlace = useCallback(
+    (zoneId: string, placeSlug: string) => {
+      const qs = searchParams.toString();
+      navigate(`/${zoneId}/${placeSlug}${qs ? '?' + qs : ''}`);
+    },
+    [navigate, searchParams],
+  );
+
+  const navigateClosePlace = useCallback(
+    (zoneId: string) => {
+      const qs = searchParams.toString();
+      navigate(`/${zoneId}${qs ? '?' + qs : ''}`);
+    },
+    [navigate, searchParams],
   );
 
   // ── Editor state ──────────────────────────────────────────────────────────
@@ -109,17 +228,18 @@ export function LandingPage() {
   const activeZonePlaces = activeZone ? getPlacesByZone(activeZone) : [];
   const activeCategory = activeCategories.length === 1 ? activeCategories[0] : null;
 
-  // Editor mode: handle ?zone= and ?placeId= query params on initial load
+  // Editor mode: migrate legacy ?zone=X query param into the URL path on
+  // initial load. The old self-navigate for the `mapState === 'expanded'`
+  // branch was a no-op (you're already at `/?editor=true` if the effect
+  // reaches it) and a latent cause of spurious "redirected to editor"
+  // behaviour if anything ever re-fired it — removed.
   useEffect(() => {
     if (!isEditorMode) return;
     const zone = searchParams.get('zone');
     const placeId = searchParams.get('placeId');
     if (placeId) setPendingPlaceId(placeId);
-    // If zone is in query params (legacy) and not already in the path, navigate to correct URL
     if (zone && !urlZoneId) {
-      navigate(`/map/${zone}?editor=true${placeId ? '&placeId=' + placeId : ''}`);
-    } else if (mapState === 'overview') {
-      navigate(`/map?editor=true`);
+      navigate(`/${zone}?editor=true${placeId ? '&placeId=' + placeId : ''}`);
     }
   }, [isEditorMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -135,20 +255,18 @@ export function LandingPage() {
 
   // ── Event handlers ────────────────────────────────────────────────────────
 
-  // When the user manually zooms out of a zone, clear the zone from the URL
+  // Scroll-zoom threshold: pure URL update. The camera is mid-motion under
+  // the user's finger — do NOT animate. `isAnimating` guards against this
+  // handler firing during an in-flight click-initiated flyTo.
   const handleZoomChange = useCallback(
     (zoom: number) => {
       if (isAnimating.current) return;
 
-      // Zoom out while inside a zone → clear zone from URL
       if (mapState === 'zoneDetail' && zoom < ZONE_EXIT_THRESHOLD) {
-        const qs = searchParams.toString();
-        navigate(`/map${qs ? '?' + qs : ''}`);
+        navigateCloseZone();
         return;
       }
 
-      // Zoom in while on /map → enter the zone under the map center.
-      // Locked-zone paywall is shown in the sidebar by ZoneSidePanel once we land.
       if (mapState === 'expanded' && zoom >= ZONE_ENTER_THRESHOLD) {
         const map = mapRef.current?.getMap();
         if (!map) return;
@@ -161,8 +279,29 @@ export function LandingPage() {
         navigateToZone(zoneName);
       }
     },
-    [mapState, isAnimating, navigate, searchParams, mapRef, isEditorMode, isZoneEnabled, navigateToZone],
+    [mapState, isAnimating, mapRef, isEditorMode, isZoneEnabled, navigateToZone, navigateCloseZone],
   );
+
+  // Drag-pan inside a zone: URL follows the viewport, no camera animation.
+  // Bound to `dragend` (not `moveend`) so scroll-zoom and programmatic
+  // flyTo don't retrigger zone switching.
+  const handleDragEnd = useCallback(() => {
+    if (isAnimating.current) return;
+    if (isEditorMode) return;
+    if (mapState !== 'zoneDetail') return;
+
+    const map = mapRef.current?.getMap();
+    if (!map || !map.isStyleLoaded()) return;
+
+    const center = map.getCenter();
+    const point = map.project([center.lng, center.lat]);
+    const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
+    const zoneName = features[0]?.properties?.zone as string | undefined;
+    if (!zoneName || zoneName === activeZone) return;
+    if (!isZoneEnabled(zoneName)) return;
+
+    navigateToZone(zoneName);
+  }, [mapState, activeZone, isAnimating, isEditorMode, isZoneEnabled, mapRef, navigateToZone]);
 
   const handlePlaceClick = useCallback(
     (place: Place) => { flyToPlace(place); },
@@ -191,7 +330,7 @@ export function LandingPage() {
         const zoneName = features[0]?.properties?.zone as string | undefined;
         if (zoneName && zoneName !== activeZone && (isEditorMode || isZoneEnabled(zoneName))) {
           if (isEditorMode || isZoneUnlocked(zoneName)) {
-            navigateToZone(zoneName);
+            enterZone(zoneName);
           } else {
             setPaywallZone(zoneName);
           }
@@ -199,30 +338,13 @@ export function LandingPage() {
         return;
       }
 
-      if (mapState === 'overview') {
-        const features = map.queryRenderedFeatures(point, { layers: ['zones-fill'] });
-        if (features.length > 0) {
-          const zoneName = features[0].properties?.zone as string;
-          if (zoneName && (isEditorMode || isZoneEnabled(zoneName))) {
-            if (isEditorMode || isZoneUnlocked(zoneName)) {
-              navigateToZone(zoneName);
-            } else {
-              navigate('/map');
-              setTimeout(() => setPaywallZone(zoneName), 300);
-            }
-            return;
-          }
-        }
-        navigate('/map');
-        return;
-      }
-
-      // Expanded mode: click to enter a zone
+      // Expanded: clicking a zone polygon enters it. Editor can also target
+      // disabled zones via a dedicated layer.
       if (isEditorMode && map.getLayer('zones-disabled-fill')) {
         const disabledFeatures = map.queryRenderedFeatures(point, { layers: ['zones-disabled-fill'] });
         if (disabledFeatures.length > 0) {
           const zoneName = disabledFeatures[0].properties?.zone as string;
-          if (zoneName) { navigateToZone(zoneName); return; }
+          if (zoneName) { enterZone(zoneName); return; }
         }
       }
 
@@ -231,19 +353,19 @@ export function LandingPage() {
         const zoneName = features[0].properties?.zone as string;
         if (!zoneName || (!isEditorMode && !isZoneEnabled(zoneName))) return;
         if (isEditorMode || isZoneUnlocked(zoneName)) {
-          navigateToZone(zoneName);
+          enterZone(zoneName);
         } else {
           setPaywallZone(zoneName);
         }
       }
     },
-    [mapState, mapRef, isZoneUnlocked, isZoneEnabled, isEditorMode, activeZone, navigate, navigateToZone],
+    [mapState, mapRef, isZoneUnlocked, isZoneEnabled, isEditorMode, activeZone, enterZone],
   );
 
   const handleCancelPending = useCallback(() => setPendingCoordinates(null), []);
 
   const handleAddPlace = useCallback(
-    (place: Omit<Place, 'id'>) => optimisticAdd(place, activeZone ?? ''),
+    (place: Omit<Place, 'id'>): Promise<string | null> => optimisticAdd(place, activeZone ?? ''),
     [activeZone, optimisticAdd],
   );
 
@@ -263,9 +385,9 @@ export function LandingPage() {
       const updates: Partial<Place> = { zone: zoneId };
       if (center) updates.coordinates = { lng: center.lng, lat: center.lat };
       optimisticUpdate(placeId, updates);
-      navigateToZone(zoneId);
+      enterZone(zoneId);
     },
-    [optimisticUpdate, navigateToZone],
+    [optimisticUpdate, enterZone],
   );
 
   const jsonLd = {
@@ -276,7 +398,7 @@ export function LandingPage() {
     description: 'Experience London like a Londoner. Personal, human, editorial guides to London.',
     potentialAction: {
       '@type': 'SearchAction',
-      target: 'https://charliesxp.com/map',
+      target: 'https://charliesxp.com/',
       'query-input': 'required name=search_term_string',
     },
   };
@@ -287,7 +409,7 @@ export function LandingPage() {
       isEditorMode,
       editorTab,
       onEditorTabChange: setEditorTab,
-      onCollapse: () => { zoomOutToOverview(); navigate('/'); },
+      onCollapse: closeZone,
       activeZone,
     }}>
     <>
@@ -328,18 +450,19 @@ export function LandingPage() {
           unlockedZones={unlockedZones}
           zonePlaces={zonePlaces}
           onPlaceClick={handlePlaceClick}
-          onLockedZoneClick={(zoneId) => isEditorMode ? navigateToZone(zoneId) : setPaywallZone(zoneId)}
+          onLockedZoneClick={(zoneId) => isEditorMode ? enterZone(zoneId) : setPaywallZone(zoneId)}
           onUnlockZone={(zoneId) => setPaywallZone(zoneId)}
-          onZoneClick={navigateToZone}
-          onZoomOut={() => navigate(-1)}
+          onZoneClick={enterZone}
+          onZoomOut={closeZone}
           enabledZoneIds={enabledZoneIds}
           isZoneEnabled={isZoneEnabled}
           onToggleZone={toggleZone}
-          onCollapse={() => { zoomOutToOverview(); navigate('/'); }}
-          onExpand={() => navigate('/map')}
+          onCollapse={closeZone}
+          onExpand={() => navigate('/')}
           onResetView={flyToDefault}
           onMapClick={handleMapClick}
           onZoomChange={handleZoomChange}
+          onDragEnd={handleDragEnd}
           allUnlockedPlaces={activeZonePlaces}
           activeCategory={activeCategory}
           isEditorMode={isEditorMode}
@@ -352,79 +475,22 @@ export function LandingPage() {
           onUpdatePlace={handleUpdatePlace}
           onDeletePlace={handleDeletePlace}
           onMoveToZone={handleMoveToZone}
+          onSaveTags={setPlaceTags}
+          selectedPlaceSlug={effectivePlaceSlug}
+          onOpenPlace={navigateToPlace}
+          onClosePlace={navigateClosePlace}
+          onCloseZone={closeZone}
         />
-
-        {!isEditorMode && (
-          <div className="bg-[var(--sg-offwhite)]">
-            {/* Why Charlie and not AI — trust panel */}
-            <section className="max-w-3xl mx-auto px-5 md:px-8 py-16">
-              <div className="im-card p-10 md:p-14">
-                <h2 className="font-display text-2xl md:text-3xl font-bold text-[var(--sg-crimson)] mb-7 leading-snug">
-                  Why Charlie and not AI?
-                </h2>
-                <div className="space-y-5 text-[var(--sg-navy)]/70 leading-relaxed">
-                  <p className="font-medium text-[var(--sg-navy)]">Good question. Genuinely.</p>
-                  <p>
-                    AI will give you information. Accurate, fast, and often impressive. But it has
-                    never actually been there.
-                  </p>
-                  <p>
-                    It doesn't know that the market is only worth it before 9am on a Saturday. It has
-                    never walked that route on a rainy Wednesday in November and known — in the way you
-                    only know from being somewhere — that the café on the corner is worth the detour.
-                    It has never tested the food, sat in the parks, seen the shows, or felt the weather.
-                  </p>
-                  <p className="font-medium text-[var(--sg-navy)]">
-                    Charlie has done all of that. Repeatedly. In all weathers.
-                  </p>
-                  <p>
-                    Information tells you what exists. Charlie tells you what's worth it — for you,
-                    specifically, on the day you're actually there.
-                  </p>
-                  <p className="italic text-[var(--sg-navy)]">That's not something you can search for.</p>
-                </div>
-                <div className="mt-8 pt-6 border-t border-[var(--sg-border)] flex flex-col sm:flex-row gap-3">
-                  <a
-                    href="/who-is-charlie"
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl
-                      bg-[var(--sg-crimson)] hover:bg-[var(--sg-crimson-hover)] text-white text-sm font-semibold
-                      transition-all duration-200 shadow-sm hover:shadow-md"
-                  >
-                    Meet Charlie
-                  </a>
-                  <a
-                    href="/the-london-i-love"
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl
-                      bg-[var(--sg-offwhite)] hover:bg-[var(--sg-border)] text-[var(--sg-navy)] text-sm font-semibold
-                      transition-all duration-200"
-                  >
-                    The London I Love
-                  </a>
-                </div>
-              </div>
-            </section>
-
-            <section id="about" className="max-w-6xl mx-auto px-5 md:px-8 py-20">
-              <div className="im-card p-10 md:p-16 text-center">
-                <h2 className="font-display text-3xl md:text-4xl font-bold text-[var(--sg-crimson)] mb-6">
-                  About Interest Map
-                </h2>
-                <p className="text-[var(--sg-navy)]/60 max-w-2xl mx-auto leading-relaxed text-lg">
-                  A curated collection of the best spots in central London — from hidden cocktail bars
-                  to world-class museums. Every place has been personally visited and reviewed.
-                  Unlock zones to discover insider guides, detailed reviews, and hidden gems
-                  in each London neighbourhood.
-                </p>
-              </div>
-            </section>
-          </div>
-        )}
 
         <PaywallModal
           isOpen={!!paywallZone}
           onClose={() => setPaywallZone(null)}
           zoneName={paywallZone ? (ZONE_MAP[paywallZone]?.name ?? paywallZone) : ''}
           zoneId={paywallZone ?? ''}
+        />
+        <WelcomePopup
+          isOpen={welcomePopupOpen}
+          onClose={() => setWelcomePopupOpen(false)}
         />
       </PageShell>
     </>

@@ -20,6 +20,7 @@ export function MapControls({
   const [showStyles, setShowStyles] = useState(false);
 
   const styleNames: Record<MapStyleKey, string> = {
+    standard: 'Standard',
     streets: 'Streets',
     light: 'Light',
     satellite: 'Satellite',

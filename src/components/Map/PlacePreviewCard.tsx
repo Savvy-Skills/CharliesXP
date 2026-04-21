@@ -1,85 +1,39 @@
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Star, ChevronRight } from 'lucide-react';
-import { useNavigate } from 'react-router';
+import { X } from 'lucide-react';
 import type { Place } from '../../types';
-import { CATEGORIES } from '../../types';
-import { CATEGORY_EMOJI } from '../../utils/mapStyles';
+import { PlaceDetailView } from './PlaceDetailView';
 
 interface PlacePreviewCardProps {
+  /** If null, the card doesn't render. */
   place: Place | null;
+  /** Called when the user clicks the close button. */
   onClose: () => void;
 }
 
+/**
+ * Desktop-only floating card anchored to the bottom-right of the map —
+ * the same slot ZoneTeaser occupies when the zone is locked. Hidden on
+ * mobile; the ZoneSidePanel drawer owns the detail view there (Task 11).
+ */
 export function PlacePreviewCard({ place, onClose }: PlacePreviewCardProps) {
-  const navigate = useNavigate();
-
+  if (!place) return null;
   return (
-    <AnimatePresence>
-      {place && (
-        <motion.div
-          initial={{ y: 120, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 120, opacity: 0 }}
-          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="absolute bottom-4 left-4 right-4 z-40 md:left-auto md:right-4 md:w-96
-            bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-[var(--sg-border)]
-            overflow-hidden"
-        >
-          <div className="p-4">
+    <div className="hidden md:flex absolute bottom-4 right-4 z-40
+      w-[min(380px,92vw)] max-h-[60vh] bg-white rounded-2xl shadow-2xl
+      border border-[var(--sg-border)] overflow-hidden flex-col pointer-events-auto">
+      <PlaceDetailView
+        place={place}
+        header={
+          <div className="flex items-center justify-end p-2 border-b border-[var(--sg-border)]">
             <button
               onClick={onClose}
-              className="absolute top-3 right-3 p-1 rounded-full bg-[var(--sg-offwhite)]
-                hover:bg-[var(--sg-border)] transition-colors cursor-pointer"
+              className="p-1.5 rounded-full hover:bg-[var(--sg-offwhite)] transition-colors cursor-pointer"
+              aria-label="Close place details"
             >
-              <X size={14} className="text-[var(--sg-navy)]/60" />
-            </button>
-
-            <div className="flex items-center gap-3">
-              <div
-                className="w-11 h-11 rounded-full flex items-center justify-center text-lg shrink-0"
-                style={{
-                  backgroundColor:
-                    CATEGORIES.find((c) => c.value === place.category)?.color ?? '#6b7280',
-                }}
-              >
-                {CATEGORY_EMOJI[place.category] ?? '📍'}
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <h3 className="text-base font-bold text-[var(--sg-navy)] truncate">{place.name}</h3>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span
-                    className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-                    style={{
-                      backgroundColor: `${CATEGORIES.find((c) => c.value === place.category)?.color}20`,
-                      color: CATEGORIES.find((c) => c.value === place.category)?.color,
-                    }}
-                  >
-                    {CATEGORIES.find((c) => c.value === place.category)?.label}
-                  </span>
-                  <div className="flex items-center gap-0.5">
-                    {Array.from({ length: place.rating }).map((_, i) => (
-                      <Star key={i} size={10} className="text-[var(--sg-thames)] fill-[var(--sg-thames)]" />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <p className="text-xs text-[var(--sg-navy)]/60 mt-2 line-clamp-2">{place.description}</p>
-
-            <button
-              onClick={() => navigate(place.zone ? `/map/${place.zone}/${place.slug}` : `/place/${place.slug}`)}
-              className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl
-                bg-[var(--sg-crimson)] hover:bg-[var(--sg-crimson-hover)] text-white text-sm font-semibold
-                transition-all cursor-pointer"
-            >
-              View Details
-              <ChevronRight size={14} />
+              <X size={18} className="text-[var(--sg-navy)]/70" />
             </button>
           </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        }
+      />
+    </div>
   );
 }

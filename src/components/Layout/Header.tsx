@@ -8,7 +8,13 @@ import { SECTIONS } from '../../pages/TheLondonILoveData';
 const SIMPLE_NAV = [
   { to: '/who-is-charlie', label: 'Who is Charlie' },
   { to: '/families', label: 'Families' },
-  { to: '/#zones', label: 'Zones' },
+];
+
+// Admin-only shortcuts surfaced in the main nav — mirror the debug overlay
+// links that used to be buried in the map's dev HUD.
+const ADMIN_NAV = [
+  { to: '/?editor=true', label: 'Editor' },
+  { to: '/admin',         label: 'Dashboard' },
 ];
 
 export function Header() {
@@ -21,7 +27,6 @@ export function Header() {
 
   const isMapMode = mapHeader?.isMapMode ?? false;
   const isEditorMode = mapHeader?.isEditorMode ?? false;
-  const editorTab = mapHeader?.editorTab ?? 'places';
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement | null>(null);
 
@@ -63,45 +68,11 @@ export function Header() {
           />
         </Link>
 
-        {/* Editor tabs — only in editor map mode, desktop */}
+        {/* Edit-mode badge. The tab selector moved into the sidebar. */}
         {isMapMode && isEditorMode && (
-          <div className="hidden md:flex items-center gap-2 ml-4">
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[var(--sg-crimson)]/10 text-[var(--sg-crimson)]">
-              Edit Mode
-            </span>
-            <div className="flex gap-1">
-              <button
-                onClick={() => mapHeader?.onEditorTabChange('places')}
-                className={`text-xs px-2 py-1 rounded-md cursor-pointer transition-colors ${
-                  editorTab === 'places'
-                    ? 'bg-[var(--sg-navy)] text-white'
-                    : 'text-[var(--sg-navy)]/50 hover:bg-[var(--sg-offwhite)]'
-                }`}
-              >
-                Places
-              </button>
-              <button
-                onClick={() => mapHeader?.onEditorTabChange('zones')}
-                className={`text-xs px-2 py-1 rounded-md cursor-pointer transition-colors ${
-                  editorTab === 'zones'
-                    ? 'bg-[var(--sg-navy)] text-white'
-                    : 'text-[var(--sg-navy)]/50 hover:bg-[var(--sg-offwhite)]'
-                }`}
-              >
-                Zones
-              </button>
-              <button
-                onClick={() => mapHeader?.onEditorTabChange('landmarks')}
-                className={`text-xs px-2 py-1 rounded-md cursor-pointer transition-colors ${
-                  editorTab === 'landmarks'
-                    ? 'bg-[var(--sg-navy)] text-white'
-                    : 'text-[var(--sg-navy)]/50 hover:bg-[var(--sg-offwhite)]'
-                }`}
-              >
-                Landmarks
-              </button>
-            </div>
-          </div>
+          <span className="ml-4 text-xs font-semibold px-2 py-0.5 rounded-full bg-[var(--sg-crimson)]/10 text-[var(--sg-crimson)]">
+            Edit Mode
+          </span>
         )}
 
         {/* Desktop nav — always visible */}
@@ -165,6 +136,19 @@ export function Header() {
                 {link.label}
               </Link>
             ))}
+
+            {isAdmin && ADMIN_NAV.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                className="relative text-sm font-semibold text-[var(--sg-crimson)]/90 hover:text-[var(--sg-crimson)] transition-colors
+                  after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[2px]
+                  after:bg-[var(--sg-crimson)] after:transition-all after:duration-300
+                  hover:after:w-full"
+              >
+                {link.label}
+              </Link>
+            ))}
           </nav>
 
 
@@ -195,16 +179,6 @@ export function Header() {
                     >
                       Account
                     </Link>
-                    {isAdmin && (
-                      <Link
-                        to="/admin"
-                        role="menuitem"
-                        onClick={() => setAccountOpen(false)}
-                        className="block px-4 py-2.5 rounded-lg text-sm font-medium text-[var(--sg-navy)]/70 hover:text-[var(--sg-navy)] hover:bg-[var(--sg-offwhite)] transition-colors"
-                      >
-                        Admin
-                      </Link>
-                    )}
                     <button
                       role="menuitem"
                       onClick={() => { signOut(); setAccountOpen(false); }}
@@ -283,17 +257,20 @@ export function Header() {
             </Link>
           ))}
 
+          {isAdmin && ADMIN_NAV.map((link) => (
+            <Link
+              key={link.to}
+              to={link.to}
+              onClick={() => setMenuOpen(false)}
+              className="block px-4 py-3 rounded-xl text-sm font-semibold text-[var(--sg-crimson)]
+                hover:bg-[var(--sg-border)] transition-colors"
+            >
+              {link.label}
+            </Link>
+          ))}
+
           {isLoggedIn ? (
             <>
-              {isAdmin && (
-                <Link
-                  to="/admin"
-                  onClick={() => setMenuOpen(false)}
-                  className="block px-4 py-3 rounded-xl text-sm font-medium text-[var(--sg-navy)] hover:bg-[var(--sg-border)] transition-colors"
-                >
-                  Admin
-                </Link>
-              )}
               <Link
                 to="/account"
                 onClick={() => setMenuOpen(false)}

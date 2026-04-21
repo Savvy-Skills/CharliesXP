@@ -1,8 +1,7 @@
 import { Link } from 'react-router';
-import { Star, MapPin, Calendar, ExternalLink } from 'lucide-react';
+import { MapPin, Calendar, ExternalLink } from 'lucide-react';
 import type { Place } from '../../types';
 import { CATEGORIES } from '../../types';
-import { CATEGORY_EMOJI } from '../../utils/mapStyles';
 
 interface PlaceContentProps {
   place: Place;
@@ -10,7 +9,6 @@ interface PlaceContentProps {
 
 export function PlaceContent({ place }: PlaceContentProps) {
   const category = CATEGORIES.find((c) => c.value === place.category);
-  const emoji = CATEGORY_EMOJI[place.category] ?? '📍';
   const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${place.coordinates.lat},${place.coordinates.lng}`;
 
   return (
@@ -27,11 +25,10 @@ export function PlaceContent({ place }: PlaceContentProps) {
 
       <div className="flex items-start gap-4 mb-4">
         <div
-          className="w-12 h-12 rounded-full flex items-center justify-center text-xl shrink-0"
+          className="w-12 h-12 rounded-full shrink-0"
           style={{ backgroundColor: category?.color ?? '#6b7280' }}
-        >
-          {emoji}
-        </div>
+          aria-label={category?.label ?? 'Place'}
+        />
         <div className="flex-1 min-w-0">
           <h1 className="font-display text-2xl font-bold text-[var(--sg-navy)] leading-tight">{place.name}</h1>
           <div className="flex items-center gap-2 mt-1">
@@ -54,16 +51,6 @@ export function PlaceContent({ place }: PlaceContentProps) {
             )}
           </div>
         </div>
-      </div>
-
-      <div className="flex items-center gap-1 mb-4">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Star
-            key={i}
-            size={18}
-            className={i < place.rating ? 'text-[var(--sg-thames)] fill-[var(--sg-thames)]' : 'text-[var(--sg-border)]'}
-          />
-        ))}
       </div>
 
       <p className="text-[var(--sg-navy)] leading-relaxed mb-6">{place.description}</p>
@@ -94,10 +81,10 @@ export function PlaceContent({ place }: PlaceContentProps) {
         <div className="flex flex-wrap gap-2 mb-6">
           {place.tags.map((tag) => (
             <span
-              key={tag}
+              key={tag.id}
               className="px-2.5 py-1 text-xs bg-[var(--sg-offwhite)] text-[var(--sg-navy)]/60 rounded-full"
             >
-              #{tag}
+              #{tag.name}
             </span>
           ))}
         </div>

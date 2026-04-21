@@ -1,18 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
 import { ZONES } from '../../utils/zoneMapping';
-import { CATEGORIES } from '../../types';
-import { CATEGORY_EMOJI } from '../../utils/mapStyles';
-import type { Place, PlaceCategory, MapZoomState } from '../../types';
+import { useTags } from '../../hooks/useTags';
+import type { MapZoomState } from '../../types';
 
 interface MapToolbarProps {
   mapState: MapZoomState;
   activeZone: string | null;
   sidebarOpen: boolean;
   onZoneSelect: (zoneId: string) => void;
-  places: Place[];
-  activeCategory: PlaceCategory | null;
-  onCategoryChange: (category: PlaceCategory | null) => void;
+  activeTagId: string | null;
+  onTagChange: (id: string | null) => void;
   onBack: () => void;
   onCollapse: () => void;
   isEditorMode?: boolean;
@@ -23,11 +21,11 @@ export function MapToolbar({
   activeZone,
   sidebarOpen,
   onZoneSelect,
-  places,
-  activeCategory,
-  onCategoryChange,
+  activeTagId,
+  onTagChange,
   isEditorMode,
 }: MapToolbarProps) {
+  const { tags } = useTags();
   const [query, setQuery] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -71,11 +69,6 @@ export function MapToolbar({
     setShowDropdown(false);
     onZoneSelect(zoneId);
   };
-
-  // Categories present in current zone's places
-  const categoriesInZone = CATEGORIES.filter((cat) =>
-    places.some((p) => p.category === cat.value),
-  );
 
   return (
     <div
@@ -149,34 +142,38 @@ export function MapToolbar({
           )}
         </div>
 
-        {/* Filter pills (zoneDetail only) */}
-        {isZoneDetail && !isEditorMode && categoriesInZone.length > 0 && (
-          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+        {/* Tag filter chips (zoneDetail only) */}
+        {isZoneDetail && !isEditorMode && tags.length > 0 && (
+          <div className="hidden md:flex flex-wrap items-center gap-1.5">
             <button
-              onClick={() => onCategoryChange(null)}
-              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer shadow-sm
-                ${activeCategory === null
-                  ? 'bg-[var(--sg-crimson)] text-white'
-                  : 'bg-white/95 backdrop-blur-sm text-[var(--sg-navy)]/60 hover:bg-white border border-[var(--sg-border)]'
-                }`}
+              type="button"
+              onClick={() => onTagChange(null)}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                activeTagId === null
+                  ? 'bg-[var(--sg-navy)] text-white border-transparent'
+                  : 'text-[var(--sg-navy)]/70 border-[var(--sg-border)] hover:bg-[var(--sg-offwhite)]'
+              }`}
             >
               All Places
             </button>
-            {categoriesInZone.map((cat) => (
-              <button
-                key={cat.value}
-                onClick={() => onCategoryChange(cat.value)}
-                className={`shrink-0 flex items-center gap-1 px-3.5 py-1.5 rounded-full text-xs font-semibold
-                  transition-colors cursor-pointer shadow-sm
-                  ${activeCategory === cat.value
-                    ? 'bg-[var(--sg-crimson)] text-white'
-                    : 'bg-white/95 backdrop-blur-sm text-[var(--sg-navy)]/60 hover:bg-white border border-[var(--sg-border)]'
-                  }`}
-              >
-                <span>{CATEGORY_EMOJI[cat.value]}</span>
-                {cat.label}
-              </button>
-            ))}
+            {tags.map((tag) => {
+              const active = activeTagId === tag.id;
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => onTagChange(active ? null : tag.id)}
+                  className="text-xs px-2.5 py-1 rounded-full border transition-colors"
+                  style={
+                    active
+                      ? { backgroundColor: tag.color, color: 'white', borderColor: 'transparent' }
+                      : { backgroundColor: tag.color + '20', color: 'var(--sg-navy)', borderColor: 'var(--sg-border)' }
+                  }
+                >
+                  {tag.name}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

@@ -2,14 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { Trash2, Edit3, X } from 'lucide-react';
 import type { Place, Coordinates } from '../../types';
 import { CATEGORIES } from '../../types';
-import { CATEGORY_EMOJI } from '../../utils/mapStyles';
 import { PlaceForm } from './PlaceForm';
 
 interface EditorPanelProps {
   places: Place[];
   pendingCoordinates: Coordinates | null;
   currentView: { zoom: number; pitch: number; bearing: number };
-  onAdd: (place: Omit<Place, 'id'>) => void;
+  onAdd: (place: Omit<Place, 'id'>) => Promise<string | null> | string | null | void;
   onUpdate: (id: string, updates: Partial<Place>) => void;
   onDelete: (id: string) => void;
   onCancelPending: () => void;
@@ -20,6 +19,7 @@ interface EditorPanelProps {
   dragCoordinates?: { lng: number; lat: number } | null;
   onDragComplete?: () => void;
   onMoveToZone?: (placeId: string, zoneId: string) => void;
+  onSaveTags?: (placeId: string, tagIds: string[]) => Promise<void> | void;
 }
 
 export function EditorPanel({
@@ -36,6 +36,7 @@ export function EditorPanel({
   dragCoordinates,
   onDragComplete,
   onMoveToZone,
+  onSaveTags,
 }: EditorPanelProps) {
   const [editingPlace, setEditingPlace] = useState<Place | null>(null);
   const placesRef = useRef(places);
@@ -80,15 +81,20 @@ export function EditorPanel({
             currentView={currentView}
             isDragging={isDragging}
             dragCoordinates={dragCoordinates}
-            onSubmit={(place) => {
+            onSaveTags={onSaveTags}
+            onSubmit={async (place) => {
+              let savedId: string | null = null;
               if ('id' in place && place.id) {
                 onUpdate(place.id, place);
+                savedId = place.id;
               } else {
-                onAdd(place as Omit<Place, 'id'>);
+                const result = await onAdd(place as Omit<Place, 'id'>);
+                savedId = typeof result === 'string' ? result : null;
               }
               setEditingPlace(null);
               onCancelPending();
               onDragComplete?.();
+              return savedId;
             }}
             onCancel={() => {
               setEditingPlace(null);
@@ -130,11 +136,11 @@ export function EditorPanel({
                       className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer text-left"
                     >
                       <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0"
+                        className="w-8 h-8 rounded-full shrink-0"
                         style={{ backgroundColor: cat?.color ?? '#6b7280' }}
-                      >
-                        {CATEGORY_EMOJI[place.category]}
-                      </div>
+                        aria-label={cat?.label ?? 'Place'}
+                      />
+                      <span className="sr-only">{cat?.label ?? place.category}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-[var(--sg-navy)] truncate">
                           {place.name}

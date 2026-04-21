@@ -61,5 +61,20 @@ export function useMapFlyTo() {
     });
   }, []);
 
-  return { mapRef, flyToPlace, flyBack, flyToDefault };
+  /** Fly to a landmark's coordinates at a fixed close-up zoom. */
+  const flyToLandmark = useCallback((lng: number, lat: number) => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    map.flyTo({
+      center: [lng, lat],
+      zoom: 17,
+      pitch: 50,
+      bearing: 0,
+      duration: 1500,
+      essential: true,
+    });
+  }, []);
+
+  return { mapRef, flyToPlace, flyBack, flyToDefault, flyToLandmark };
 }
