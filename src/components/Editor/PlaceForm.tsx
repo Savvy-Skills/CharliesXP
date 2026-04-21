@@ -32,7 +32,6 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
   );
   const [address, setAddress] = useState(initial?.address ?? '');
   const [visitDate, setVisitDate] = useState(initial?.visitDate ?? '');
-  const [tags, setTags] = useState(initial?.tags.join(', ') ?? '');
   const [lng, setLng] = useState(String(initial?.coordinates?.lng ?? coordinates?.lng ?? 0));
   const [lat, setLat] = useState(String(initial?.coordinates?.lat ?? coordinates?.lat ?? 0));
 
@@ -54,11 +53,10 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
       category !== (initial.category ?? 'other') ||
       address !== (initial.address ?? '') ||
       visitDate !== (initial.visitDate ?? '') ||
-      tags !== (initial.tags.join(', ') ?? '') ||
       lng !== String(initial.coordinates?.lng ?? 0) ||
       lat !== String(initial.coordinates?.lat ?? 0)
     );
-  }, [name, description, category, address, visitDate, tags, lng, lat, initial, dragCoordinates]);
+  }, [name, description, category, address, visitDate, lng, lat, initial, dragCoordinates]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -169,17 +167,6 @@ export function PlaceForm({ initial, coordinates, currentView, onSubmit, onCance
             value={visitDate}
             onChange={(e) => setVisitDate(e.target.value)}
             className={inputClass}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-[var(--sg-navy)] mb-1.5">Tags</label>
-          <input
-            type="text"
-            value={tags}
-            onChange={(e) => setTags(e.target.value)}
-            className={inputClass}
-            placeholder="coffee, paris, classic (comma-separated)"
           />
         </div>
 
