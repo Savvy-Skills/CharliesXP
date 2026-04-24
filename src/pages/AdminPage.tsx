@@ -336,7 +336,6 @@ export function AdminPage() {
           iconUrl: lm.icon_url,
           iconUrlGlobal: lm.icon_url_global,
         });
-        landmarkEditorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }
   }, [editingLandmarkId, adminLandmarks]);
@@ -1298,8 +1297,8 @@ export function AdminPage() {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="flex items-center gap-2 text-xs font-medium text-[var(--sg-navy)]/60 mt-6">
+                  <div className="sm:col-span-2">
+                    <label className="flex items-center gap-2 text-xs font-medium text-[var(--sg-navy)]/60">
                       <input
                         type="checkbox"
                         checked={lmForm.is_global}
