@@ -420,12 +420,15 @@ export function InteractiveMap({
   }, [onZoomChange]);
 
   const hideClutterLabels = useCallback((map: MapboxMap) => {
+    const isShieldId = (id: string) =>
+      /shield|road-number|road-exit/.test(id);
     for (const layer of map.getStyle().layers ?? []) {
-      const isTextLayer =
-        layer.type === 'symbol' &&
-        (layer.id.includes('label') || layer.id.includes('symbol'));
-      if (isTextLayer && !ALLOWED_LABEL_LAYERS.includes(layer.id)) {
-        map.setLayoutProperty(layer.id, 'visibility', 'none');
+      const id = layer.id;
+      const isSymbol = layer.type === 'symbol';
+      const isTextLayer = isSymbol && (id.includes('label') || id.includes('symbol'));
+      const isShield   = isSymbol && isShieldId(id);
+      if ((isTextLayer || isShield) && !ALLOWED_LABEL_LAYERS.includes(id)) {
+        map.setLayoutProperty(id, 'visibility', 'none');
       }
     }
   }, []);

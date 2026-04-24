@@ -94,18 +94,21 @@ interface AdminLandmark {
   coordinates: { lng: number; lat: number };
   icon: string;
   icon_url: string | null;
-  min_zoom: number;
+  icon_url_global: string | null;
+  icon_size: number;
+  icon_size_global: number;
+  is_global: boolean;
 }
 
 interface LandmarkForm {
   name: string;
   zone_id: string;
-  min_zoom: number;
+  is_global: boolean;
   lng: string;
   lat: string;
 }
 
-const EMPTY_LM_FORM: LandmarkForm = { name: '', zone_id: '', min_zoom: 14, lng: '', lat: '' };
+const EMPTY_LM_FORM: LandmarkForm = { name: '', zone_id: '', is_global: false, lng: '', lat: '' };
 
 export function AdminPage() {
   const { isLoggedIn, isAdmin, loading: authLoading } = useAuth();
@@ -146,9 +149,22 @@ export function AdminPage() {
   const [landmarkForm, setLandmarkForm] = useState<{
     name: string;
     zone_id: string;
-    min_zoom: number;
+    is_global: boolean;
+    icon_size: number;
+    icon_size_global: number;
+    use_same_icon_at_city: boolean;
     iconUrl: string | null;
-  }>({ name: '', zone_id: '', min_zoom: 14, iconUrl: null });
+    iconUrlGlobal: string | null;
+  }>({
+    name: '',
+    zone_id: '',
+    is_global: false,
+    icon_size: 20,
+    icon_size_global: 24,
+    use_same_icon_at_city: true,
+    iconUrl: null,
+    iconUrlGlobal: null,
+  });
   const landmarkEditorRef = useRef<HTMLDivElement | null>(null);
 
   // User management state
@@ -307,15 +323,21 @@ export function AdminPage() {
 
   // Populate landmark form when edit begins
   useEffect(() => {
-    if (!editingLandmarkId) return;
-    const lm = adminLandmarks.find((l) => l.id === editingLandmarkId);
-    if (!lm) return;
-    setLandmarkForm({
-      name: lm.name,
-      zone_id: lm.zone_id,
-      min_zoom: lm.min_zoom,
-      iconUrl: lm.icon_url,
-    });
+    if (editingLandmarkId) {
+      const lm = adminLandmarks.find((l) => l.id === editingLandmarkId);
+      if (lm) {
+        setLandmarkForm({
+          name: lm.name,
+          zone_id: lm.zone_id,
+          is_global: lm.is_global,
+          icon_size: lm.icon_size,
+          icon_size_global: lm.icon_size_global,
+          use_same_icon_at_city: lm.icon_url_global == null,
+          iconUrl: lm.icon_url,
+          iconUrlGlobal: lm.icon_url_global,
+        });
+      }
+    }
   }, [editingLandmarkId, adminLandmarks]);
 
   // Scroll editors into view when opened
@@ -506,7 +528,7 @@ export function AdminPage() {
     const payload = {
       name: lmForm.name.trim(),
       zone_id: lmForm.zone_id || null,
-      min_zoom: lmForm.min_zoom,
+      is_global: lmForm.is_global,
       coordinates: { lng: parseFloat(lmForm.lng), lat: parseFloat(lmForm.lat) },
       icon: '',
     };
@@ -797,7 +819,7 @@ export function AdminPage() {
                             <img
                               src={p.icon_url ?? '/icons/default-place.png'}
                               alt=""
-                              className="w-6 h-6 rounded object-contain border border-[var(--sg-border)] bg-white"
+                              className="w-6 h-6 rounded object-contain border border-[var(--sg-border)]"
                               onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icons/default-place.png'; }}
                             />
                           </td>
@@ -896,7 +918,7 @@ export function AdminPage() {
                           <img
                             src={p.icon_url ?? '/icons/default-place.png'}
                             alt=""
-                            className="w-6 h-6 rounded object-contain border border-[var(--sg-border)] bg-white"
+                            className="w-6 h-6 rounded object-contain border border-[var(--sg-border)]"
                             onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icons/default-place.png'; }}
                           />
                         </td>
@@ -1125,16 +1147,66 @@ export function AdminPage() {
                   </div>
 
                   <label className="block">
-                    <span className="block text-[10px] font-semibold uppercase tracking-wider text-[var(--sg-navy)]/60 mb-1">Min zoom (10–20)</span>
+                    <span className="block text-[10px] font-semibold uppercase tracking-wider text-[var(--sg-navy)]/60 mb-1">Icon size (px)</span>
                     <input
                       type="number"
-                      min={10}
-                      max={20}
-                      value={landmarkForm.min_zoom}
-                      onChange={(e) => setLandmarkForm((f) => ({ ...f, min_zoom: Math.min(20, Math.max(10, parseInt(e.target.value) || 14)) }))}
+                      min={8}
+                      max={128}
+                      value={landmarkForm.icon_size}
+                      onChange={(e) => setLandmarkForm((f) => ({ ...f, icon_size: parseInt(e.target.value) || 0 }))}
                       className="w-full rounded-lg border border-[var(--sg-border)] px-3 py-2 text-sm text-[var(--sg-navy)] focus:outline-none focus:ring-1 focus:ring-[var(--sg-thames)]"
                     />
                   </label>
+
+                  <label className="flex items-center gap-2 text-xs text-[var(--sg-navy)]">
+                    <input
+                      type="checkbox"
+                      checked={landmarkForm.is_global}
+                      onChange={(e) => setLandmarkForm((f) => ({ ...f, is_global: e.target.checked }))}
+                      className="cursor-pointer"
+                    />
+                    Global landmark (visible at city zoom)
+                  </label>
+
+                  {landmarkForm.is_global && (
+                    <div className="space-y-3 pl-4 border-l-2 border-[var(--sg-border)]">
+                      <label className="flex items-center gap-2 text-xs text-[var(--sg-navy)]">
+                        <input
+                          type="checkbox"
+                          checked={landmarkForm.use_same_icon_at_city}
+                          onChange={(e) => setLandmarkForm((f) => ({ ...f, use_same_icon_at_city: e.target.checked }))}
+                          className="cursor-pointer"
+                        />
+                        Use the same icon at city zoom
+                      </label>
+
+                      {!landmarkForm.use_same_icon_at_city && (
+                        <div>
+                          <span className="block text-[10px] font-semibold uppercase tracking-wider text-[var(--sg-navy)]/60 mb-1">City-zoom icon</span>
+                          <IconPicker
+                            iconUrl={landmarkForm.iconUrlGlobal}
+                            defaultUrl="/icons/default-landmark.png"
+                            folder="landmarks"
+                            recordId={`${lm.id}-global`}
+                            onUploaded={(url) => setLandmarkForm((f) => ({ ...f, iconUrlGlobal: url }))}
+                            onReset={() => setLandmarkForm((f) => ({ ...f, iconUrlGlobal: null }))}
+                          />
+                        </div>
+                      )}
+
+                      <label className="block">
+                        <span className="block text-[10px] font-semibold uppercase tracking-wider text-[var(--sg-navy)]/60 mb-1">City-zoom icon size (px)</span>
+                        <input
+                          type="number"
+                          min={8}
+                          max={128}
+                          value={landmarkForm.icon_size_global}
+                          onChange={(e) => setLandmarkForm((f) => ({ ...f, icon_size_global: parseInt(e.target.value) || 0 }))}
+                          className="w-full rounded-lg border border-[var(--sg-border)] px-3 py-2 text-sm text-[var(--sg-navy)] focus:outline-none focus:ring-1 focus:ring-[var(--sg-thames)]"
+                        />
+                      </label>
+                    </div>
+                  )}
 
                   <div className="flex justify-end gap-2 pt-2">
                     <button
@@ -1146,13 +1218,22 @@ export function AdminPage() {
                     <button
                       onClick={async () => {
                         if (!landmarkForm.name.trim()) return;
+                        const effectiveIconUrlGlobal =
+                          landmarkForm.is_global && !landmarkForm.use_same_icon_at_city
+                            ? landmarkForm.iconUrlGlobal
+                            : null;
+                        const clampSize = (n: number, fallback: number) =>
+                          Number.isFinite(n) && n >= 8 && n <= 128 ? n : fallback;
                         const { error } = await supabase
                           .from('landmarks')
                           .update({
                             name: landmarkForm.name.trim(),
                             zone_id: landmarkForm.zone_id,
                             icon_url: landmarkForm.iconUrl,
-                            min_zoom: landmarkForm.min_zoom,
+                            icon_url_global: effectiveIconUrlGlobal,
+                            icon_size: clampSize(landmarkForm.icon_size, 20),
+                            icon_size_global: clampSize(landmarkForm.icon_size_global, 24),
+                            is_global: landmarkForm.is_global,
                           })
                           .eq('id', lm.id);
                         if (error) {
@@ -1218,18 +1299,16 @@ export function AdminPage() {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-medium text-[var(--sg-navy)]/60 mb-1">
-                      Min Zoom (10-20)
+                  <div className="sm:col-span-2">
+                    <label className="flex items-center gap-2 text-xs font-medium text-[var(--sg-navy)]/60">
+                      <input
+                        type="checkbox"
+                        checked={lmForm.is_global}
+                        onChange={(e) => setLmForm((f) => ({ ...f, is_global: e.target.checked }))}
+                        className="cursor-pointer"
+                      />
+                      Global landmark (visible at city zoom)
                     </label>
-                    <input
-                      type="number"
-                      min={10}
-                      max={20}
-                      value={lmForm.min_zoom}
-                      onChange={(e) => setLmForm((f) => ({ ...f, min_zoom: Math.min(20, Math.max(10, parseInt(e.target.value) || 14)) }))}
-                      className="w-full rounded-lg border border-[var(--sg-border)] px-3 py-2 text-sm text-[var(--sg-navy)] focus:outline-none focus:ring-2 focus:ring-[var(--sg-crimson)]/30"
-                    />
                   </div>
 
                   <div>
@@ -1284,7 +1363,7 @@ export function AdminPage() {
                     <th className="py-2 pr-4">Icon</th>
                     <th className="py-2 pr-4">Name</th>
                     <th className="py-2 pr-4">Zone</th>
-                    <th className="py-2 pr-4">Min Zoom</th>
+                    <th className="py-2 pr-4">Global</th>
                     <th className="py-2 pr-4">Coordinates</th>
                     <th className="py-2 text-right">Actions</th>
                   </tr>
@@ -1296,7 +1375,7 @@ export function AdminPage() {
                         <img
                           src={lm.icon_url ?? '/icons/default-landmark.png'}
                           alt=""
-                          className="w-6 h-6 rounded object-contain border border-[var(--sg-border)] bg-white"
+                          className="w-6 h-6 rounded object-contain border border-[var(--sg-border)]"
                           onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icons/default-landmark.png'; }}
                         />
                       </td>
@@ -1304,7 +1383,7 @@ export function AdminPage() {
                       <td className="py-2 pr-4 text-[var(--sg-navy)]/60">
                         {zoneName(lm.zone_id)}
                       </td>
-                      <td className="py-2 pr-4 text-[var(--sg-navy)]/60">{lm.min_zoom}</td>
+                      <td className="py-2 pr-4 text-[var(--sg-navy)]/60">{lm.is_global ? 'Yes' : '—'}</td>
                       <td className="py-2 pr-4 text-[var(--sg-navy)]/60 text-xs">
                         {lm.coordinates.lng.toFixed(5)}, {lm.coordinates.lat.toFixed(5)}
                       </td>
