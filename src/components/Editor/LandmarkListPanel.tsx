@@ -332,12 +332,12 @@ export function LandmarkListPanel({
                 <input
                   type="number"
                   min={12}
-                  max={64}
+                  max={128}
                   value={form.iconSizeGlobal}
                   onChange={(e) =>
                     setForm((f) => ({
                       ...f,
-                      iconSizeGlobal: Math.min(64, Math.max(12, parseInt(e.target.value) || 24)),
+                      iconSizeGlobal: Math.min(128, Math.max(12, parseInt(e.target.value) || 24)),
                     }))
                   }
                   className="w-full rounded-lg border border-[var(--sg-border)] px-3 py-2 text-sm text-[var(--sg-navy)]

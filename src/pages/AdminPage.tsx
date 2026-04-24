@@ -1199,9 +1199,9 @@ export function AdminPage() {
                         <input
                           type="number"
                           min={12}
-                          max={64}
+                          max={128}
                           value={landmarkForm.icon_size_global}
-                          onChange={(e) => setLandmarkForm((f) => ({ ...f, icon_size_global: Math.min(64, Math.max(12, parseInt(e.target.value) || 24)) }))}
+                          onChange={(e) => setLandmarkForm((f) => ({ ...f, icon_size_global: Math.min(128, Math.max(12, parseInt(e.target.value) || 24)) }))}
                           className="w-full rounded-lg border border-[var(--sg-border)] px-3 py-2 text-sm text-[var(--sg-navy)] focus:outline-none focus:ring-1 focus:ring-[var(--sg-thames)]"
                         />
                       </label>
