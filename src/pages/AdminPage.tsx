@@ -819,7 +819,7 @@ export function AdminPage() {
                             <img
                               src={p.icon_url ?? '/icons/default-place.png'}
                               alt=""
-                              className="w-6 h-6 rounded object-contain border border-[var(--sg-border)] bg-white"
+                              className="w-6 h-6 rounded object-contain border border-[var(--sg-border)]"
                               onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icons/default-place.png'; }}
                             />
                           </td>
@@ -918,7 +918,7 @@ export function AdminPage() {
                           <img
                             src={p.icon_url ?? '/icons/default-place.png'}
                             alt=""
-                            className="w-6 h-6 rounded object-contain border border-[var(--sg-border)] bg-white"
+                            className="w-6 h-6 rounded object-contain border border-[var(--sg-border)]"
                             onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icons/default-place.png'; }}
                           />
                         </td>
@@ -1150,10 +1150,10 @@ export function AdminPage() {
                     <span className="block text-[10px] font-semibold uppercase tracking-wider text-[var(--sg-navy)]/60 mb-1">Icon size (px)</span>
                     <input
                       type="number"
-                      min={12}
-                      max={64}
+                      min={8}
+                      max={128}
                       value={landmarkForm.icon_size}
-                      onChange={(e) => setLandmarkForm((f) => ({ ...f, icon_size: Math.min(64, Math.max(12, parseInt(e.target.value) || 20)) }))}
+                      onChange={(e) => setLandmarkForm((f) => ({ ...f, icon_size: parseInt(e.target.value) || 0 }))}
                       className="w-full rounded-lg border border-[var(--sg-border)] px-3 py-2 text-sm text-[var(--sg-navy)] focus:outline-none focus:ring-1 focus:ring-[var(--sg-thames)]"
                     />
                   </label>
@@ -1198,10 +1198,10 @@ export function AdminPage() {
                         <span className="block text-[10px] font-semibold uppercase tracking-wider text-[var(--sg-navy)]/60 mb-1">City-zoom icon size (px)</span>
                         <input
                           type="number"
-                          min={12}
+                          min={8}
                           max={128}
                           value={landmarkForm.icon_size_global}
-                          onChange={(e) => setLandmarkForm((f) => ({ ...f, icon_size_global: Math.min(128, Math.max(12, parseInt(e.target.value) || 24)) }))}
+                          onChange={(e) => setLandmarkForm((f) => ({ ...f, icon_size_global: parseInt(e.target.value) || 0 }))}
                           className="w-full rounded-lg border border-[var(--sg-border)] px-3 py-2 text-sm text-[var(--sg-navy)] focus:outline-none focus:ring-1 focus:ring-[var(--sg-thames)]"
                         />
                       </label>
@@ -1222,6 +1222,8 @@ export function AdminPage() {
                           landmarkForm.is_global && !landmarkForm.use_same_icon_at_city
                             ? landmarkForm.iconUrlGlobal
                             : null;
+                        const clampSize = (n: number, fallback: number) =>
+                          Number.isFinite(n) && n >= 8 && n <= 128 ? n : fallback;
                         const { error } = await supabase
                           .from('landmarks')
                           .update({
@@ -1229,8 +1231,8 @@ export function AdminPage() {
                             zone_id: landmarkForm.zone_id,
                             icon_url: landmarkForm.iconUrl,
                             icon_url_global: effectiveIconUrlGlobal,
-                            icon_size: landmarkForm.icon_size,
-                            icon_size_global: landmarkForm.icon_size_global,
+                            icon_size: clampSize(landmarkForm.icon_size, 20),
+                            icon_size_global: clampSize(landmarkForm.icon_size_global, 24),
                             is_global: landmarkForm.is_global,
                           })
                           .eq('id', lm.id);
@@ -1373,7 +1375,7 @@ export function AdminPage() {
                         <img
                           src={lm.icon_url ?? '/icons/default-landmark.png'}
                           alt=""
-                          className="w-6 h-6 rounded object-contain border border-[var(--sg-border)] bg-white"
+                          className="w-6 h-6 rounded object-contain border border-[var(--sg-border)]"
                           onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icons/default-landmark.png'; }}
                         />
                       </td>

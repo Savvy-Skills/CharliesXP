@@ -126,14 +126,19 @@ export function LandmarkListPanel({
     const effectiveIconUrlGlobal =
       form.isGlobal && !form.useSameIconAtCity ? iconUrlGlobal : null;
 
+    const clampSize = (n: number, fallback: number) =>
+      Number.isFinite(n) && n >= 8 && n <= 128 ? n : fallback;
+    const iconSize = clampSize(form.iconSize, 20);
+    const iconSizeGlobal = clampSize(form.iconSizeGlobal, 24);
+
     if (editingLandmarkId) {
       const updates: Partial<Omit<Landmark, 'id'>> = {
         name: form.name.trim(),
         zone_id: form.zone_id,
         iconUrl,
         iconUrlGlobal: effectiveIconUrlGlobal,
-        iconSize: form.iconSize,
-        iconSizeGlobal: form.iconSizeGlobal,
+        iconSize,
+        iconSizeGlobal,
         isGlobal: form.isGlobal,
       };
       if (pendingCoordinates) updates.coordinates = pendingCoordinates;
@@ -148,8 +153,8 @@ export function LandmarkListPanel({
         icon: '',
         iconUrl,
         iconUrlGlobal: effectiveIconUrlGlobal,
-        iconSize: form.iconSize,
-        iconSizeGlobal: form.iconSizeGlobal,
+        iconSize,
+        iconSizeGlobal,
         isGlobal: form.isGlobal,
       });
       onCancelPending();
@@ -271,14 +276,11 @@ export function LandmarkListPanel({
             </label>
             <input
               type="number"
-              min={12}
-              max={64}
+              min={8}
+              max={128}
               value={form.iconSize}
               onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  iconSize: Math.min(64, Math.max(12, parseInt(e.target.value) || 20)),
-                }))
+                setForm((f) => ({ ...f, iconSize: parseInt(e.target.value) || 0 }))
               }
               className="w-full rounded-lg border border-[var(--sg-border)] px-3 py-2 text-sm text-[var(--sg-navy)]
                 focus:outline-none focus:ring-1 focus:ring-[var(--sg-thames)] focus:border-[var(--sg-thames)]"
@@ -331,14 +333,11 @@ export function LandmarkListPanel({
                 </label>
                 <input
                   type="number"
-                  min={12}
+                  min={8}
                   max={128}
                   value={form.iconSizeGlobal}
                   onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      iconSizeGlobal: Math.min(128, Math.max(12, parseInt(e.target.value) || 24)),
-                    }))
+                    setForm((f) => ({ ...f, iconSizeGlobal: parseInt(e.target.value) || 0 }))
                   }
                   className="w-full rounded-lg border border-[var(--sg-border)] px-3 py-2 text-sm text-[var(--sg-navy)]
                     focus:outline-none focus:ring-1 focus:ring-[var(--sg-thames)] focus:border-[var(--sg-thames)]"

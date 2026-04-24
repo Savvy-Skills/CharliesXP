@@ -86,7 +86,7 @@ export function IconPicker({ iconUrl, defaultUrl, folder, recordId, onUploaded, 
         <img
           src={preview}
           alt="icon preview"
-          className="w-12 h-12 rounded-lg border border-[var(--sg-border)] object-contain bg-white"
+          className="w-12 h-12 rounded-lg border border-[var(--sg-border)] object-contain"
           onError={(e) => { (e.currentTarget as HTMLImageElement).src = defaultUrl; }}
         />
         <div className="flex flex-col gap-1">
