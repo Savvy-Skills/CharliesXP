@@ -24,10 +24,20 @@ interface LandmarkListPanelProps {
 interface LandmarkForm {
   name: string;
   zone_id: string;
-  min_zoom: number;
+  isGlobal: boolean;
+  iconSize: number;
+  iconSizeGlobal: number;
+  useSameIconAtCity: boolean; // UI-only; persisted as iconUrlGlobal === null
 }
 
-const EMPTY_FORM: LandmarkForm = { name: '', zone_id: '', min_zoom: 14 };
+const EMPTY_FORM: LandmarkForm = {
+  name: '',
+  zone_id: '',
+  isGlobal: false,
+  iconSize: 20,
+  iconSizeGlobal: 24,
+  useSameIconAtCity: true,
+};
 
 export function LandmarkListPanel({
   landmarks,
@@ -46,6 +56,7 @@ export function LandmarkListPanel({
   const [form, setForm] = useState<LandmarkForm>(EMPTY_FORM);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [iconUrl, setIconUrl] = useState<string | null>(null);
+  const [iconUrlGlobal, setIconUrlGlobal] = useState<string | null>(null);
 
   const showForm = pendingCoordinates !== null || editingLandmarkId !== null;
 
@@ -67,12 +78,17 @@ export function LandmarkListPanel({
       setForm({
         name: editingLandmark.name,
         zone_id: editingLandmark.zone_id,
-        min_zoom: editingLandmark.min_zoom,
+        isGlobal: editingLandmark.isGlobal,
+        iconSize: editingLandmark.iconSize,
+        iconSizeGlobal: editingLandmark.iconSizeGlobal,
+        useSameIconAtCity: editingLandmark.iconUrlGlobal == null,
       });
       setIconUrl(editingLandmark.iconUrl ?? null);
+      setIconUrlGlobal(editingLandmark.iconUrlGlobal ?? null);
     } else if (!editingLandmarkId && pendingCoordinates) {
       setForm({ ...EMPTY_FORM, zone_id: pendingZoneId ?? '' });
       setIconUrl(null);
+      setIconUrlGlobal(null);
     }
   }, [sessionKey, editingLandmarkId, editingLandmark, pendingCoordinates, pendingZoneId]);
 
@@ -105,15 +121,20 @@ export function LandmarkListPanel({
   const handleSave = () => {
     if (!form.name.trim()) return;
 
+    // When isGlobal is off or the admin wants the same icon at city zoom,
+    // persist iconUrlGlobal as null so the renderer falls back to iconUrl.
+    const effectiveIconUrlGlobal =
+      form.isGlobal && !form.useSameIconAtCity ? iconUrlGlobal : null;
+
     if (editingLandmarkId) {
-      // If the admin clicked the map while editing, pendingCoordinates holds
-      // the new position — merge it into the update so "Update" actually
-      // moves the landmark.
       const updates: Partial<Omit<Landmark, 'id'>> = {
         name: form.name.trim(),
         zone_id: form.zone_id,
-        min_zoom: form.min_zoom,
         iconUrl,
+        iconUrlGlobal: effectiveIconUrlGlobal,
+        iconSize: form.iconSize,
+        iconSizeGlobal: form.iconSizeGlobal,
+        isGlobal: form.isGlobal,
       };
       if (pendingCoordinates) updates.coordinates = pendingCoordinates;
       onUpdate(editingLandmarkId, updates);
@@ -126,12 +147,16 @@ export function LandmarkListPanel({
         coordinates: pendingCoordinates,
         icon: '',
         iconUrl,
-        min_zoom: form.min_zoom,
+        iconUrlGlobal: effectiveIconUrlGlobal,
+        iconSize: form.iconSize,
+        iconSizeGlobal: form.iconSizeGlobal,
+        isGlobal: form.isGlobal,
       });
       onCancelPending();
     }
     setForm(EMPTY_FORM);
     setIconUrl(null);
+    setIconUrlGlobal(null);
   };
 
   const handleCancel = () => {
@@ -139,6 +164,7 @@ export function LandmarkListPanel({
     if (pendingCoordinates) onCancelPending();
     setForm(EMPTY_FORM);
     setIconUrl(null);
+    setIconUrlGlobal(null);
   };
 
   const handleDelete = (id: string) => {
@@ -241,18 +267,85 @@ export function LandmarkListPanel({
 
           <div>
             <label className="block text-[10px] font-medium text-[var(--sg-navy)]/60 uppercase mb-1">
-              Min Zoom (10-20)
+              Icon size (px)
             </label>
             <input
               type="number"
-              min={10}
-              max={20}
-              value={form.min_zoom}
-              onChange={(e) => setForm((f) => ({ ...f, min_zoom: Math.min(20, Math.max(10, parseInt(e.target.value) || 14)) }))}
+              min={12}
+              max={64}
+              value={form.iconSize}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  iconSize: Math.min(64, Math.max(12, parseInt(e.target.value) || 20)),
+                }))
+              }
               className="w-full rounded-lg border border-[var(--sg-border)] px-3 py-2 text-sm text-[var(--sg-navy)]
                 focus:outline-none focus:ring-1 focus:ring-[var(--sg-thames)] focus:border-[var(--sg-thames)]"
             />
           </div>
+
+          <label className="flex items-center gap-2 text-xs text-[var(--sg-navy)]">
+            <input
+              type="checkbox"
+              checked={form.isGlobal}
+              onChange={(e) => setForm((f) => ({ ...f, isGlobal: e.target.checked }))}
+              className="cursor-pointer"
+            />
+            Global landmark (visible at city zoom)
+          </label>
+
+          {form.isGlobal && (
+            <div className="space-y-3 pl-4 border-l-2 border-[var(--sg-border)]">
+              <label className="flex items-center gap-2 text-xs text-[var(--sg-navy)]">
+                <input
+                  type="checkbox"
+                  checked={form.useSameIconAtCity}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, useSameIconAtCity: e.target.checked }))
+                  }
+                  className="cursor-pointer"
+                />
+                Use the same icon at city zoom
+              </label>
+
+              {!form.useSameIconAtCity && (
+                <div>
+                  <label className="block text-[10px] font-medium text-[var(--sg-navy)]/60 uppercase mb-1">
+                    City-zoom icon
+                  </label>
+                  <IconPicker
+                    iconUrl={iconUrlGlobal}
+                    defaultUrl="/icons/default-landmark.png"
+                    folder="landmarks"
+                    recordId={`${editingLandmark?.id ?? `new-${Date.now()}`}-global`}
+                    onUploaded={setIconUrlGlobal}
+                    onReset={() => setIconUrlGlobal(null)}
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[10px] font-medium text-[var(--sg-navy)]/60 uppercase mb-1">
+                  City-zoom icon size (px)
+                </label>
+                <input
+                  type="number"
+                  min={12}
+                  max={64}
+                  value={form.iconSizeGlobal}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      iconSizeGlobal: Math.min(64, Math.max(12, parseInt(e.target.value) || 24)),
+                    }))
+                  }
+                  className="w-full rounded-lg border border-[var(--sg-border)] px-3 py-2 text-sm text-[var(--sg-navy)]
+                    focus:outline-none focus:ring-1 focus:ring-[var(--sg-thames)] focus:border-[var(--sg-thames)]"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Coordinates display */}
           {(pendingCoordinates || editingLandmark) && (
@@ -329,7 +422,7 @@ export function LandmarkListPanel({
                       {lm.name}
                     </span>
                     <span className="text-[10px] text-[var(--sg-navy)]/40">
-                      {lm.zone_id || '\u2014'} · zoom \u2265 {lm.min_zoom}
+                      {lm.zone_id || '—'}{lm.isGlobal ? ' · global' : ''}
                     </span>
                   </button>
 

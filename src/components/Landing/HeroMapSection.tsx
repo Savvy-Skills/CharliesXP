@@ -576,54 +576,64 @@ export function HeroMapSection({
                     />
                   ))}
                   {showLandmarks && landmarks
-                    .filter((lm) => isLandmarkEditorActive || currentZoom >= lm.min_zoom)
-                    .map((lm) => (
-                      <Marker
-                        key={lm.id}
-                        longitude={lm.coordinates.lng}
-                        latitude={lm.coordinates.lat}
-                        anchor="center"
-                      >
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            mapRef.current?.getMap()?.flyTo({
-                              center: [lm.coordinates.lng, lm.coordinates.lat],
-                              zoom: 17,
-                              pitch: 50,
-                              bearing: 0,
-                              duration: 1500,
-                              essential: true,
-                            });
-                            // In landmarks editor, also scroll-and-highlight
-                            // in the sidebar list so admins can hit Edit/
-                            // Delete without hunting for the row.
-                            if (isEditorMode && editorTab === 'landmarks') {
-                              setFocusedLandmark({ id: lm.id, t: Date.now() });
-                            }
-                          }}
-                          className="flex flex-col items-center cursor-pointer bg-transparent border-0 p-0 focus:outline-none"
-                          aria-label={`Fly to ${lm.name}`}
+                    .filter((lm) => {
+                      if (isLandmarkEditorActive) return true;
+                      if (mapState === 'zoneDetail') return true;
+                      if (mapState === 'expanded')   return lm.isGlobal;
+                      return false;
+                    })
+                    .map((lm) => {
+                      const atCity = mapState === 'expanded' && !isLandmarkEditorActive;
+                      const src = atCity
+                        ? (lm.iconUrlGlobal ?? lm.iconUrl ?? '/icons/default-landmark.png')
+                        : (lm.iconUrl ?? '/icons/default-landmark.png');
+                      const size = atCity ? lm.iconSizeGlobal : lm.iconSize;
+                      return (
+                        <Marker
+                          key={lm.id}
+                          longitude={lm.coordinates.lng}
+                          latitude={lm.coordinates.lat}
+                          anchor="center"
                         >
-                          <img
-                            src={lm.iconUrl ?? '/icons/default-landmark.png'}
-                            alt=""
-                            className="w-5 h-5 object-contain drop-shadow transition-transform hover:scale-125"
-                            draggable={false}
-                            onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icons/default-landmark.png'; }}
-                          />
-                          {currentZoom >= LANDMARK_LABEL_ZOOM && (
-                            <span
-                              className="mt-1 px-1.5 py-[1px] rounded-md bg-white/90 text-[10px] font-semibold
-                                text-[var(--sg-navy)] whitespace-nowrap max-w-[120px] truncate shadow-sm"
-                            >
-                              {lm.name}
-                            </span>
-                          )}
-                        </button>
-                      </Marker>
-                    ))}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              mapRef.current?.getMap()?.flyTo({
+                                center: [lm.coordinates.lng, lm.coordinates.lat],
+                                zoom: 17,
+                                pitch: 50,
+                                bearing: 0,
+                                duration: 1500,
+                                essential: true,
+                              });
+                              if (isEditorMode && editorTab === 'landmarks') {
+                                setFocusedLandmark({ id: lm.id, t: Date.now() });
+                              }
+                            }}
+                            className="flex flex-col items-center cursor-pointer bg-transparent border-0 p-0 focus:outline-none"
+                            aria-label={`Fly to ${lm.name}`}
+                          >
+                            <img
+                              src={src}
+                              alt=""
+                              style={{ width: size, height: size }}
+                              className="object-contain drop-shadow transition-transform hover:scale-125"
+                              draggable={false}
+                              onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/icons/default-landmark.png'; }}
+                            />
+                            {currentZoom >= LANDMARK_LABEL_ZOOM && (
+                              <span
+                                className="mt-1 px-1.5 py-[1px] rounded-md bg-white/90 text-[10px] font-semibold
+                                  text-[var(--sg-navy)] whitespace-nowrap max-w-[120px] truncate shadow-sm"
+                              >
+                                {lm.name}
+                              </span>
+                            )}
+                          </button>
+                        </Marker>
+                      );
+                    })}
                   {/* Pending landmark marker (click-to-place, draggable) */}
                   {pendingLandmarkCoords && (
                     <Marker

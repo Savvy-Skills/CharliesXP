@@ -8,7 +8,10 @@ export interface Landmark {
   coordinates: { lng: number; lat: number };
   icon: string;
   iconUrl: string | null;
-  min_zoom: number;
+  iconUrlGlobal: string | null;
+  iconSize: number;
+  iconSizeGlobal: number;
+  isGlobal: boolean;
 }
 
 interface SupabaseLandmarkRow {
@@ -18,7 +21,10 @@ interface SupabaseLandmarkRow {
   coordinates: { lng: number; lat: number };
   icon: string;
   icon_url: string | null;
-  min_zoom: number;
+  icon_url_global: string | null;
+  icon_size: number;
+  icon_size_global: number;
+  is_global: boolean;
 }
 
 function rowToLandmark(row: SupabaseLandmarkRow): Landmark {
@@ -29,7 +35,10 @@ function rowToLandmark(row: SupabaseLandmarkRow): Landmark {
     coordinates: row.coordinates,
     icon: row.icon,
     iconUrl: row.icon_url,
-    min_zoom: row.min_zoom,
+    iconUrlGlobal: row.icon_url_global,
+    iconSize: row.icon_size,
+    iconSizeGlobal: row.icon_size_global,
+    isGlobal: row.is_global,
   };
 }
 
@@ -40,7 +49,10 @@ function landmarkToRow(landmark: Omit<Landmark, 'id'>): Record<string, unknown> 
     coordinates: landmark.coordinates,
     icon: landmark.icon,
     icon_url: landmark.iconUrl,
-    min_zoom: landmark.min_zoom,
+    icon_url_global: landmark.iconUrlGlobal,
+    icon_size: landmark.iconSize,
+    icon_size_global: landmark.iconSizeGlobal,
+    is_global: landmark.isGlobal,
   };
 }
 
@@ -98,12 +110,15 @@ export function useSupabaseLandmarks() {
     });
 
     const dbUpdates: Record<string, unknown> = {};
-    if (updates.name !== undefined) dbUpdates.name = updates.name;
-    if (updates.zone_id !== undefined) dbUpdates.zone_id = updates.zone_id;
-    if (updates.coordinates !== undefined) dbUpdates.coordinates = updates.coordinates;
-    if (updates.icon !== undefined) dbUpdates.icon = updates.icon;
-    if (updates.iconUrl !== undefined) dbUpdates.icon_url = updates.iconUrl;
-    if (updates.min_zoom !== undefined) dbUpdates.min_zoom = updates.min_zoom;
+    if (updates.name !== undefined)            dbUpdates.name            = updates.name;
+    if (updates.zone_id !== undefined)         dbUpdates.zone_id         = updates.zone_id;
+    if (updates.coordinates !== undefined)     dbUpdates.coordinates     = updates.coordinates;
+    if (updates.icon !== undefined)            dbUpdates.icon            = updates.icon;
+    if (updates.iconUrl !== undefined)         dbUpdates.icon_url        = updates.iconUrl;
+    if (updates.iconUrlGlobal !== undefined)   dbUpdates.icon_url_global = updates.iconUrlGlobal;
+    if (updates.iconSize !== undefined)        dbUpdates.icon_size       = updates.iconSize;
+    if (updates.iconSizeGlobal !== undefined)  dbUpdates.icon_size_global = updates.iconSizeGlobal;
+    if (updates.isGlobal !== undefined)        dbUpdates.is_global       = updates.isGlobal;
 
     if (Object.keys(dbUpdates).length === 0) return;
 
